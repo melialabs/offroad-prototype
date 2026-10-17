@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="az"><head><meta charset="utf-8"><title>Maşın modelləri</title>
+<style>
+body{background:#111;color:#fff;font:14px sans-serif;margin:12px}
+#g{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.c{background:#222;padding:4px}
+.c img{width:100%;height:120px;object-fit:cover;display:block}
+a{color:#7cf}
+</style></head><body>
+<h3>Maşın modelləri (poly.pizza). Lisenziya hər modelin səhifəsində yoxlanılmalıdır</h3>
+<div id="g"></div>
+<script>
+const L=[
+["Jeep","AcSdGGrgYP","1c0f14fb-d3db-41e8-941b-f10fb7aa9681"],
+["Jeep","4gOfX6DR4yG","30bbdeb8-27a7-43a6-8c6b-4861129c5a45"],
+["Humvee","Ebryot9iKM","db098fcf-17c7-4815-8407-027cd6341110"],
+["Range Rover","8zk4o6nALW","139b654a-14c7-4483-960a-5a02615e1af7"],
+["Truck","36sY8cTSgKL","adbe415d-9c61-4314-8960-4e069ea91481"],
+["Jeep","etWba3RYzmi","35ff148d-4eb3-4289-a68b-4de5a214a449"],
+["Mom's Wrangler","dWwNyqBmMvU","ff67bb75-af41-4adb-b843-71b28a5a494e"],
+["Jeep","bSUF7N6ZGmn","97b1d045-4012-4c37-9941-e65ad1fe973d"],
+["M939 Truck","y8lBpvMlim","4afadaae-6384-44e0-bec4-5a416f4e27ff"],
+["Truck","fv2QPJ3DJOY","02d76d23-909e-4b90-83bf-8f0aa5dbccb9"],
+["Mitsubishi L200","4qjS9tFhsJg","ecae441a-cba8-4dd6-9795-207a72d7e88e"],
+["Buggy","eZ_13w7qZh7","8036e526-b08a-4d8c-a4b3-0214097cbc18"],
+["Truckk","jHwRymyg2C","3e7fbbbd-6b3e-43d9-b9bd-cb62bf8d9388"],
+["Pickup Truck","qn4grQgHm8","4e925a01-dbb8-4aab-848b-221306b835ea"],
+["Truck","EWp0hGvZPV","4fc41081-2a2a-4b9e-9200-5111f5b40bf7"],
+["Truck","cPVFA5uTr9l","7942a529-ebc0-46e7-8993-fab633cbd31d"]];
+document.getElementById("g").innerHTML=L.map((x,i)=>
+ '<div class="c"><img src="https://static.poly.pizza/'+x[2]+'.webp" alt="'+x[0]+'"><div>'+(i+1)+'. <a href="https://poly.pizza/m/'+x[1]+'">'+x[0]+'</a></div></div>').join("");
+</script></body></html>
