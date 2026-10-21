@@ -35,6 +35,11 @@ func _physics_process(_delta: float) -> bool:
 			if w.is_in_contact():
 				contact += 1
 		_check(contact == 4, "4 təkər yerə dəyməlidir (%d): %d" % [idx, contact])
+		var cm: CarModel = car["model"]
+		for k in 4:
+			var dy: float = absf(t.wheels[k].position.y - cm.wheel_centers[k].y)
+			var dx: float = absf(t.wheels[k].position.x - cm.wheel_centers[k].x)
+			_check(dy < 0.05 and dx < 0.01, "təkər modeldəki yerdə deyil (%d/%d): dy=%.3f dx=%.3f" % [idx, k, dy, dx])
 		pos0 = t.global_position
 		print("CARS %s radius=%.3f y=%.2f" % [t.spec["name"], t.wheels[0].wheel_radius, t.global_position.y])
 	if f == 330:

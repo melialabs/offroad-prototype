@@ -15,6 +15,8 @@ const DRIVETRAIN_EFF := 0.85
 const GEARS_LOW := [6.5, 4.2]
 const GEARS_HIGH := [3.8, 2.6, 1.8, 1.25, 0.9]
 const GEAR_REVERSE := -5.0
+## Yük altında oturmuş asmanın ölçülmüş uzanması (m). Hardtail Lada modellərində təkər mərkəzi modeldəki yerə düşür.
+const SETTLED_EXTENSION := 0.25
 
 # awd/diff: "none" yoxdur, "switch" açar-bağlar, "always" həmişə açıq
 const SPECS := [
@@ -72,7 +74,6 @@ var _crank_t := 0.0
 var _shift_cooldown := 0.0
 var _jeep: JeepModel
 var _box_nodes: Array[Node3D] = []
-var _jeep_wheel_meshes: Array[MeshInstance3D] = []
 ## spec indeksi -> {model: CarModel, meshes: Array[MeshInstance3D], pos: Array[Vector3]}
 var _cars: Dictionary = {}
 var _col: CollisionShape3D
@@ -131,10 +132,6 @@ func _load_jeep_model() -> void:
 	_jeep = jeep
 	add_child(_jeep.body)
 	for k in 4:
-		var mi := MeshInstance3D.new()
-		mi.mesh = _jeep.wheel_meshes[k]
-		wheels[k].add_child(mi)
-		_jeep_wheel_meshes.append(mi)
 		var c := _jeep.wheel_centers[k] - _jeep.origin
 		# bağlantı nöqtəsi təkər mərkəzindən asmanın rahat uzunluğu qədər yuxarıdadır
 		_jeep_wheel_pos.append(c + Vector3(0, wheels[k].wheel_rest_length, 0))
@@ -152,16 +149,11 @@ func _load_cars() -> void:
 			continue
 		add_child(m.body)
 		m.body.visible = false
-		var meshes: Array[MeshInstance3D] = []
 		var pos: Array[Vector3] = []
 		for k in 4:
-			var mi := MeshInstance3D.new()
-			mi.mesh = m.wheel_meshes[k]
-			mi.visible = false
-			wheels[k].add_child(mi)
-			meshes.append(mi)
-			pos.append(m.wheel_centers[k] + Vector3(0, wheels[k].wheel_rest_length, 0))
-		_cars[i] = {"model": m, "meshes": meshes, "pos": pos}
+			# bağlantı nöqtəsi: asma yükün altında oturan (≈0.25 m uzanmış) vəziyyətdə təkər modeldəki yerində olsun
+			pos.append(m.wheel_centers[k] + Vector3(0, SETTLED_EXTENSION, 0))
+		_cars[i] = {"model": m, "pos": pos}
 
 
 func _add_wheel(pos: Vector3, front: bool) -> void:
@@ -224,24 +216,46 @@ func apply_spec(idx: int) -> void:
 	else:
 		(_col.shape as BoxShape3D).size = Vector3(1.8, 0.9, 4.2)
 		lights.layout(2.1, -2.08, 0.58, 0.76, 0.22, 0.2)
-	for i in wheels.size():
-		wheels[i].wheel_radius = r
-		wheels[i].suspension_max_force = mass * 10.0
+	var positions: Array = []
+	var meshes: Array = []
+	for i in 4:
 		if use_car:
-			wheels[i].position = car["pos"][i]
+			positions.append(car["pos"][i])
+			meshes.append((car["model"] as CarModel).wheel_meshes[i])
+		elif use_jeep:
+			positions.append(_jeep_wheel_pos[i])
+			meshes.append(_jeep.wheel_meshes[i])
 		else:
-			wheels[i].position = _jeep_wheel_pos[i] if use_jeep else _default_wheel_pos[i]
-		wheel_meshes[i].visible = not use_model
-		if i < _jeep_wheel_meshes.size():
-			_jeep_wheel_meshes[i].visible = use_jeep
-		for k in _cars:
-			(_cars[k]["meshes"][i] as MeshInstance3D).visible = (use_car and k == spec_idx)
-		var cyl: CylinderMesh = wheel_meshes[i].mesh
+			positions.append(_default_wheel_pos[i])
+			meshes.append(null)
+	_rebuild_wheels(r, positions, meshes)
+	linear_velocity = Vector3.ZERO
+	angular_velocity = Vector3.ZERO
+
+
+## Godot VehicleWheel3D bağlantı nöqtəsini yalnız ağaca ilk girəndə oxuyur: işləmə vaxtı position
+## dəyişmək təsir etmir, yerində təkrar əlavə etmək də sonradan sürüşməyə səbəb olur. Ona görə texnika
+## dəyişəndə təkərlər silinir və düzgün mövqedə yenidən yaradılır.
+func _rebuild_wheels(r: float, positions: Array, meshes: Array) -> void:
+	for w in wheels:
+		remove_child(w)
+		w.queue_free()
+	wheels.clear()
+	wheel_meshes.clear()
+	for k in 4:
+		_add_wheel(positions[k], k >= 2)  # sıra: 0,1 arxa (-x,+x), 2,3 ön
+		var w := wheels[k]
+		w.wheel_radius = r
+		w.suspension_max_force = mass * 10.0
+		var cyl: CylinderMesh = wheel_meshes[k].mesh
 		cyl.top_radius = r
 		cyl.bottom_radius = r
 		cyl.height = 0.5
-	linear_velocity = Vector3.ZERO
-	angular_velocity = Vector3.ZERO
+		if meshes[k] != null:
+			wheel_meshes[k].visible = false
+			var mi := MeshInstance3D.new()
+			mi.mesh = meshes[k]
+			w.add_child(mi)
 
 
 func _unhandled_input(event: InputEvent) -> void:

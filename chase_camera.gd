@@ -4,6 +4,8 @@ extends Camera3D
 ##   0 Yaxın (GTA), 1 Uzaq, 2 Kapot (sürücü gözü).
 ## Kamera maşının istiqamətinə yumşaq (gecikmə ilə) dönür, sürətlə bir az uzaqlaşır və FOV artır,
 ## ağaca və yerə girməsin deyə şüa ilə yoxlanır.
+## Siçan (tutulu rejimdə) kameranı maşının ətrafında fırladır (GTA kimi); bir neçə saniyə toxunulmayanda
+## kamera yumşaq şəkildə yenidən maşının arxasına qayıdır.
 
 signal mode_changed(mode_name: String)
 
@@ -26,6 +28,17 @@ var mode: int = Mode.CLOSE
 ## Menyu açıq olanda maşının ətrafında yavaş fırlanır, maşın ekranın sağında qalır.
 var menu_orbit := false
 
+## Siçanla verilmiş əlavə bucaqlar (radian): yaw sağa-sola, pitch yuxarı-aşağı (müsbət = kamera yuxarıdan baxır)
+var mouse_yaw := 0.0
+var mouse_pitch := 0.0
+var mouse_sensitivity := 0.0032
+var _mouse_idle := 99.0
+
+const PITCH_MIN := -0.22
+const PITCH_MAX := 0.95
+const RETURN_DELAY := 2.2
+const RETURN_RATE := 2.6
+
 var _yaw := 0.0
 var _orbit_angle := 0.6
 var _fov := 68.0
@@ -40,12 +53,40 @@ func _ready() -> void:
 
 
 func _unhandled_input(event: InputEvent) -> void:
+	if event is InputEventMouseMotion and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED and not menu_orbit:
+		mouse_look((event as InputEventMouseMotion).relative)
 	if event is InputEventKey and event.pressed and not event.echo and event.physical_keycode == KEY_V:
 		set_mode((mode + 1) % MODE_NAMES.size())
 
 
+## Siçan hərəkəti (piksel): sağa = kamera sağa fırlanır, yuxarı = yuxarı baxır.
+func mouse_look(rel: Vector2) -> void:
+	mouse_yaw -= rel.x * mouse_sensitivity
+	mouse_yaw = wrapf(mouse_yaw, -PI, PI)
+	var lo := -0.7 if mode == Mode.HOOD else PITCH_MIN
+	var hi := 0.5 if mode == Mode.HOOD else PITCH_MAX
+	mouse_pitch = clampf(mouse_pitch + rel.y * mouse_sensitivity, lo, hi)
+	_mouse_idle = 0.0
+
+
+## Siçan bucaqlarını sıfırlayır (kamera maşının arxasına qayıdır).
+func reset_mouse_look() -> void:
+	mouse_yaw = 0.0
+	mouse_pitch = 0.0
+	_mouse_idle = 99.0
+
+
+func _relax_mouse(delta: float) -> void:
+	_mouse_idle += delta
+	if _mouse_idle > RETURN_DELAY:
+		var k := 1.0 - exp(-RETURN_RATE * delta)
+		mouse_yaw = lerpf(mouse_yaw, 0.0, k)
+		mouse_pitch = lerpf(mouse_pitch, 0.0, k)
+
+
 func set_mode(m: int) -> void:
 	mode = m
+	reset_mouse_look()
 	_snap = true
 	near = 0.05 if mode == Mode.HOOD else 0.1
 	mode_changed.emit(MODE_NAMES[mode])
@@ -87,9 +128,11 @@ func _heading() -> Vector3:
 
 
 func _update_hood(delta: float) -> void:
+	_relax_mouse(delta)
 	var xf := target.global_transform
 	var pos := xf * HOOD_OFFSET
-	var fwd := xf.basis.z
+	# başı çevirmə: maşının lokal oxlarına görə
+	var fwd := (xf.basis * (Basis(Vector3.UP, mouse_yaw) * (Basis(Vector3.RIGHT, mouse_pitch) * Vector3.BACK))).normalized()
 	look_at_from_position(pos, pos + fwd * 10.0, xf.basis.y)
 	_fov = lerpf(_fov, 76.0 + clampf(target.linear_velocity.length() * 3.6 / 80.0, 0.0, 1.0) * 6.0, 1.0 - exp(-3.0 * delta))
 	fov = _fov
@@ -115,10 +158,14 @@ func _update_chase(delta: float) -> void:
 	else:
 		_yaw = lerp_angle(_yaw, want_yaw, 1.0 - exp(-float(p["yaw_rate"]) * delta))
 
-	var dir := Vector3(sin(_yaw), 0.0, cos(_yaw))
+	_relax_mouse(delta)
+	var yaw := _yaw + mouse_yaw
+	var dir := Vector3(sin(yaw), 0.0, cos(yaw))
 	var dist: float = float(p["dist"]) + clampf(speed / 18.0, 0.0, 1.0) * 1.1
 	var anchor := target.global_position + Vector3.UP * float(p["look_h"])
-	var desired := target.global_position - dir * dist + Vector3.UP * float(p["height"])
+	# pitch: kamera maşının ətrafında şaquli qövs üzrə qalxır/enir (0 = hazır kadr)
+	var rise := float(p["height"]) + sin(mouse_pitch) * dist
+	var desired := target.global_position - dir * dist * cos(mouse_pitch) + Vector3.UP * rise
 
 	# şüa: ağaca və ya yerə girməsin
 	var space := get_world_3d().direct_space_state

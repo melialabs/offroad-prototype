@@ -1,7 +1,6 @@
 extends SceneTree
-## Qaraj səhifəsi və Lada modelləri üçün kadrlar.
-## godot --path . --write-movie out.png --fixed-fps 30 -s res://tests/garage_shots.gd
-## Render kadrları (~fizika/2): 40 qaraj+Niva, 100 2107 menyu, 160 2106 menyu, 220 Niva oyunda, 280 2106 gecə
+## Qaraj səhifəsi (şəkilli kartlar) üçün kadrlar; filmsiz, birbaşa pəncərədən saxlanır.
+## godot --path . --resolution 1280x720 -s res://tests/garage_shots.gd
 
 var main: Node
 var frames := 0
@@ -19,20 +18,10 @@ func _physics_process(_delta: float) -> bool:
 		10:
 			main.menu._show_page("vehicle")
 			main.menu._select_vehicle(3)
-		150:
-			main.menu._select_vehicle(4)
-		270:
+		160:
+			root.get_texture().get_image().save_png("res://docs/qaraj/qaraj_niva.png")
 			main.menu._select_vehicle(5)
-		390:
-			main.menu._select_vehicle(3)
-			main.menu.start_requested.emit()
-			main.truck.toggle_engine()
-			Input.action_press(&"ui_up")
-		560:
-			main.menu._select_vehicle(5) if false else null
-			main.select_vehicle(5)
-			main.truck.toggle_engine()
-			main.set_night(true)
-		680:
+		320:
+			root.get_texture().get_image().save_png("res://docs/qaraj/qaraj_2106.png")
 			quit(0)
 	return false

@@ -244,6 +244,13 @@ func _place_on_road() -> void:
 	truck.global_position = sp["pos"] + Vector3(0, 2.0, 0)
 
 
+## Oyunda siçan tutulur (kamera üçün), menyuda sərbəstdir. Testlərdə (alt düyün kimi yüklənəndə) toxunulmur.
+func _set_mouse_capture(on: bool) -> void:
+	if get_tree().current_scene != self:
+		return
+	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED if on else Input.MOUSE_MODE_VISIBLE
+
+
 func _maybe_open_menu() -> void:
 	if get_tree().current_scene == self:
 		_open_menu(false)
@@ -251,6 +258,7 @@ func _maybe_open_menu() -> void:
 
 func _open_menu(game_running: bool) -> void:
 	_menu_open = true
+	_set_mouse_capture(false)
 	truck.controls_enabled = false
 	cam.menu_orbit = true
 	hud.visible = false
@@ -259,6 +267,8 @@ func _open_menu(game_running: bool) -> void:
 
 func _close_menu() -> void:
 	_menu_open = false
+	cam.reset_mouse_look()
+	_set_mouse_capture(true)
 	truck.controls_enabled = true
 	cam.menu_orbit = false
 	cam.snap()

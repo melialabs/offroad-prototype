@@ -164,7 +164,15 @@ func _build_vehicle() -> VBoxContainer:
 	grid.add_theme_constant_override("v_separation", 10)
 	v.add_child(grid)
 	for i in OffroadTruck.SPECS.size():
-		var b := _button("", func(): _select_vehicle(i), 84.0)
+		var b := _button("", func(): _select_vehicle(i), 96.0)
+		var thumb := "res://assets/ui/car_%d.png" % i
+		if ResourceLoader.exists(thumb):
+			b.icon = load(thumb)
+			b.expand_icon = false
+			b.icon_alignment = HORIZONTAL_ALIGNMENT_LEFT
+			b.add_theme_constant_override("icon_max_width", 150)
+			b.add_theme_constant_override("h_separation", 14)
+			b.add_theme_font_size_override("font_size", 16)
 		_vehicle_buttons.append(b)
 		grid.add_child(b)
 	v.add_child(_button("Geri", func(): _show_page("main")))
@@ -185,6 +193,7 @@ func _build_controls() -> VBoxContainer:
 		["Z", "qəza işıqları"],
 		["N", "gündüz / gecə"],
 		["Kamera", ""],
+		["Siçan", "kameranı çevir (GTA kimi, buraxanda arxaya qayıdır)"],
 		["V", "yaxın / uzaq / kapot kamerası"],
 		["Transmissiya", ""],
 		["Q", "aşağı / yuxarı diapazon"],
@@ -311,7 +320,7 @@ func _refresh_vehicle_buttons() -> void:
 		var awd: String = {"always": "həmişə", "switch": "açar-bağla"}.get(sp["awd"], "yox")
 		var diff: String = {"none": "yoxdur", "switch": "var", "always": "həmişə"}.get(sp["diff"], "yox")
 		var cur := truck != null and truck.spec_idx == i
-		_vehicle_buttons[i].text = "%s%s\nKütlə %d kq  ·  moment %d N·m  ·  yanacaq %d L\nAWD: %s  ·  diferensial kilidi: %s" % [
+		_vehicle_buttons[i].text = "%s%s\n%d kq  ·  %d N·m  ·  %d L\nAWD: %s  ·  dif. kilidi: %s" % [
 			"✓ " if cur else "", sp["name"], int(sp["mass"]), int(sp["torque"]), int(sp["fuel"]), awd, diff]
 
 

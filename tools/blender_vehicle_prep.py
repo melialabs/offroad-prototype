@@ -225,9 +225,10 @@ def geometric_wheels():
             lo, hi = world_bbox([o])
             oc = (lo + hi) / 2
             size = hi - lo
-            if abs(oc.x - c.x) < 0.2 and Vector((0, oc.y - c.y, oc.z - c.z)).length < r * 0.95 and max(size.y, size.z) < r * 2.1 and size.x < 0.35:
+            if abs(oc.x - c.x) < 0.13 and Vector((0, oc.y - c.y, oc.z - c.z)).length < r * 1.1 and max(size.y, size.z) < r * 2.6 and size.x < 0.3:
                 g.append(o)
         groups["q%d%d" % k] = g
+        print("PREP wheel group %s parts=%d" % (k, len(g)))
     return groups
 
 
