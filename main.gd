@@ -1,8 +1,8 @@
 extends Node3D
 
 var truck: OffroadTruck
-var cam: Camera3D
-var hud: Label
+var cam: ChaseCamera
+var hud: Hud
 var _terrain: MudTerrain
 
 const SKY_SHADER := """
@@ -54,17 +54,17 @@ func _ready() -> void:
 	add_child(truck)
 	_place_on_road()
 
-	cam = Camera3D.new()
-	cam.fov = 70.0
-	cam.far = 1500.0
+	cam = ChaseCamera.new()
+	cam.target = truck
+	cam.terrain = terrain
 	add_child(cam)
 
 	var layer := CanvasLayer.new()
-	hud = Label.new()
-	hud.position = Vector2(16, 12)
-	hud.add_theme_font_size_override(&"font_size", 20)
+	hud = Hud.new()
+	hud.truck = truck
 	layer.add_child(hud)
 	add_child(layer)
+	cam.mode_changed.connect(hud.show_toast)
 
 
 func _setup_environment() -> void:
@@ -204,19 +204,8 @@ func _place_on_road() -> void:
 	truck.global_position = sp["pos"] + Vector3(0, 2.0, 0)
 
 
-func _physics_process(delta: float) -> void:
-	# kamera maşının arxasından yumşaq izləyir
-	var back := -truck.global_transform.basis.z
-	back.y = 0.0
-	back = back.normalized()
-	var target := truck.global_position + back * 9.0 + Vector3.UP * 4.0
-	cam.global_position = cam.global_position.lerp(target, 1.0 - exp(-4.0 * delta))
-	cam.look_at(truck.global_position + Vector3.UP * 1.0)
-
-	var kmh := truck.linear_velocity.length() * 3.6
-	hud.text = "%d km/saat   |   palçıq: %d%%\n%s\nW/S qaz-əyləc, A/D sükan, Space əl əyləci, R sıfırla, 1/2/3 texnika" % [
-		kmh, int(clampf(truck.mud_level, 0.0, 1.0) * 100.0), truck.hud_text()]
-
+func _physics_process(_delta: float) -> void:
 	# xəritədən düşsə avtomatik sıfırla
 	if Input.is_physical_key_pressed(KEY_R) or truck.global_position.y < -30.0:
 		_place_on_road()
+		cam.snap()
