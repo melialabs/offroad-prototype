@@ -3,35 +3,44 @@ extends StaticBody3D
 ## Deformasiya olunan landşaft: təkər basdıqca palçıqlı yer batır.
 ## Üzərində asfalt yol (palçıq olmur) və palçıq cığırı var.
 
-const N := 129             # tor ölçüsü (N x N nöqtə), xəritə ~192 m
-const CELL := 1.5          # bir xanənin metrlə ölçüsü
+const N := 513             # 512 cells x 4 m = 2048 m on each side
+const CELL := 4.0          # coarse world grid; road has a separate smooth ribbon
 const MAX_DEPTH := 0.7     # yerin ən çox batma dərinliyi
 const REBUILD_INTERVAL := 0.1
+const CHUNK_CELLS := 32
+const ROUTE_BIN := 64.0
+var _chunks := {}
+var _road_bins := {}
+var _trail_bins := {}
 
 const ROAD_HALF := 4.0     # yolun yarım eni (metr)
 const ROAD_BLEND := 7.0    # yolun hündürlüyünün relyefə qarışma məsafəsi
 const TRAIL_HALF := 3.0    # palçıq cığırının yarım eni
 # dünya koordinatında (x, z) nəzarət nöqtələri
 const ROAD_POINTS := [
-	Vector2(-86, -60), Vector2(-53, -31), Vector2(-22, -7), Vector2(7, 7),
-	Vector2(36, 22), Vector2(58, 46), Vector2(52, 70), Vector2(26, 82),
+	Vector2(-780, -720), Vector2(-450, -760), Vector2(-100, -700),
+	Vector2(120, -460), Vector2(500, -520), Vector2(780, -250),
+	Vector2(650, 0), Vector2(770, 140), Vector2(650, 210),
+	Vector2(800, 290), Vector2(680, 360), Vector2(740, 450), Vector2(550, 600),
+	Vector2(180, 760), Vector2(-80, 580), Vector2(-350, 780),
+	Vector2(-700, 600), Vector2(-780, 200), Vector2(-580, -80),
+	Vector2(-780, -360), Vector2(-780, -720),
 ]
 const TRAIL_POINTS := [
-	Vector2(36, 22), Vector2(46, 2), Vector2(64, -14), Vector2(82, -34),
+	Vector2(-450, -760), Vector2(-380, -500), Vector2(-330, -300),
+	Vector2(-330, -160), Vector2(-290, 30), Vector2(140, 80), Vector2(300, 300), Vector2(550, 600),
 ]
 
 # relyef: yolun yanında hamar, uzaqda təpələr, xəritənin kənarında dağ silsiləsi
 const ROAD_CORRIDOR := 40.0   # yol yamacından təpələrin tam başladığı məsafə
-const MOUNTAIN_START := 52.0  # dağ silsiləsinin başladığı məsafə (mərkəzdən, max(|x|,|z|))
-const MOUNTAIN_FULL := 92.0
+const MOUNTAIN_START := 850.0  # dağ silsiləsinin başladığı məsafə (mərkəzdən, max(|x|,|z|))
+const MOUNTAIN_FULL := 1024.0
 const MIN_ROAD_HEIGHT := -1.0 # yol su səviyyəsindən yuxarıda qalsın
 
 var h := PackedFloat32Array()     # cari hündürlük
 var base := PackedFloat32Array()  # ilkin hündürlük
 var soft := PackedFloat32Array()  # 0 = bərk yer, 1 = dərin palçıq
 
-var _mesh_inst := MeshInstance3D.new()
-var _shape := HeightMapShape3D.new()
 var _verts := PackedVector3Array()
 var _normals := PackedVector3Array()
 var _tangents := PackedFloat32Array()
@@ -66,18 +75,9 @@ var _trail := PackedVector2Array()
 func _ready() -> void:
 	_generate()
 	_build_indices()
-	_shape.map_width = N
-	_shape.map_depth = N
-	_shape.map_data = h
-	var col := CollisionShape3D.new()
-	col.shape = _shape
-	col.scale = Vector3(CELL, 1.0, CELL)
-	add_child(col)
-
 	_material = _make_material()
-	_mesh_inst.material_override = _material
-	add_child(_mesh_inst)
 	_rebuild_mesh()
+
 
 
 func _process(delta: float) -> void:
@@ -85,7 +85,6 @@ func _process(delta: float) -> void:
 	if _dirty and _timer >= REBUILD_INTERVAL:
 		_timer = 0.0
 		_dirty = false
-		_shape.map_data = h
 		_rebuild_mesh(false)
 
 
@@ -225,8 +224,40 @@ func _hill_noise() -> FastNoiseLite:
 
 
 func _raw_height(hills: FastNoiseLite, wx: float, wz: float) -> float:
-	var flat := clampf((Vector2(wx, wz).length() - 8.0) / 25.0, 0.0, 1.0)
-	return hills.get_noise_2d(wx, wz) * 6.0 * flat
+	var p := Vector2(wx, wz)
+	var mountain := exp(-p.distance_squared_to(Vector2(540, 420)) / 120000.0) * 155.0
+	mountain += exp(-p.distance_squared_to(Vector2(-650, 530)) / 100000.0) * 100.0
+	mountain += exp(-p.distance_squared_to(Vector2(650, -540)) / 75000.0) * 72.0
+	var lake := exp(-p.distance_squared_to(Vector2(-150, -120)) / 24000.0) * 26.0
+	return 7.0 + mountain - lake + hills.get_noise_2d(wx, wz) * 3.5
+
+
+## Index only nearby route segments; far-away terrain does not need exact road UVs.
+func _route_index(line: PackedVector2Array, reach: float) -> Dictionary:
+	var bins := {}
+	for i in line.size() - 1:
+		var lo := line[i].min(line[i + 1]) - Vector2.ONE * reach
+		var hi := line[i].max(line[i + 1]) + Vector2.ONE * reach
+		for z in range(floori(lo.y / ROUTE_BIN), floori(hi.y / ROUTE_BIN) + 1):
+			for x in range(floori(lo.x / ROUTE_BIN), floori(hi.x / ROUTE_BIN) + 1):
+				var key := Vector2i(x, z)
+				if not bins.has(key):
+					bins[key] = []
+				bins[key].append(i)
+	return bins
+
+
+func _near_route(p: Vector2, line: PackedVector2Array, lens: PackedFloat32Array, bins: Dictionary) -> Array:
+	var key := Vector2i(floori(p.x / ROUTE_BIN), floori(p.y / ROUTE_BIN))
+	var best := [10000.0, 10000.0, 0.0, 0, 0.0]
+	for i: int in bins.get(key, []):
+		var ab := line[i + 1] - line[i]
+		var t := clampf((p - line[i]).dot(ab) / maxf(ab.length_squared(), 0.001), 0.0, 1.0)
+		var d := p.distance_to(line[i] + ab * t)
+		if d < best[0]:
+			var ap := p - line[i]
+			best = [d, d * (1.0 if ab.cross(ap) >= 0.0 else -1.0), lens[i] + t * ab.length(), i, t]
+	return best
 
 
 func _generate() -> void:
@@ -258,10 +289,12 @@ func _generate() -> void:
 	_aux_deepk.resize(N * N)
 	road_dist.resize(N * N)
 
-	_road = _spline(ROAD_POINTS, 16)
+	_road = _spline(ROAD_POINTS, 12)
 	_road_len = _lengths(_road)
-	_trail = _spline(TRAIL_POINTS, 12)
+	_trail = _spline(TRAIL_POINTS, 10)
 	var trail_len := _lengths(_trail)
+	_road_bins = _route_index(_road, 100.0)
+	_trail_bins = _route_index(_trail, 24.0)
 
 	# yolun hündürlük profili: xətt boyu relyef orta qiymətlə hamarlanır
 	var raw := PackedFloat32Array()
@@ -271,11 +304,20 @@ func _generate() -> void:
 	for i in _road.size():
 		var s := 0.0
 		var c := 0
-		for k in range(maxi(i - 8, 0), mini(i + 9, _road.size())):
+		for k in range(maxi(i - 2, 0), mini(i + 3, _road.size())):
 			s += raw[k]
 			c += 1
 		_road_h[i] = maxf(s / c, MIN_ROAD_HEIGHT)
 
+	# Limit the paved route to a driveable 10 percent grade in both directions.
+	for pass_index in 4:
+		for i in range(1, _road.size()):
+			var rise := _road[i].distance_to(_road[i - 1]) * 0.10
+			_road_h[i] = clampf(_road_h[i], _road_h[i - 1] - rise, _road_h[i - 1] + rise)
+		for i in range(_road.size() - 2, -1, -1):
+			var rise := _road[i].distance_to(_road[i + 1]) * 0.10
+			_road_h[i] = clampf(_road_h[i], _road_h[i + 1] - rise, _road_h[i + 1] + rise)
+	_road_h[_road_h.size() - 1] = _road_h[0]
 	var half := (N - 1) * 0.5
 	for z in N:
 		for x in N:
@@ -291,12 +333,12 @@ func _generate() -> void:
 
 			var p := Vector2(wx, wz)
 			# palçıq cığırı
-			var tr := _nearest(p, _trail, trail_len)
+			var tr := _near_route(p, _trail, trail_len, _trail_bins)
 			var td: float = tr[0]
 			s = maxf(s, 1.0 - smoothstep(TRAIL_HALF, TRAIL_HALF + 2.5, td))
 
 			# asfalt yol
-			var rd := _nearest(p, _road, _road_len)
+			var rd := _near_route(p, _road, _road_len, _road_bins)
 			var d: float = rd[0]
 			var seg: int = rd[3]
 			var t: float = rd[4]
@@ -331,7 +373,7 @@ func _generate() -> void:
 			var i := z * N + x
 			var gx := (h[_idx(x + 1, z)] - h[_idx(x - 1, z)]) / (2.0 * CELL)
 			var gz := (h[_idx(x, z + 1)] - h[_idx(x, z - 1)]) / (2.0 * CELL)
-			if Vector2(gx, gz).length() > 0.45 or h[i] > 24.0:
+			if Vector2(gx, gz).length() > 0.45 or h[i] > 70.0:
 				soft[i] = 0.0
 	_build_ctrl()
 
@@ -339,9 +381,9 @@ func _generate() -> void:
 ## Güclü relyef: yuvarlanan təpələr + xəritənin kənarında silsilə dağlar.
 func _strong_height(wx: float, wz: float) -> float:
 	var edge := smoothstep(MOUNTAIN_START, MOUNTAIN_FULL, maxf(absf(wx), absf(wz)))
-	var rolling := maxf(_big.get_noise_2d(wx, wz) * 12.0 + 4.0, -3.0)  # çökəkliklər göl kimi qalır
 	var ridge := _ridge.get_noise_2d(wx, wz) * 0.5 + 0.5
-	return rolling + edge * (10.0 + ridge * 34.0)
+	return _raw_height(_big, wx, wz) + ridge * 8.0 + edge * (35.0 + ridge * 70.0)
+
 
 
 func _idx(x: int, z: int) -> int:
@@ -349,17 +391,15 @@ func _idx(x: int, z: int) -> int:
 
 
 func _build_indices() -> void:
-	for z in N - 1:
-		for x in N - 1:
-			var a := z * N + x
-			var b := a + 1
-			var c := a + N
-			var d := c + 1
-			_indices.append_array([a, b, c, b, d, c])
+	# Shared topology for 128 m terrain chunks. Only changed chunks are rebuilt.
+	var stride := CHUNK_CELLS + 1
+	for z in CHUNK_CELLS:
+		for x in CHUNK_CELLS:
+			var a := z * stride + x
+			_indices.append_array([a, a + 1, a + stride, a + 1, a + stride + 1, a + stride])
 	_verts.resize(N * N)
 	_normals.resize(N * N)
 	_tangents.resize(N * N * 4)
-	_colors.resize(N * N)
 
 
 ## full=false olanda yalnız dəyişən hissənin vertekslərini, normallarını və rənglərini yeniləyir.
@@ -394,17 +434,57 @@ func _rebuild_mesh(full := true) -> void:
 	if _ctrl_b_tex != null:
 		_ctrl_b_tex.update(_ctrl_b_img)
 
+	for cz in range(maxi(z0 - 1, 0) / CHUNK_CELLS, mini(z1 / CHUNK_CELLS, (N - 2) / CHUNK_CELLS) + 1):
+		for cx in range(maxi(x0 - 1, 0) / CHUNK_CELLS, mini(x1 / CHUNK_CELLS, (N - 2) / CHUNK_CELLS) + 1):
+			_build_chunk(cx, cz)
+
+
+func _build_chunk(cx: int, cz: int) -> void:
+	var key := Vector2i(cx, cz)
+	var n := CHUNK_CELLS + 1
+	var vertices := PackedVector3Array()
+	var normals := PackedVector3Array()
+	var tangents := PackedFloat32Array()
+	var uv := PackedVector2Array()
+	var uv2 := PackedVector2Array()
+	var heights := PackedFloat32Array()
+	for z in n:
+		for x in n:
+			var i := (cz * CHUNK_CELLS + z) * N + cx * CHUNK_CELLS + x
+			vertices.append(_verts[i])
+			normals.append(_normals[i])
+			tangents.append_array(_tangents.slice(i * 4, i * 4 + 4))
+			uv.append(_uv[i])
+			uv2.append(_uv2[i])
+			heights.append(h[i])
 	var arrays := []
 	arrays.resize(Mesh.ARRAY_MAX)
-	arrays[Mesh.ARRAY_VERTEX] = _verts
-	arrays[Mesh.ARRAY_NORMAL] = _normals
-	arrays[Mesh.ARRAY_TANGENT] = _tangents
-	arrays[Mesh.ARRAY_TEX_UV] = _uv
-	arrays[Mesh.ARRAY_TEX_UV2] = _uv2
+	arrays[Mesh.ARRAY_VERTEX] = vertices
+	arrays[Mesh.ARRAY_NORMAL] = normals
+	arrays[Mesh.ARRAY_TANGENT] = tangents
+	arrays[Mesh.ARRAY_TEX_UV] = uv
+	arrays[Mesh.ARRAY_TEX_UV2] = uv2
 	arrays[Mesh.ARRAY_INDEX] = _indices
 	var mesh := ArrayMesh.new()
 	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
-	_mesh_inst.mesh = mesh
+	if not _chunks.has(key):
+		var mi := MeshInstance3D.new()
+		mi.name = "Terrain_%d_%d" % [cx, cz]
+		mi.material_override = _material
+		mi.visibility_range_end = 2000.0
+		mi.visibility_range_end_margin = 40.0
+		add_child(mi)
+		var shape := HeightMapShape3D.new()
+		shape.map_width = n
+		shape.map_depth = n
+		var collider := CollisionShape3D.new()
+		collider.shape = shape
+		collider.position = Vector3((cx * CHUNK_CELLS + CHUNK_CELLS * 0.5 - (N - 1) * 0.5) * CELL, 0, (cz * CHUNK_CELLS + CHUNK_CELLS * 0.5 - (N - 1) * 0.5) * CELL)
+		collider.scale = Vector3(CELL, 1, CELL)
+		add_child(collider)
+		_chunks[key] = {"mesh": mi, "shape": shape}
+	(_chunks[key]["mesh"] as MeshInstance3D).mesh = mesh
+	(_chunks[key]["shape"] as HeightMapShape3D).map_data = heights
 
 
 ## Dünya koordinatından tor indeksinə.
@@ -455,7 +535,10 @@ func road_distance_fast(world_pos: Vector3) -> float:
 	var z := roundi(g.y)
 	if x < 0 or z < 0 or x >= N or z >= N:
 		return 1000.0
-	return road_dist[z * N + x]
+	var approximate := road_dist[z * N + x]
+	if approximate < 16.0:
+		return _near_route(Vector2(world_pos.x, world_pos.z), _road, _road_len, _road_bins)[0]
+	return approximate
 
 
 ## Nöqtənin asfalt yolun oxundan məsafəsi (metr), dəqiq amma yavaş (hər seqmentə baxır).
@@ -466,7 +549,7 @@ func road_distance_at(world_pos: Vector3) -> float:
 
 ## Yol üzərində başlanğıc nöqtəsi: {pos: Vector3, yaw: float}. Maşının irəlisi +Z-dir.
 func road_spawn() -> Dictionary:
-	var i := int(_road.size() * 0.35)
+	var i := 2
 	var p := _road[i]
 	var dir := (_road[i + 1] - _road[i]).normalized()
 	return {"pos": Vector3(p.x, _road_h[i], p.y), "yaw": atan2(dir.x, dir.y)}
@@ -475,6 +558,7 @@ func road_spawn() -> Dictionary:
 ## Təkərin basdığı yeri batırır, kənarlarını bir az qaldırır.
 func deform(world_pos: Vector3, radius: float, amount: float) -> void:
 	var g := _to_grid(world_pos)
+	radius = maxf(radius, CELL * 0.85)
 	var r := int(ceil(radius / CELL))
 	var cx := roundi(g.x)
 	var cz := roundi(g.y)

@@ -86,6 +86,12 @@ func _ready() -> void:
 	hud.truck = truck
 	layer.add_child(hud)
 	add_child(layer)
+	var map_layer := CanvasLayer.new()
+	var world_map := WorldMap.new()
+	world_map.terrain = terrain
+	world_map.truck = truck
+	map_layer.add_child(world_map)
+	add_child(map_layer)
 	cam.mode_changed.connect(hud.show_toast)
 	truck.message.connect(hud.show_toast)
 
@@ -124,7 +130,7 @@ func _setup_environment() -> void:
 	env.glow_hdr_threshold = 1.1
 	env.fog_enabled = true
 	env.fog_light_color = Color(0.72, 0.86, 0.98)
-	env.fog_density = 0.0012
+	env.fog_density = 0.00065
 	env.fog_sky_affect = 0.25
 	env.fog_aerial_perspective = 0.35
 	env.adjustment_enabled = true
@@ -151,7 +157,7 @@ func _build_scenery(terrain: MudTerrain) -> void:
 	# uzaq zəmin və su
 	var far_ground := MeshInstance3D.new()
 	var pm := PlaneMesh.new()
-	pm.size = Vector2(1400, 1400)
+	pm.size = Vector2(4200, 4200)
 	far_ground.mesh = pm
 	var gm := StandardMaterial3D.new()
 	gm.albedo_color = Color(0.36, 0.55, 0.25)
@@ -162,7 +168,7 @@ func _build_scenery(terrain: MudTerrain) -> void:
 
 	var water := MeshInstance3D.new()
 	var wm := PlaneMesh.new()
-	wm.size = Vector2(1400, 1400)
+	wm.size = Vector2(4200, 4200)
 	water.mesh = wm
 	var wmat := StandardMaterial3D.new()
 	wmat.albedo_color = Color(0.12, 0.45, 0.62, 0.78)
@@ -176,6 +182,9 @@ func _build_scenery(terrain: MudTerrain) -> void:
 	add_child(water)
 
 	_build_mountains()
+	var landmarks := WorldLandmarks.new()
+	add_child(landmarks)
+	landmarks.build(terrain)
 	var vegetation := Vegetation.new()
 	vegetation.name = "Vegetation"
 	add_child(vegetation)
@@ -188,12 +197,12 @@ func _build_mountains() -> void:
 	noise.seed = 99
 	noise.frequency = 0.9
 	var segs := 72
-	var radii := [230.0, 300.0, 380.0]
+	var radii := [1450.0, 1750.0, 2100.0]
 	var st := SurfaceTool.new()
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)
 	for ri in radii.size():
 		var r: float = radii[ri]
-		var hmax := 55.0 + ri * 25.0
+		var hmax := 180.0 + ri * 55.0
 		for i in segs:
 			var a0 := TAU * i / segs
 			var a1 := TAU * (i + 1) / segs
@@ -319,7 +328,7 @@ func set_night(on: bool) -> void:
 		_sun.light_energy = 1.3
 		_env.ambient_light_energy = 0.7
 		_env.fog_light_color = Color(0.72, 0.86, 0.98)
-		_env.fog_density = 0.0012
+		_env.fog_density = 0.00065
 		_env.adjustment_saturation = 1.15
 		if truck.lights.headlight_mode != 0:
 			truck.lights.set_headlights(0)
@@ -349,6 +358,6 @@ func _unhandled_input(event: InputEvent) -> void:
 
 func _physics_process(_delta: float) -> void:
 	# xəritədən düşsə avtomatik sıfırla
-	if (Input.is_physical_key_pressed(KEY_R) and not _menu_open) or truck.global_position.y < -30.0:
+	if (Input.is_physical_key_pressed(KEY_R) and not _menu_open) or truck.global_position.y < -30.0 or absf(truck.global_position.x) > 1010.0 or absf(truck.global_position.z) > 1010.0:
 		_place_on_road()
 		cam.snap()
