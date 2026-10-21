@@ -76,6 +76,14 @@ func _ready() -> void:
 	_apply()
 
 
+## Hazır modeldə öz fənər şüşələri olanda yapışdırılmış kürələr gizlədilir (yalnız işıq mənbələri qalır).
+func set_lens_visible(v: bool) -> void:
+	for arr in [_head_meshes, _tail_meshes, _amber_meshes]:
+		for m in arr:
+			(m as MeshInstance3D).visible = v
+	_rev_mesh.visible = v
+
+
 ## Maşının ölçüsünə görə işıq mövqelərini qurur (mərkəzə görə, irəli +Z).
 func layout(front_z: float, rear_z: float, head_x: float, tail_x: float, head_y: float, tail_y: float) -> void:
 	HEAD_POS = [Vector3(head_x, head_y, front_z), Vector3(-head_x, head_y, front_z)]

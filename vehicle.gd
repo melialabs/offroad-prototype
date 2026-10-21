@@ -35,7 +35,7 @@ const SPECS := [
 		"car": "res://assets/cars/lada_2107.glb", "origin": 0.72, "lights": [0.55, 0.7, 0.55, 0.78]},
 	{"name": "Lada 2106", "mass": 1030.0, "torque": 240.0, "fuel": 39.0,
 		"radius": 0.3, "awd": "none", "diff": "none", "tire": 0,
-		"car": "res://assets/cars/lada_2106.glb", "origin": 0.72, "lights": [0.5, 0.68, 0.5, 0.78]},
+		"car": "res://assets/cars/lada_2106.glb", "origin": 0.72, "lights": [0.5, 0.55, 0.5, 0.74]},
 ]
 
 # hard = bərk yerdə tutuşma, mud = palçıqda tutuşma
@@ -213,9 +213,11 @@ func apply_spec(idx: int) -> void:
 		var half := cm.length * 0.5
 		var oh := float(spec["origin"])
 		lights.layout(half - 0.1, -half + 0.1, lp[0], lp[1], lp[2] - oh + 0.1, lp[3] - oh)
+		lights.set_lens_visible(false)
 	else:
 		(_col.shape as BoxShape3D).size = Vector3(1.8, 0.9, 4.2)
 		lights.layout(2.1, -2.08, 0.58, 0.76, 0.22, 0.2)
+		lights.set_lens_visible(true)
 	var positions: Array = []
 	var meshes: Array = []
 	for i in 4:
