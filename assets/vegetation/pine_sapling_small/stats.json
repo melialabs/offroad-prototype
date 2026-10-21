@@ -1,0 +1,57 @@
+{
+  "asset": "pine_sapling_small",
+  "variants": {
+    "b": {
+      "wood_tris": 486,
+      "foliage_tris": 121749,
+      "height_m": 1.05,
+      "lod0": {
+        "wood_tris": 486,
+        "foliage_tris": 366,
+        "total": 852
+      },
+      "lod1": {
+        "wood_tris": 299,
+        "foliage_tris": 68,
+        "total": 367
+      }
+    },
+    "a": {
+      "wood_tris": 540,
+      "foliage_tris": 141966,
+      "height_m": 1.28,
+      "lod0": {
+        "wood_tris": 540,
+        "foliage_tris": 486,
+        "total": 1026
+      },
+      "lod1": {
+        "wood_tris": 300,
+        "foliage_tris": 88,
+        "total": 388
+      }
+    },
+    "c": {
+      "wood_tris": 528,
+      "foliage_tris": 132875,
+      "height_m": 0.96,
+      "lod0": {
+        "wood_tris": 528,
+        "foliage_tris": 288,
+        "total": 816
+      },
+      "lod1": {
+        "wood_tris": 299,
+        "foliage_tris": 48,
+        "total": 347
+      }
+    }
+  },
+  "materials": {
+    "pine_sapling_small_bark": {
+      "diff": "pine_sapling_small_bark_diff_1k.jpg",
+      "arm": "pine_sapling_small_bark_arm_1k.jpg",
+      "nor": "pine_sapling_small_bark_nor_gl_1k.jpg"
+    }
+  }
+}

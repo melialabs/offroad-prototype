@@ -1,0 +1,92 @@
+{
+  "asset": "fir_tree_01",
+  "variants": {
+    "a": {
+      "wood_tris": 110700,
+      "foliage_tris": 4066119,
+      "height_m": 18.83,
+      "lod0": {
+        "wood_tris": 9075,
+        "foliage_tris": 4434,
+        "total": 13509
+      },
+      "lod1": {
+        "wood_tris": 2500,
+        "foliage_tris": 972,
+        "total": 3472
+      },
+      "lod2": {
+        "wood_tris": 599,
+        "foliage_tris": 204,
+        "total": 803
+      }
+    },
+    "b": {
+      "wood_tris": 93328,
+      "foliage_tris": 2207296,
+      "height_m": 13.96,
+      "lod0": {
+        "wood_tris": 9000,
+        "foliage_tris": 2430,
+        "total": 11430
+      },
+      "lod1": {
+        "wood_tris": 2500,
+        "foliage_tris": 582,
+        "total": 3082
+      },
+      "lod2": {
+        "wood_tris": 599,
+        "foliage_tris": 116,
+        "total": 715
+      }
+    },
+    "c": {
+      "wood_tris": 59420,
+      "foliage_tris": 446074,
+      "height_m": 14.42,
+      "lod0": {
+        "wood_tris": 8999,
+        "foliage_tris": 1488,
+        "total": 10487
+      },
+      "lod1": {
+        "wood_tris": 2500,
+        "foliage_tris": 408,
+        "total": 2908
+      },
+      "lod2": {
+        "wood_tris": 599,
+        "foliage_tris": 100,
+        "total": 699
+      }
+    }
+  },
+  "materials": {
+    "fir_tree_01_bark": {
+      "diff": "fir_tree_01_bark_diff_1k.jpg",
+      "arm": "fir_tree_01_bark_arm_1k.jpg",
+      "nor": "fir_tree_01_bark_nor_gl_1k.jpg"
+    },
+    "fir_tree_01_dead_branches": {
+      "diff": "fir_tree_01_bark_diff_1k.jpg",
+      "arm": "fir_tree_01_bark_arm_1k.jpg",
+      "nor": "fir_tree_01_bark_nor_gl_1k.jpg"
+    },
+    "fir_tree_01_trunk_a": {
+      "diff": "fir_tree_01_trunk_a_diff_1k.jpg",
+      "arm": "fir_tree_01_trunk_a_arm_1k.jpg",
+      "nor": "fir_tree_01_trunk_a_nor_gl_1k.jpg"
+    },
+    "fir_tree_01_trunk_b": {
+      "diff": "fir_tree_01_trunk_b_diff_1k.jpg",
+      "arm": "fir_tree_01_trunk_b_arm_1k.jpg",
+      "nor": "fir_tree_01_trunk_b_nor_gl_1k.jpg"
+    },
+    "fir_tree_01_trunk_c": {
+      "diff": "fir_tree_01_bark_diff_1k.jpg",
+      "arm": "fir_tree_01_bark_arm_1k.jpg",
+      "nor": "fir_tree_01_bark_nor_gl_1k.jpg"
+    }
+  }
+}

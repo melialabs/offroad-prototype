@@ -1,0 +1,92 @@
+{
+  "asset": "pine_tree_01",
+  "variants": {
+    "a": {
+      "wood_tris": 112702,
+      "foliage_tris": 6838822,
+      "height_m": 20.29,
+      "lod0": {
+        "wood_tris": 9000,
+        "foliage_tris": 5628,
+        "total": 14628
+      },
+      "lod1": {
+        "wood_tris": 2499,
+        "foliage_tris": 1332,
+        "total": 3831
+      },
+      "lod2": {
+        "wood_tris": 700,
+        "foliage_tris": 328,
+        "total": 1028
+      }
+    },
+    "b": {
+      "wood_tris": 97482,
+      "foliage_tris": 4136950,
+      "height_m": 14.79,
+      "lod0": {
+        "wood_tris": 9000,
+        "foliage_tris": 3414,
+        "total": 12414
+      },
+      "lod1": {
+        "wood_tris": 2500,
+        "foliage_tris": 858,
+        "total": 3358
+      },
+      "lod2": {
+        "wood_tris": 699,
+        "foliage_tris": 224,
+        "total": 923
+      }
+    },
+    "c": {
+      "wood_tris": 71366,
+      "foliage_tris": 5924930,
+      "height_m": 17.45,
+      "lod0": {
+        "wood_tris": 8999,
+        "foliage_tris": 4482,
+        "total": 13481
+      },
+      "lod1": {
+        "wood_tris": 2499,
+        "foliage_tris": 1104,
+        "total": 3603
+      },
+      "lod2": {
+        "wood_tris": 700,
+        "foliage_tris": 264,
+        "total": 964
+      }
+    }
+  },
+  "materials": {
+    "pine_tree_01_bark": {
+      "diff": "pine_tree_01_bark_diff_1k.jpg",
+      "arm": "pine_tree_01_bark_arm_1k.jpg",
+      "nor": "pine_tree_01_bark_nor_gl_1k.jpg"
+    },
+    "pine_tree_01_dead_branches": {
+      "diff": "pine_tree_01_bark_diff_1k.jpg",
+      "arm": "pine_tree_01_bark_arm_1k.jpg",
+      "nor": "pine_tree_01_bark_nor_gl_1k.jpg"
+    },
+    "pine_tree_01_trunk_a": {
+      "diff": "pine_tree_01_trunk_a_diff_1k.jpg",
+      "arm": "pine_tree_01_trunk_a_arm_1k.jpg",
+      "nor": "pine_tree_01_trunk_a_nor_gl_1k.jpg"
+    },
+    "pine_tree_01_trunk_b": {
+      "diff": "pine_tree_01_trunk_b_diff_1k.jpg",
+      "arm": "pine_tree_01_trunk_b_arm_1k.jpg",
+      "nor": "pine_tree_01_trunk_b_nor_gl_1k.jpg"
+    },
+    "pine_tree_01_trunk_c": {
+      "diff": "pine_tree_01_bark_diff_1k.jpg",
+      "arm": "pine_tree_01_bark_arm_1k.jpg",
+      "nor": "pine_tree_01_bark_nor_gl_1k.jpg"
+    }
+  }
+}

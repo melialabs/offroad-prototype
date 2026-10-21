@@ -1,0 +1,8 @@
+{
+  "shrub_04": {
+    "diff": "shrub_04_rgba.png",
+    "arm": "shrub_04_arm_1k.jpg",
+    "nor": "shrub_04_nor_gl_1k.jpg",
+    "mode": "scissor"
+  }
+}

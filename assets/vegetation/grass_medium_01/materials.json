@@ -1,0 +1,8 @@
+{
+  "grass_medium_01": {
+    "diff": "grass_medium_01_rgba.png",
+    "arm": "grass_medium_01_arm_1k.jpg",
+    "nor": "grass_medium_01_nor_gl_1k.jpg",
+    "mode": "scissor"
+  }
+}

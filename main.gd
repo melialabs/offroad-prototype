@@ -102,8 +102,8 @@ func _setup_environment() -> void:
 	sun.light_energy = 1.3
 	sun.shadow_enabled = true
 	sun.shadow_blur = 2.0
-	sun.directional_shadow_max_distance = 120.0
-	sun.directional_shadow_mode = DirectionalLight3D.SHADOW_PARALLEL_4_SPLITS
+	sun.directional_shadow_max_distance = 90.0
+	sun.directional_shadow_mode = DirectionalLight3D.SHADOW_PARALLEL_2_SPLITS
 	add_child(sun)
 
 
@@ -136,10 +136,11 @@ func _build_scenery(terrain: MudTerrain) -> void:
 	add_child(water)
 
 	_build_mountains()
-	var rng := RandomNumberGenerator.new()
-	rng.seed = 1234
-	_scatter_grass(terrain, rng)
-	_scatter_trees(terrain, rng)
+	var vegetation := Vegetation.new()
+	vegetation.name = "Vegetation"
+	add_child(vegetation)
+	vegetation.use_fade = OS.get_cmdline_user_args().has("fade")
+	vegetation.build(terrain, 1234)
 
 
 func _build_mountains() -> void:
@@ -192,99 +193,6 @@ func _tri(st: SurfaceTool, a: Vector3, b: Vector3, c: Vector3) -> void:
 	for p in [a, b, c]:
 		st.set_color(col)
 		st.add_vertex(p)
-
-
-func _scatter_grass(terrain: MudTerrain, rng: RandomNumberGenerator) -> void:
-	var st := SurfaceTool.new()
-	st.begin(Mesh.PRIMITIVE_TRIANGLES)
-	for k in 3:
-		var ang := k * PI / 3.0
-		var dir := Vector3(cos(ang), 0, sin(ang)) * 0.12
-		st.set_color(Color(0.2, 0.4, 0.12))
-		st.add_vertex(-dir)
-		st.set_color(Color(0.2, 0.4, 0.12))
-		st.add_vertex(dir)
-		st.set_color(Color(0.62, 0.85, 0.3))
-		st.add_vertex(Vector3(0, 0.7, 0))
-	var mat := StandardMaterial3D.new()
-	mat.vertex_color_use_as_albedo = true
-	mat.cull_mode = BaseMaterial3D.CULL_DISABLED
-	mat.roughness = 1.0
-	var xs: Array[Transform3D] = []
-	var extent := (MudTerrain.N - 1) * 0.5 * MudTerrain.CELL - 2.0
-	for n in 14000:
-		var p := Vector3(rng.randf_range(-extent, extent), 0, rng.randf_range(-extent, extent))
-		if p.length() < 6.0 or terrain.softness_at(p) > 0.35 \
-				or terrain.road_distance_at(p) < MudTerrain.ROAD_HALF + 2.0 \
-				or terrain.slope_at(p) > 0.5 or terrain.height_at(p) > 22.0 \
-				or terrain.height_at(p) < -2.0:
-			continue
-		p.y = terrain.height_at(p)
-		var s := rng.randf_range(0.5, 1.1)
-		var b := Basis(Vector3.UP, rng.randf() * TAU).scaled(Vector3(s, s * rng.randf_range(0.8, 1.4), s))
-		xs.append(Transform3D(b, p))
-	var mm := MultiMesh.new()
-	mm.transform_format = MultiMesh.TRANSFORM_3D
-	mm.mesh = st.commit()
-	mm.instance_count = xs.size()
-	for i in xs.size():
-		mm.set_instance_transform(i, xs[i])
-	var mmi := MultiMeshInstance3D.new()
-	mmi.multimesh = mm
-	mmi.material_override = mat
-	mmi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	mmi.visibility_range_end = 90.0
-	add_child(mmi)
-
-
-func _scatter_trees(terrain: MudTerrain, rng: RandomNumberGenerator) -> void:
-	var trunk_mesh := CylinderMesh.new()
-	trunk_mesh.top_radius = 0.18
-	trunk_mesh.bottom_radius = 0.28
-	trunk_mesh.height = 2.0
-	trunk_mesh.radial_segments = 6
-	trunk_mesh.rings = 1
-	var leaf_mesh := CylinderMesh.new()
-	leaf_mesh.top_radius = 0.0
-	leaf_mesh.bottom_radius = 1.6
-	leaf_mesh.height = 4.5
-	leaf_mesh.radial_segments = 7
-	leaf_mesh.rings = 1
-	var trunk_mat := StandardMaterial3D.new()
-	trunk_mat.albedo_color = Color(0.36, 0.24, 0.14)
-	var leaf_mat := StandardMaterial3D.new()
-	leaf_mat.albedo_color = Color(0.17, 0.46, 0.2)
-	leaf_mat.roughness = 1.0
-	var tt: Array[Transform3D] = []
-	var lt: Array[Transform3D] = []
-	var extent := (MudTerrain.N - 1) * 0.5 * MudTerrain.CELL - 3.0
-	for n in 650:
-		var p := Vector3(rng.randf_range(-extent, extent), 0, rng.randf_range(-extent, extent))
-		if p.length() < 18.0 or terrain.softness_at(p) > 0.2 \
-				or terrain.road_distance_at(p) < MudTerrain.ROAD_HALF + 6.0 \
-				or terrain.slope_at(p) > 0.45 or terrain.height_at(p) > 18.0 \
-				or terrain.height_at(p) < -1.5:
-			continue
-		p.y = terrain.height_at(p)
-		var s := rng.randf_range(0.8, 1.7)
-		var b := Basis(Vector3.UP, rng.randf() * TAU).scaled(Vector3(s, s, s))
-		tt.append(Transform3D(b, p + Vector3(0, 1.0 * s, 0)))
-		lt.append(Transform3D(b, p + Vector3(0, 3.95 * s, 0)))
-	_add_multimesh(trunk_mesh, trunk_mat, tt)
-	_add_multimesh(leaf_mesh, leaf_mat, lt)
-
-
-func _add_multimesh(mesh: Mesh, mat: Material, xs: Array[Transform3D]) -> void:
-	var mm := MultiMesh.new()
-	mm.transform_format = MultiMesh.TRANSFORM_3D
-	mm.mesh = mesh
-	mm.instance_count = xs.size()
-	for i in xs.size():
-		mm.set_instance_transform(i, xs[i])
-	var inst := MultiMeshInstance3D.new()
-	inst.multimesh = mm
-	inst.material_override = mat
-	add_child(inst)
 
 
 ## Maşını asfalt yolun üzərinə, yolun istiqamətində qoyur.

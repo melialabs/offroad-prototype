@@ -1,0 +1,33 @@
+{
+  "asset": "fern_02",
+  "variants": {
+    "b": {
+      "original_tris": 2384,
+      "lod0": 2384,
+      "lod1": 500
+    },
+    "c": {
+      "original_tris": 2248,
+      "lod0": 2248,
+      "lod1": 500
+    },
+    "a": {
+      "original_tris": 784,
+      "lod0": 784,
+      "lod1": 499
+    },
+    "d": {
+      "original_tris": 816,
+      "lod0": 816,
+      "lod1": 499
+    }
+  },
+  "materials": {
+    "fern_02": {
+      "diff": "fern_02_rgba.png",
+      "arm": "fern_02_arm_1k.jpg",
+      "nor": "fern_02_nor_gl_1k.jpg",
+      "mode": "scissor"
+    }
+  }
+}

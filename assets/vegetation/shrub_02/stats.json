@@ -1,0 +1,37 @@
+{
+  "asset": "shrub_02",
+  "variants": {
+    "a": {
+      "original_tris": 7590,
+      "lod0": 7590,
+      "lod1": 2499,
+      "lod2": 700
+    },
+    "b": {
+      "original_tris": 5242,
+      "lod0": 5242,
+      "lod1": 2500,
+      "lod2": 699
+    },
+    "c": {
+      "original_tris": 9234,
+      "lod0": 9234,
+      "lod1": 2500,
+      "lod2": 700
+    },
+    "d": {
+      "original_tris": 5188,
+      "lod0": 5188,
+      "lod1": 2500,
+      "lod2": 699
+    }
+  },
+  "materials": {
+    "shrub_02": {
+      "diff": "shrub_02_rgba.png",
+      "arm": "shrub_02_arm_1k.jpg",
+      "nor": "shrub_02_nor_gl_1k.jpg",
+      "mode": "scissor"
+    }
+  }
+}

@@ -1,0 +1,77 @@
+{
+  "asset": "pine_sapling_medium",
+  "variants": {
+    "a": {
+      "wood_tris": 13979,
+      "foliage_tris": 2648915,
+      "height_m": 11.28,
+      "lod0": {
+        "wood_tris": 3999,
+        "foliage_tris": 7296,
+        "total": 11295
+      },
+      "lod1": {
+        "wood_tris": 3748,
+        "foliage_tris": 1914,
+        "total": 5662
+      },
+      "lod2": {
+        "wood_tris": 3748,
+        "foliage_tris": 320,
+        "total": 4068
+      }
+    },
+    "b": {
+      "wood_tris": 11181,
+      "foliage_tris": 1861176,
+      "height_m": 8.9,
+      "lod0": {
+        "wood_tris": 3999,
+        "foliage_tris": 5226,
+        "total": 9225
+      },
+      "lod1": {
+        "wood_tris": 2762,
+        "foliage_tris": 1488,
+        "total": 4250
+      },
+      "lod2": {
+        "wood_tris": 2762,
+        "foliage_tris": 272,
+        "total": 3034
+      }
+    },
+    "c": {
+      "wood_tris": 9143,
+      "foliage_tris": 1493745,
+      "height_m": 6.8,
+      "lod0": {
+        "wood_tris": 3999,
+        "foliage_tris": 3456,
+        "total": 7455
+      },
+      "lod1": {
+        "wood_tris": 1506,
+        "foliage_tris": 870,
+        "total": 2376
+      },
+      "lod2": {
+        "wood_tris": 1506,
+        "foliage_tris": 160,
+        "total": 1666
+      }
+    }
+  },
+  "materials": {
+    "pine_sapling_medium_bark": {
+      "diff": "pine_sapling_medium_bark_diff_1k.jpg",
+      "arm": "pine_sapling_medium_bark_arm_1k.jpg",
+      "nor": "pine_sapling_medium_bark_nor_gl_1k.jpg"
+    },
+    "pine_sapling_medium_dead_branches": {
+      "diff": "pine_sapling_medium_bark_diff_1k.jpg",
+      "arm": "pine_sapling_medium_bark_arm_1k.jpg",
+      "nor": "pine_sapling_medium_bark_nor_gl_1k.jpg"
+    }
+  }
+}

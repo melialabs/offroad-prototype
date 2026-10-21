@@ -1,0 +1,18 @@
+{
+  "asset": "tree_stump_01",
+  "variants": {
+    "treestump01": {
+      "original_tris": 41046,
+      "lod0": 4499,
+      "lod1": 1200,
+      "lod2": 299
+    }
+  },
+  "materials": {
+    "tree_stump_01": {
+      "diff": "tree_stump_01_diff_1k.jpg",
+      "arm": "tree_stump_01_arm_1k.jpg",
+      "nor": "tree_stump_01_nor_gl_1k.jpg"
+    }
+  }
+}

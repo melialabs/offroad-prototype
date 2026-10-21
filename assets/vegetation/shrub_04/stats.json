@@ -1,0 +1,19 @@
+{
+  "asset": "shrub_04",
+  "variants": {
+    "shrub04": {
+      "original_tris": 27327,
+      "lod0": 8000,
+      "lod1": 2500,
+      "lod2": 2199
+    }
+  },
+  "materials": {
+    "shrub_04": {
+      "diff": "shrub_04_rgba.png",
+      "arm": "shrub_04_arm_1k.jpg",
+      "nor": "shrub_04_nor_gl_1k.jpg",
+      "mode": "scissor"
+    }
+  }
+}

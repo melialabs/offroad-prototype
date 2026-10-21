@@ -1,0 +1,8 @@
+{
+  "fern_02": {
+    "diff": "fern_02_rgba.png",
+    "arm": "fern_02_arm_1k.jpg",
+    "nor": "fern_02_nor_gl_1k.jpg",
+    "mode": "scissor"
+  }
+}

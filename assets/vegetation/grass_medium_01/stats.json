@@ -1,0 +1,38 @@
+{
+  "asset": "grass_medium_01",
+  "variants": {
+    "smalla": {
+      "original_tris": 833,
+      "lod0": 833,
+      "lod1": 400
+    },
+    "largeb": {
+      "original_tris": 4626,
+      "lod0": 4626,
+      "lod1": 400
+    },
+    "midb": {
+      "original_tris": 1257,
+      "lod0": 1257,
+      "lod1": 400
+    },
+    "midc": {
+      "original_tris": 1466,
+      "lod0": 1466,
+      "lod1": 399
+    },
+    "mida": {
+      "original_tris": 2287,
+      "lod0": 2287,
+      "lod1": 400
+    }
+  },
+  "materials": {
+    "grass_medium_01": {
+      "diff": "grass_medium_01_rgba.png",
+      "arm": "grass_medium_01_arm_1k.jpg",
+      "nor": "grass_medium_01_nor_gl_1k.jpg",
+      "mode": "scissor"
+    }
+  }
+}

@@ -1,0 +1,8 @@
+{
+  "grass_bermuda_01": {
+    "diff": "grass_bermuda_01_rgba.png",
+    "arm": "grass_bermuda_01_arm_1k.jpg",
+    "nor": "grass_bermuda_01_nor_gl_1k.jpg",
+    "mode": "scissor"
+  }
+}

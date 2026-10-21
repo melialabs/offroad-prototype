@@ -1,0 +1,345 @@
+{
+  "pine_tree_01": {
+    "type": "conifer",
+    "seed": 11,
+    "mesh_indices": [
+      0,
+      1,
+      2
+    ],
+    "variant_names": [
+      "a",
+      "b",
+      "c"
+    ],
+    "foliage_material_contains": "twig",
+    "foliage_texture": {
+      "texture_name": "pine_spray",
+      "atlas": "twig",
+      "rect": [
+        34,
+        44,
+        226,
+        444
+      ]
+    },
+    "spray_aspect": 0.48,
+    "droop": 0.25,
+    "lods": [
+      {
+        "voxel": 0.68,
+        "cards": 3,
+        "min_count": 25,
+        "size_mul": 1.9,
+        "wood_tris": 9000
+      },
+      {
+        "voxel": 1.35,
+        "cards": 3,
+        "min_count": 60,
+        "size_mul": 2.0,
+        "wood_tris": 2500,
+        "drop_materials": [
+          "dead_branches",
+          "_bark"
+        ]
+      },
+      {
+        "voxel": 2.2,
+        "cards": 2,
+        "min_count": 150,
+        "size_mul": 2.2,
+        "wood_tris": 700,
+        "drop_materials": [
+          "dead_branches",
+          "_bark"
+        ]
+      }
+    ]
+  },
+  "shrub_02": {
+    "type": "meshes",
+    "alpha_texture": "shrub_02_alpha_1k.png",
+    "lods": [
+      null,
+      2500,
+      700
+    ]
+  },
+  "shrub_04": {
+    "type": "meshes",
+    "alpha_texture": "shrub_04_alpha_1k.png",
+    "lods": [
+      8000,
+      2500,
+      700
+    ]
+  },
+  "fern_02": {
+    "type": "meshes",
+    "alpha_texture": "fern_02_alpha_1k.png",
+    "lods": [
+      null,
+      500
+    ]
+  },
+  "grass_medium_01": {
+    "type": "meshes",
+    "alpha_texture": "grass_medium_01_alpha_1k.png",
+    "mesh_indices": [
+      0,
+      1,
+      2,
+      7,
+      8
+    ],
+    "lods": [
+      null,
+      400
+    ]
+  },
+  "grass_bermuda_01": {
+    "type": "meshes",
+    "alpha_texture": "grass_bermuda_01_alpha_1k.png",
+    "mesh_indices": [
+      3,
+      5,
+      9,
+      10,
+      11,
+      12
+    ],
+    "lods": [
+      null,
+      60
+    ]
+  },
+  "tree_stump_01": {
+    "type": "meshes",
+    "lods": [
+      4500,
+      1200,
+      300
+    ]
+  },
+  "dead_tree_trunk": {
+    "type": "meshes",
+    "lods": [
+      5000,
+      1200,
+      300
+    ]
+  },
+  "fir_tree_01": {
+    "type": "conifer",
+    "seed": 21,
+    "mesh_indices": [
+      0,
+      1,
+      2
+    ],
+    "variant_names": [
+      "a",
+      "b",
+      "c"
+    ],
+    "foliage_material_contains": "twig",
+    "foliage_texture": {
+      "texture_name": "fir_spray",
+      "atlas": "twig",
+      "rect": [
+        300,
+        400,
+        665,
+        805
+      ]
+    },
+    "spray_aspect": 0.95,
+    "droop": 0.35,
+    "lods": [
+      {
+        "voxel": 0.68,
+        "cards": 3,
+        "min_count": 25,
+        "size_mul": 1.9,
+        "wood_tris": 9000
+      },
+      {
+        "voxel": 1.35,
+        "cards": 3,
+        "min_count": 60,
+        "size_mul": 2.0,
+        "wood_tris": 2500,
+        "drop_materials": [
+          "dead_branches",
+          "_bark"
+        ]
+      },
+      {
+        "voxel": 2.4,
+        "cards": 2,
+        "min_count": 150,
+        "size_mul": 2.2,
+        "wood_tris": 600,
+        "drop_materials": [
+          "dead_branches",
+          "_bark"
+        ]
+      }
+    ]
+  },
+  "pine_sapling_medium": {
+    "type": "conifer",
+    "seed": 31,
+    "mesh_indices": [
+      0,
+      1,
+      2
+    ],
+    "variant_names": [
+      "a",
+      "b",
+      "c"
+    ],
+    "foliage_material_contains": "twig",
+    "foliage_texture": {
+      "texture_name": "pine_spray",
+      "texture_source": "pine_tree_01",
+      "atlas": "twig",
+      "rect": [
+        34,
+        44,
+        226,
+        444
+      ]
+    },
+    "spray_aspect": 0.48,
+    "droop": 0.25,
+    "lods": [
+      {
+        "voxel": 0.35,
+        "cards": 3,
+        "min_count": 20,
+        "size_mul": 1.9,
+        "wood_tris": 4000
+      },
+      {
+        "voxel": 0.7,
+        "cards": 3,
+        "min_count": 50,
+        "size_mul": 2.0,
+        "wood_tris": 1200,
+        "drop_materials": [
+          "dead_branches"
+        ]
+      },
+      {
+        "voxel": 1.4,
+        "cards": 2,
+        "min_count": 120,
+        "size_mul": 2.2,
+        "wood_tris": 300,
+        "drop_materials": [
+          "dead_branches"
+        ]
+      }
+    ]
+  },
+  "pine_sapling_small": {
+    "type": "conifer",
+    "seed": 41,
+    "mesh_indices": [
+      0,
+      1,
+      2
+    ],
+    "variant_names": [
+      "b",
+      "a",
+      "c"
+    ],
+    "foliage_material_contains": "twig",
+    "foliage_texture": {
+      "texture_name": "pine_spray",
+      "texture_source": "pine_tree_01",
+      "atlas": "twig",
+      "rect": [
+        34,
+        44,
+        226,
+        444
+      ]
+    },
+    "spray_aspect": 0.48,
+    "droop": 0.2,
+    "lods": [
+      {
+        "voxel": 0.16,
+        "cards": 3,
+        "min_count": 20,
+        "size_mul": 1.9,
+        "wood_tris": 800
+      },
+      {
+        "voxel": 0.32,
+        "cards": 2,
+        "min_count": 50,
+        "size_mul": 2.1,
+        "wood_tris": 300,
+        "drop_materials": []
+      }
+    ]
+  },
+  "tree_small_02": {
+    "type": "conifer",
+    "seed": 51,
+    "mesh_indices": [
+      0
+    ],
+    "variant_names": [
+      "a"
+    ],
+    "foliage_material_contains": "leaves",
+    "foliage_texture": {
+      "texture_name": "broadleaf_spray",
+      "atlas": "leaves",
+      "rect": [
+        555,
+        35,
+        880,
+        690
+      ]
+    },
+    "spray_aspect": 0.5,
+    "droop": -0.15,
+    "lods": [
+      {
+        "voxel": 0.36,
+        "cards": 3,
+        "min_count": 20,
+        "size_mul": 1.9,
+        "wood_tris": 5000
+      },
+      {
+        "voxel": 1.5,
+        "cards": 2,
+        "min_count": 80,
+        "size_mul": 2.1,
+        "wood_tris": 1500,
+        "drop_materials": [
+          "branches"
+        ]
+      },
+      {
+        "voxel": 2.4,
+        "cards": 2,
+        "min_count": 200,
+        "size_mul": 2.2,
+        "wood_tris": 500,
+        "drop_materials": [
+          "branches"
+        ]
+      }
+    ]
+  }
+}

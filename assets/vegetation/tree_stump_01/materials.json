@@ -1,0 +1,7 @@
+{
+  "tree_stump_01": {
+    "diff": "tree_stump_01_diff_1k.jpg",
+    "arm": "tree_stump_01_arm_1k.jpg",
+    "nor": "tree_stump_01_nor_gl_1k.jpg"
+  }
+}

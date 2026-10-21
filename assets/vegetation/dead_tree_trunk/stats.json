@@ -1,0 +1,18 @@
+{
+  "asset": "dead_tree_trunk",
+  "variants": {
+    "deadtreetrunk": {
+      "original_tris": 101802,
+      "lod0": 5000,
+      "lod1": 1200,
+      "lod2": 300
+    }
+  },
+  "materials": {
+    "dead_tree_trunk": {
+      "diff": "dead_tree_trunk_diff_1k.jpg",
+      "arm": "dead_tree_trunk_arm_1k.jpg",
+      "nor": "dead_tree_trunk_nor_gl_1k.jpg"
+    }
+  }
+}

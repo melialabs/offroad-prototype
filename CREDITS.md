@@ -31,3 +31,24 @@ rocky_terrain_02 (ot), snow_02 (qar), rock_ground (qaya yamac). Mənbə: https:/
 
 Qeyd: istifadəçinin `offroad_texture_references.zip` faylındakı şəkillər yalnız vizual istinad kimi istifadə olunub,
 oyuna daxil edilməyib.
+
+## Meşə modelləri (Poly Haven, CC0)
+
+Mənbə: https://polyhaven.com (lisenziya CC0, atribusiya məcburi deyil, mənbə və müəlliflər qeyd olunur).
+Orijinallar `assets_src/polyhaven/` qovluğunda saxlanılır (git-ə daxil edilmir), oyunda isə `tools/blender_optimize.py` ilə
+hazırlanmış optimallaşdırılmış versiyalar (`assets/vegetation/`) istifadə olunur. Yükləmə: `python tools/download_forest_assets.py`.
+
+| Model | Müəlliflər | Mənbə |
+|---|---|---|
+| Pine Tree 01 | Rob Tuytel (photography), Rico Cilliers (modeling) | https://polyhaven.com/a/pine_tree_01 |
+| Pine Sapling Medium | Rob Tuytel (photography), Rico Cilliers (modeling) | https://polyhaven.com/a/pine_sapling_medium |
+| Pine Sapling Small | Rob Tuytel (photography), Rico Cilliers (modeling) | https://polyhaven.com/a/pine_sapling_small |
+| Fir Tree 01 | Rob Tuytel (photography), Rico Cilliers (modeling) | https://polyhaven.com/a/fir_tree_01 |
+| Tree Small 02 | Rico Cilliers (All) | https://polyhaven.com/a/tree_small_02 |
+| Shrub 02 | Rico Cilliers (All) | https://polyhaven.com/a/shrub_02 |
+| Shrub 04 | Rico Cilliers (All) | https://polyhaven.com/a/shrub_04 |
+| Fern 02 | Rob Tuytel (scanning), Rico Cilliers (modeling) | https://polyhaven.com/a/fern_02 |
+| Grass Medium 01 | Rob Tuytel (Photography), Rico Cilliers (Modeling) | https://polyhaven.com/a/grass_medium_01 |
+| Grass Bermuda 01 | Rico Cilliers (All) | https://polyhaven.com/a/grass_bermuda_01 |
+| Tree Stump 01 | Rob Tuytel (All) | https://polyhaven.com/a/tree_stump_01 |
+| Dead Tree Trunk | Rob Tuytel (All) | https://polyhaven.com/a/dead_tree_trunk |

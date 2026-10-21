@@ -55,6 +55,7 @@ var _grass_w := PackedFloat32Array()     # statik ot çəkisi (ctrl_b R kanalı)
 var _aux_dirt := PackedFloat32Array()    # torpaq çəkisi (yol kənarı və sahələr)
 var _aux_cobble := PackedFloat32Array()  # daş sahələri
 var _aux_deepk := PackedFloat32Array()   # palçığın dərin hissəsi
+var road_dist := PackedFloat32Array()    # hər təpənin asfalt yol oxuna məsafəsi (metr), bitki yerləşdirməsi üçün sürətli
 
 var _road := PackedVector2Array()        # sıxlaşdırılmış yol xətti
 var _road_len := PackedFloat32Array()    # xəttin əvvəlindən yığılmış uzunluq
@@ -255,6 +256,7 @@ func _generate() -> void:
 	_aux_dirt.resize(N * N)
 	_aux_cobble.resize(N * N)
 	_aux_deepk.resize(N * N)
+	road_dist.resize(N * N)
 
 	_road = _spline(ROAD_POINTS, 16)
 	_road_len = _lengths(_road)
@@ -315,6 +317,7 @@ func _generate() -> void:
 			_aux_dirt[i] = clampf(maxf(shoulder_w, smoothstep(0.58, 0.78, dn) * 0.85), 0.0, 1.0)
 			_aux_cobble[i] = smoothstep(0.64, 0.80, cn) * 0.9
 			_aux_deepk[i] = deep_k
+			road_dist[i] = d
 
 			h[i] = hh
 			base[i] = hh
@@ -445,7 +448,17 @@ func slope_at(world_pos: Vector3) -> float:
 	return Vector2(gx, gz).length()
 
 
-## Nöqtənin asfalt yolun oxundan məsafəsi (metr). Ot və ağac yerləşdirmək üçün.
+## Sürətli (O(1)) yol məsafəsi: ən yaxın təpənin qiyməti. Çox sayda nöqtə üçün (bitki yerləşdirməsi).
+func road_distance_fast(world_pos: Vector3) -> float:
+	var g := _to_grid(world_pos)
+	var x := roundi(g.x)
+	var z := roundi(g.y)
+	if x < 0 or z < 0 or x >= N or z >= N:
+		return 1000.0
+	return road_dist[z * N + x]
+
+
+## Nöqtənin asfalt yolun oxundan məsafəsi (metr), dəqiq amma yavaş (hər seqmentə baxır).
 func road_distance_at(world_pos: Vector3) -> float:
 	var r := _nearest(Vector2(world_pos.x, world_pos.z), _road, _road_len)
 	return r[0]

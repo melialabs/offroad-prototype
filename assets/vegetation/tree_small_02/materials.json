@@ -1,0 +1,12 @@
+{
+  "tree_small_02_branches": {
+    "diff": "tree_small_02_branch_diff_1k.jpg",
+    "arm": "tree_small_02_branch_arm_1k.jpg",
+    "nor": "tree_small_02_branch_nor_gl_1k.jpg"
+  },
+  "tree_small_02_trunk": {
+    "diff": "tree_small_02_diff_1k.jpg",
+    "arm": "tree_small_02_arm_1k.jpg",
+    "nor": "tree_small_02_nor_gl_1k.jpg"
+  }
+}
