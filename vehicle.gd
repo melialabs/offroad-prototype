@@ -40,9 +40,20 @@ const SPECS := [
 
 # hard = bərk yerdə tutuşma, mud = palçıqda tutuşma
 const TIRES := [
-	{"name": "Şosse", "hard": 3.4, "mud": 0.45},
-	{"name": "Dağ", "hard": 2.8, "mud": 1.0},
-	{"name": "Palçıq", "hard": 2.2, "mud": 1.6},
+	{"name": "Şosse", "asphalt": 3.8, "hard": 3.4, "mud": 0.45},
+	{"name": "Dağ", "asphalt": 3.2, "hard": 2.8, "mud": 1.0},
+	{"name": "Palçıq", "asphalt": 2.5, "hard": 2.2, "mud": 1.6},
+]
+
+## Separate response for scout, trucks, Niva and road cars. Rest length stays
+## unchanged so existing model wheel mounts remain valid.
+const SUSPENSIONS := [
+	{"stiffness": 28.0, "travel": 0.5, "compression": 1.8, "rebound": 2.2, "width": 0.32},
+	{"stiffness": 36.0, "travel": 0.45, "compression": 2.0, "rebound": 2.4, "width": 0.40},
+	{"stiffness": 42.0, "travel": 0.4, "compression": 2.2, "rebound": 2.6, "width": 0.50},
+	{"stiffness": 30.0, "travel": 0.42, "compression": 1.8, "rebound": 2.2, "width": 0.23},
+	{"stiffness": 32.0, "travel": 0.26, "compression": 2.0, "rebound": 2.5, "width": 0.19},
+	{"stiffness": 32.0, "travel": 0.26, "compression": 2.0, "rebound": 2.5, "width": 0.19},
 ]
 
 var terrain: MudTerrain
@@ -59,6 +70,7 @@ var diff_lock := false
 var fuel := 100.0
 var rpm := IDLE_RPM
 var mud_level := 0.0  # HUD üçün: orta batma dərəcəsi
+var wheel_slip := 0.0  # excess tread speed in m/s, averaged over contacting wheels
 
 ## HUD-a bildiriş göndərir (məs. mühərrik, işıq).
 signal message(text: String)
@@ -219,6 +231,15 @@ func apply_spec(idx: int) -> void:
 		else:
 			lights.clear_model_lamps()
 			lights.set_lens_visible(true)
+	elif use_jeep:
+		(_col.shape as BoxShape3D).size = Vector3(1.8, 0.9, 4.2)
+		lights.clear_model_lamps()
+		# Measured on the original grille lens geometry, converted to body space.
+		# Avoid adding round fallback lenses in front of the model's square lamps.
+		lights.layout(2.295 - _jeep.origin.z, -2.08, 0.515, 0.76,
+			1.436 - _jeep.origin.y, 0.2)
+		lights.set_lens_visible(true)
+		lights.set_front_lens_visible(false)
 	else:
 		(_col.shape as BoxShape3D).size = Vector3(1.8, 0.9, 4.2)
 		lights.clear_model_lamps()
@@ -237,6 +258,14 @@ func apply_spec(idx: int) -> void:
 			positions.append(_default_wheel_pos[i])
 			meshes.append(null)
 	_rebuild_wheels(r, positions, meshes)
+	var suspension: Dictionary = SUSPENSIONS[spec_idx]
+	for w in wheels:
+		w.suspension_stiffness = float(suspension["stiffness"])
+		w.suspension_travel = float(suspension["travel"])
+		w.damping_compression = float(suspension["compression"])
+		w.damping_relaxation = float(suspension["rebound"])
+	mud_level = 0.0
+	wheel_slip = 0.0
 	linear_velocity = Vector3.ZERO
 	angular_velocity = Vector3.ZERO
 
@@ -460,19 +489,41 @@ func _physics_process(delta: float) -> void:
 	var tire: Dictionary = TIRES[tire_idx]
 	var total_depth := 0.0
 	var soft_sum := 0.0
+	var contact_count := 0
+	for w in wheels:
+		if w.is_in_contact():
+			contact_count += 1
+	var slip_sum := 0.0
+	# Approximate equal static load; dynamic per-wheel load needs custom suspension.
+	var load_per_wheel := mass * 9.81 / maxi(contact_count, 1)
+	var tire_width := float(SUSPENSIONS[spec_idx]["width"])
 	for w in wheels:
 		if not w.is_in_contact() or terrain == null:
 			continue
-		var contact := w.global_position - Vector3.UP * w.wheel_radius
+		var contact := w.get_contact_point()
 		var soft := terrain.softness_at(contact)
 		var depth := terrain.depth_at(contact)
+		var asphalt := terrain.road_distance_fast(contact) < MudTerrain.ROAD_HALF
 		total_depth += depth
 		soft_sum += soft
-		var mud := clampf(soft * 0.6 + depth / MudTerrain.MAX_DEPTH * 0.6, 0.0, 1.0)
-		w.wheel_friction_slip = lerpf(float(tire["hard"]), float(tire["mud"]), mud)
-		var spin := absf(w.get_rpm()) / 100.0
-		terrain.deform(contact, 1.3, delta * (0.05 + 0.25 * minf(spin, 1.0)))
-	mud_level = total_depth / 4.0 / MudTerrain.MAX_DEPTH
+		w.wheel_friction_slip = OffroadSurface.grip(tire, asphalt, soft, depth)
+		var offset := contact - global_position
+		var point_velocity := linear_velocity + angular_velocity.cross(offset)
+		var rolling_direction := global_basis.z
+		if w.use_as_steering:
+			rolling_direction = rolling_direction.rotated(global_basis.y.normalized(), steering)
+		var ground_speed := point_velocity.dot(rolling_direction)
+		var slip := OffroadSurface.slip_speed(w.get_rpm(), w.wheel_radius, ground_speed)
+		slip_sum += slip
+		if not asphalt:
+			var rate := OffroadSurface.digging_rate(load_per_wheel, tire_width, w.wheel_radius, slip)
+			# Terrain grid is coarse (1.5 m); retain a broad footprint until chunk refinement.
+			terrain.deform(contact, 1.3, delta * rate)
+			var horizontal := Vector3(point_velocity.x, 0.0, point_velocity.z)
+			var drag := OffroadSurface.resistance(soft, depth, w.wheel_radius)
+			apply_force(-horizontal * mass / maxi(contact_count, 1) * drag, offset)
+	mud_level = total_depth / maxi(contact_count, 1) / MudTerrain.MAX_DEPTH
+	wheel_slip = slip_sum / maxi(contact_count, 1)
 
 	# sükan: sürətlə azalır, bərk yerdə kilid sükanı çətinləşdirir
 	var steer_limit := STEER_MAX / (1.0 + linear_velocity.length() * 0.08)

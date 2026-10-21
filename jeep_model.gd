@@ -91,47 +91,51 @@ static func _find(parent: PackedInt32Array, i: int) -> int:
 	return i
 
 
-## Təkər oxu X-ə paralel olanda z istiqamətindəki genişlik minimum (diametr) olur.
+## Align the tire axle with X by minimizing axial width, not its circular diameter.
 ## Yaw düzəlişini kobud, sonra dəqiq addımla axtarır (radian qaytarır).
 static func _best_yaw(pos: PackedVector3Array) -> float:
 	var best := 0.0
 	var best_e := INF
-	for s in range(-20, 21):
+	for s in range(-70, 71):
 		var a := deg_to_rad(s * 0.5)
-		var e := _z_extent(pos, a)
+		var e := _x_extent(pos, a)
 		if e < best_e:
 			best_e = e
 			best = a
 	var center := best
 	for s in range(-10, 11):
 		var a := center + deg_to_rad(s * 0.05)
-		var e := _z_extent(pos, a)
+		var e := _x_extent(pos, a)
 		if e < best_e:
 			best_e = e
 			best = a
 	return best
 
 
-static func _z_extent(pos: PackedVector3Array, yaw: float) -> float:
+static func _x_extent(pos: PackedVector3Array, yaw: float) -> float:
 	var sn := sin(yaw)
 	var cs := cos(yaw)
 	var zmin := INF
 	var zmax := -INF
 	for p in pos:
-		var z := -p.x * sn + p.z * cs
+		var z := p.x * cs + p.z * sn
 		zmin = minf(zmin, z)
 		zmax = maxf(zmax, z)
 	return zmax - zmin
 
 
 func _split_wheels(srcs: Array[MeshInstance3D]) -> bool:
-	# 1) hər mənbə meshi bağlı hissələrə böl
+	# 1) Dedicated front-wheel sources must remain whole, including inner sidewalls.
+	var dedicated := {}
+	# Other sources also contain suspension and are separated by component.
 	var comps: Array = []  # {src, root, verts, tris, centroid}
 	var all_min := Vector3(INF, INF, INF)
 	var all_max := Vector3(-INF, -INF, -INF)
 	var material: Material = null
 	for si in srcs.size():
 		var mi := srcs[si]
+		var bounds := mi.get_aabb()
+		dedicated[si] = bounds.size.x < 1.0 and bounds.size.z < 1.5
 		var xf := _rel_xf(mi)
 		var arrays := mi.mesh.surface_get_arrays(0)
 		var v: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
@@ -203,6 +207,8 @@ func _split_wheels(srcs: Array[MeshInstance3D]) -> bool:
 			inside = cen.x <= edges[k] + tire_w + margin
 		else:
 			inside = cen.x >= edges[k] - tire_w - margin
+		if dedicated.get(c["src"], false):
+			inside = true
 		var scale_f := MODEL_SCALE
 		if not inside:
 			k = 4

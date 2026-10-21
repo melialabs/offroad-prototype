@@ -156,7 +156,7 @@ func _p3(x: float, z: float) -> Vector3:
 func _tree_ok(x: float, z: float, h: float) -> bool:
 	if absf(x) > _extent() or absf(z) > _extent():
 		return false
-	if h < WATER_LEVEL + 1.0 or h > 17.0:
+	if h < WATER_LEVEL + 1.0 or h > 105.0:
 		return false
 	var p := Vector3(x, h, z)
 	if terrain.road_distance_fast(p) < MudTerrain.ROAD_HALF + 5.0:
@@ -218,18 +218,29 @@ func _place_trees() -> void:
 	var ext := _extent()
 	var centers: Array = []
 	var tries := 0
-	while centers.size() < 70 and tries < 900:
+	while centers.size() < 300 and tries < 5000:
 		tries += 1
 		var x := _rng.randf_range(-ext, ext)
 		var z := _rng.randf_range(-ext, ext)
+		if _rng.randf() < 0.65:
+			var ri := _rng.randi_range(0, terrain._road.size() - 2)
+			var rp := terrain._road[ri]
+			var dir := (terrain._road[ri + 1] - rp).normalized()
+			var side := Vector2(-dir.y, dir.x) * _rng.randf_range(20.0, 95.0)
+			if _rng.randf() < 0.5:
+				side = -side
+			x = rp.x + side.x
+			z = rp.y + side.y
 		var h := _height(x, z)
 		if _forest(x, z) > 0.28 and _tree_ok(x, z, h):
 			centers.append(Vector3(x, 0.0, z))
 	for c in centers:
 		var cv: Vector3 = c
-		var radius := _rng.randf_range(10.0, 30.0)
+		var radius := _rng.randf_range(18.0, 45.0)
 		var count := int(radius * radius * 0.075 * (0.55 + _forest(cv.x, cv.z)))
 		for i in count:
+			if _big_trees.size() >= 6000:
+				return
 			var ang := _rng.randf() * TAU
 			var dist := radius * sqrt(_rng.randf()) * (0.45 + 0.55 * _rng.randf())
 			_try_tree(cv.x + cos(ang) * dist, cv.z + sin(ang) * dist)
@@ -263,7 +274,7 @@ func _try_tree(x: float, z: float) -> void:
 func _under_ok(x: float, z: float, h: float, soft_limit: float) -> bool:
 	if absf(x) > _extent() or absf(z) > _extent():
 		return false
-	if h < WATER_LEVEL + 0.35 or h > 18.0:
+	if h < WATER_LEVEL + 0.35 or h > 105.0:
 		return false
 	var p := Vector3(x, h, z)
 	if terrain.road_distance_fast(p) < MudTerrain.ROAD_HALF + 2.2:
@@ -302,7 +313,7 @@ func _place_understory() -> void:
 func _place_riverbank() -> void:
 	# su səviyyəsinə yaxın nəm sahələrdə qalın ayıqulağı, kol və ot
 	var ext := _extent()
-	var step := 1.8
+	var step := 6.0
 	var x := -ext
 	while x < ext:
 		var z := -ext
@@ -372,7 +383,7 @@ func _add_wood_collider(sp: String, xf: Transform3D) -> void:
 
 func _place_grass() -> void:
 	var ext := _extent()
-	var cell := 0.95
+	var cell := 4.0
 	var x := -ext
 	while x < ext:
 		var z := -ext
@@ -381,7 +392,7 @@ func _place_grass() -> void:
 			var jz := z + _rng.randf_range(0.0, cell)
 			var h := _height(jx, jz)
 			var p := Vector3(jx, h, jz)
-			if h > WATER_LEVEL + 0.25 and h < 16.0 and terrain.road_distance_fast(p) > MudTerrain.ROAD_HALF + 0.9:
+			if h > WATER_LEVEL + 0.25 and h < 105.0 and terrain.road_distance_fast(p) > MudTerrain.ROAD_HALF + 0.9:
 				var s := terrain.softness_at(p)
 				var slope := terrain.slope_at(p)
 				var floor_n := _n_floor.get_noise_2d(jx, jz) * 0.5 + 0.5

@@ -5,3 +5,6 @@ build/
 # orijinal Poly Haven modelləri (təxminən 1.8 GB), tools/download_forest_assets.py ilə yenidən yüklənir
 assets_src/
 tools/__pycache__/
+
+# Local macOS engine and setup logs
+.tools/

@@ -139,6 +139,14 @@ func set_lens_visible(v: bool) -> void:
 	_rev_mesh.visible = v
 
 
+## Some models already include front lamp glass and indicator lenses.
+func set_front_lens_visible(v: bool) -> void:
+	for mesh in _head_meshes:
+		mesh.visible = v
+	for i in mini(2, _amber_meshes.size()):
+		_amber_meshes[i].visible = v
+
+
 ## Maşının ölçüsünə görə işıq mövqelərini qurur (mərkəzə görə, irəli +Z).
 func layout(front_z: float, rear_z: float, head_x: float, tail_x: float, head_y: float, tail_y: float) -> void:
 	HEAD_POS = [Vector3(head_x, head_y, front_z), Vector3(-head_x, head_y, front_z)]
