@@ -24,6 +24,16 @@ const SPECS := [
 		"radius": 0.55, "awd": "switch", "diff": "switch", "tire": 1},
 	{"name": "Ağır tır", "mass": 5500.0, "torque": 1300.0, "fuel": 220.0,
 		"radius": 0.65, "awd": "always", "diff": "switch", "tire": 2},
+	# Lada modelləri (CC BY 4.0, CREDITS.md): real kütlə, zəif mühərrik, yalnız Niva dörd təkərli
+	{"name": "Lada Niva", "mass": 1250.0, "torque": 330.0, "fuel": 42.0,
+		"radius": 0.36, "awd": "always", "diff": "switch", "tire": 1,
+		"car": "res://assets/cars/lada_niva.glb", "origin": 0.8, "lights": [0.55, 0.78, 0.55, 0.62]},
+	{"name": "Lada 2107", "mass": 1050.0, "torque": 240.0, "fuel": 39.0,
+		"radius": 0.28, "awd": "none", "diff": "none", "tire": 0,
+		"car": "res://assets/cars/lada_2107.glb", "origin": 0.72, "lights": [0.55, 0.7, 0.55, 0.78]},
+	{"name": "Lada 2106", "mass": 1030.0, "torque": 240.0, "fuel": 39.0,
+		"radius": 0.3, "awd": "none", "diff": "none", "tire": 0,
+		"car": "res://assets/cars/lada_2106.glb", "origin": 0.72, "lights": [0.5, 0.68, 0.5, 0.78]},
 ]
 
 # hard = bərk yerdə tutuşma, mud = palçıqda tutuşma
@@ -63,6 +73,9 @@ var _shift_cooldown := 0.0
 var _jeep: JeepModel
 var _box_nodes: Array[Node3D] = []
 var _jeep_wheel_meshes: Array[MeshInstance3D] = []
+## spec indeksi -> {model: CarModel, meshes: Array[MeshInstance3D], pos: Array[Vector3]}
+var _cars: Dictionary = {}
+var _col: CollisionShape3D
 var _default_wheel_pos: Array[Vector3] = []
 var _jeep_wheel_pos: Array[Vector3] = []
 
@@ -95,6 +108,7 @@ func _ready() -> void:
 	shape.size = Vector3(1.8, 0.9, 4.2)
 	col.shape = shape
 	add_child(col)
+	_col = col
 
 	for pos in [Vector3(-1.0, -0.3, -1.4), Vector3(1.0, -0.3, -1.4),
 			Vector3(-1.0, -0.3, 1.4), Vector3(1.0, -0.3, 1.4)]:
@@ -102,6 +116,7 @@ func _ready() -> void:
 		_default_wheel_pos.append(pos)
 
 	_load_jeep_model()
+	_load_cars()
 	lights = VehicleLights.new()
 	add_child(lights)
 	apply_spec(spec_idx)
@@ -123,6 +138,30 @@ func _load_jeep_model() -> void:
 		var c := _jeep.wheel_centers[k] - _jeep.origin
 		# bağlantı nöqtəsi təkər mərkəzindən asmanın rahat uzunluğu qədər yuxarıdadır
 		_jeep_wheel_pos.append(c + Vector3(0, wheels[k].wheel_rest_length, 0))
+
+
+## Lada modellərini yükləyir (fayl yoxdursa o texnika qutu kimi qalır).
+func _load_cars() -> void:
+	for i in SPECS.size():
+		var sp: Dictionary = SPECS[i]
+		if not sp.has("car"):
+			continue
+		var m := CarModel.new()
+		if not m.load_model(sp["car"], float(sp["origin"])):
+			push_warning("Maşın modeli tapılmadı: " + str(sp["car"]))
+			continue
+		add_child(m.body)
+		m.body.visible = false
+		var meshes: Array[MeshInstance3D] = []
+		var pos: Array[Vector3] = []
+		for k in 4:
+			var mi := MeshInstance3D.new()
+			mi.mesh = m.wheel_meshes[k]
+			mi.visible = false
+			wheels[k].add_child(mi)
+			meshes.append(mi)
+			pos.append(m.wheel_centers[k] + Vector3(0, wheels[k].wheel_rest_length, 0))
+		_cars[i] = {"model": m, "meshes": meshes, "pos": pos}
 
 
 func _add_wheel(pos: Vector3, front: bool) -> void:
@@ -160,20 +199,43 @@ func apply_spec(idx: int) -> void:
 	awd_on = spec["awd"] == "always"
 	diff_lock = spec["diff"] == "always"
 	var r := float(spec["radius"])
-	var use_model: bool = spec.get("model", false) and _jeep != null
-	if use_model:
+	var car: Dictionary = _cars.get(spec_idx, {})
+	var use_car := not car.is_empty()
+	var use_jeep: bool = spec.get("model", false) and _jeep != null
+	var use_model := use_car or use_jeep
+	if use_car:
+		r = (car["model"] as CarModel).wheel_radius
+	elif use_jeep:
 		r = _jeep.wheel_radius
 	for node in _box_nodes:
 		node.visible = not use_model
 	if _jeep != null:
-		_jeep.body.visible = use_model
+		_jeep.body.visible = use_jeep
+	for k in _cars:
+		(_cars[k]["model"] as CarModel).body.visible = (k == spec_idx)
+	if use_car:
+		var cm: CarModel = car["model"]
+		var box := _col.shape as BoxShape3D
+		box.size = Vector3(cm.width * 0.9, 0.7, cm.length - 0.1)
+		var lp: Array = spec["lights"]
+		var half := cm.length * 0.5
+		var oh := float(spec["origin"])
+		lights.layout(half - 0.1, -half + 0.1, lp[0], lp[1], lp[2] - oh + 0.1, lp[3] - oh)
+	else:
+		(_col.shape as BoxShape3D).size = Vector3(1.8, 0.9, 4.2)
+		lights.layout(2.1, -2.08, 0.58, 0.76, 0.22, 0.2)
 	for i in wheels.size():
 		wheels[i].wheel_radius = r
 		wheels[i].suspension_max_force = mass * 10.0
-		wheels[i].position = _jeep_wheel_pos[i] if use_model else _default_wheel_pos[i]
+		if use_car:
+			wheels[i].position = car["pos"][i]
+		else:
+			wheels[i].position = _jeep_wheel_pos[i] if use_jeep else _default_wheel_pos[i]
 		wheel_meshes[i].visible = not use_model
 		if i < _jeep_wheel_meshes.size():
-			_jeep_wheel_meshes[i].visible = use_model
+			_jeep_wheel_meshes[i].visible = use_jeep
+		for k in _cars:
+			(_cars[k]["meshes"][i] as MeshInstance3D).visible = (use_car and k == spec_idx)
 		var cyl: CylinderMesh = wheel_meshes[i].mesh
 		cyl.top_radius = r
 		cyl.bottom_radius = r
@@ -211,6 +273,12 @@ func _unhandled_input(event: InputEvent) -> void:
 			apply_spec(1)
 		KEY_3:
 			apply_spec(2)
+		KEY_4:
+			apply_spec(3)
+		KEY_5:
+			apply_spec(4)
+		KEY_6:
+			apply_spec(5)
 
 
 ## Mühərriki işə sal / söndür (I düyməsi).

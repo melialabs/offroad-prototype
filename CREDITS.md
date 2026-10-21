@@ -52,3 +52,15 @@ hazırlanmış optimallaşdırılmış versiyalar (`assets/vegetation/`) istifad
 | Grass Bermuda 01 | Rico Cilliers (All) | https://polyhaven.com/a/grass_bermuda_01 |
 | Tree Stump 01 | Rob Tuytel (All) | https://polyhaven.com/a/tree_stump_01 |
 | Dead Tree Trunk | Rob Tuytel (All) | https://polyhaven.com/a/dead_tree_trunk |
+
+## Lada modelləri (Sketchfab, CC BY 4.0)
+
+Modellər `tools/blender_vehicle_prep.py` ilə oyun üçün hazırlanıb (miqyas, təkərlərin ayrılması, tekstura kiçildilməsi, VAZ 2106-da üçbucaqların azaldılması). Müəlliflərə aid hüquqlar saxlanılır.
+
+- **Lada Niva** — Greg McKechnie (https://sketchfab.com/mckechniegreg6), https://sketchfab.com/3d-models/lada-niva-26ebf5872bce4ff4ad2baee41882d6b2, CC BY 4.0
+- **LADA 2107** — tiunov.se (https://sketchfab.com/tiunov.se), https://sketchfab.com/3d-models/lada-2107-31201f80892b404a8e49c272490a664c, CC BY 4.0
+- **Lada VAZ 2106 AZELOW Style Classic Soviet Car 3D** — Abram (https://sketchfab.com/AbramBusiness), https://sketchfab.com/3d-models/lada-vaz-2106-azelow-style-classic-soviet-car-3d-7e4171a38afb406681ae5e74db56fa99, CC BY 4.0
+
+## Səslər
+
+Bütün səslər `game_audio.gd` ilə kod daxilində sintez olunur; xarici səs faylı və ya lisenziya yoxdur.

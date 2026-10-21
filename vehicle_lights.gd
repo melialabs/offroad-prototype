@@ -4,10 +4,18 @@ extends Node3D
 ## arxa işıqlar (fənərlə zəif, əyləcdə güclü) və geri hərəkət işığı.
 ## Mövqelər maşının lokal koordinatındadır (irəli +Z, sol +X). Bütün texnikalar üçün eyni gövdə ölçüsünə uyğundur.
 
-const HEAD_POS := [Vector3(0.58, 0.22, 2.1), Vector3(-0.58, 0.22, 2.1)]
-const TAIL_POS := [Vector3(0.76, 0.2, -2.08), Vector3(-0.76, 0.2, -2.08)]
-const AMBER_POS := [Vector3(0.8, 0.12, 2.1), Vector3(-0.8, 0.12, 2.1), Vector3(0.62, 0.2, -2.1), Vector3(-0.62, 0.2, -2.1)]
+var HEAD_POS := [Vector3(0.58, 0.22, 2.1), Vector3(-0.58, 0.22, 2.1)]
+var TAIL_POS := [Vector3(0.76, 0.2, -2.08), Vector3(-0.76, 0.2, -2.08)]
+var AMBER_POS := [Vector3(0.8, 0.12, 2.1), Vector3(-0.8, 0.12, 2.1), Vector3(0.62, 0.2, -2.1), Vector3(-0.62, 0.2, -2.1)]
+var REV_POS := Vector3(0, 0.22, -2.1)
+var _head_meshes: Array[MeshInstance3D] = []
+var _tail_meshes: Array[MeshInstance3D] = []
+var _amber_meshes: Array[MeshInstance3D] = []
+var _rev_mesh: MeshInstance3D
 const BLINK_PERIOD := 0.8
+
+## Qəza işığı yanıb-sönəndə (tıqqıltı səsi üçün).
+signal tick(on: bool)
 
 const MODE_NAMES := ["Fənərlər söndürüldü", "Yaxın fənər", "Uzaq fənər"]
 
@@ -17,6 +25,7 @@ var braking := false
 var reversing := false
 
 var _t := 0.0
+var _last_amber := false
 var _heads: Array[SpotLight3D] = []
 var _head_lens: Array[StandardMaterial3D] = []
 var _tail_lights: Array[OmniLight3D] = []
@@ -35,7 +44,7 @@ func _ready() -> void:
 		sp.spot_attenuation = 0.8
 		add_child(sp)
 		_heads.append(sp)
-		_head_lens.append(_lens(p, Color(1.0, 0.96, 0.85), 0.11))
+		_head_lens.append(_lens(p, Color(1.0, 0.96, 0.85), 0.07, _head_meshes))
 	for p in TAIL_POS:
 		var o := OmniLight3D.new()
 		o.position = p + Vector3(0, 0, -0.15)
@@ -44,7 +53,7 @@ func _ready() -> void:
 		o.shadow_enabled = false
 		add_child(o)
 		_tail_lights.append(o)
-		_tail_lens.append(_lens(p, Color(1.0, 0.1, 0.05), 0.09))
+		_tail_lens.append(_lens(p, Color(1.0, 0.1, 0.05), 0.055, _tail_meshes))
 	for i in AMBER_POS.size():
 		var p: Vector3 = AMBER_POS[i]
 		var o := OmniLight3D.new()
@@ -54,19 +63,41 @@ func _ready() -> void:
 		o.shadow_enabled = false
 		add_child(o)
 		_amber_lights.append(o)
-		_amber_lens.append(_lens(p, Color(1.0, 0.6, 0.05), 0.075))
+		_amber_lens.append(_lens(p, Color(1.0, 0.6, 0.05), 0.045, _amber_meshes))
 	_rev_light = OmniLight3D.new()
 	_rev_light.position = Vector3(0, 0.2, -2.15)
 	_rev_light.light_color = Color(1, 1, 1)
 	_rev_light.omni_range = 6.0
 	_rev_light.shadow_enabled = false
 	add_child(_rev_light)
-	_rev_lens = _lens(Vector3(0, 0.22, -2.1), Color(1, 1, 1), 0.07)
+	var rm: Array = []
+	_rev_lens = _lens(REV_POS, Color(1, 1, 1), 0.045, rm)
+	_rev_mesh = rm[0]
+	_apply()
+
+
+## Maşının ölçüsünə görə işıq mövqelərini qurur (mərkəzə görə, irəli +Z).
+func layout(front_z: float, rear_z: float, head_x: float, tail_x: float, head_y: float, tail_y: float) -> void:
+	HEAD_POS = [Vector3(head_x, head_y, front_z), Vector3(-head_x, head_y, front_z)]
+	TAIL_POS = [Vector3(tail_x, tail_y, rear_z), Vector3(-tail_x, tail_y, rear_z)]
+	AMBER_POS = [Vector3(head_x + 0.18, head_y - 0.1, front_z), Vector3(-head_x - 0.18, head_y - 0.1, front_z),
+		Vector3(tail_x - 0.12, tail_y, rear_z), Vector3(-tail_x + 0.12, tail_y, rear_z)]
+	REV_POS = Vector3(0, tail_y + 0.02, rear_z)
+	for i in 2:
+		_head_meshes[i].position = HEAD_POS[i]
+		_tail_meshes[i].position = TAIL_POS[i]
+		_tail_lights[i].position = TAIL_POS[i] + Vector3(0, 0, -0.15)
+	for i in 4:
+		var p: Vector3 = AMBER_POS[i]
+		_amber_meshes[i].position = p
+		_amber_lights[i].position = p + Vector3(0, 0, 0.15 if p.z > 0.0 else -0.15)
+	_rev_mesh.position = REV_POS
+	_rev_light.position = REV_POS + Vector3(0, 0, -0.05)
 	_apply()
 
 
 ## Yanan şüşə: kiçik emissiv kürə (söndürülü olanda tünd).
-func _lens(pos: Vector3, color: Color, radius: float) -> StandardMaterial3D:
+func _lens(pos: Vector3, color: Color, radius: float, store: Array = []) -> StandardMaterial3D:
 	var m := StandardMaterial3D.new()
 	m.albedo_color = color.darkened(0.7)
 	m.emission_enabled = true
@@ -84,6 +115,7 @@ func _lens(pos: Vector3, color: Color, radius: float) -> StandardMaterial3D:
 	mi.position = pos
 	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	add_child(mi)
+	store.append(mi)
 	return m
 
 
@@ -109,6 +141,9 @@ func _process(delta: float) -> void:
 	_t += delta
 	var blink := fposmod(_t, BLINK_PERIOD) < BLINK_PERIOD * 0.5
 	var amber_on := hazard and blink
+	if hazard and amber_on != _last_amber:
+		tick.emit(amber_on)
+	_last_amber = amber_on
 	for i in _amber_lights.size():
 		_amber_lights[i].light_energy = 1.8 if amber_on else 0.0
 		_amber_lens[i].emission_energy_multiplier = 6.0 if amber_on else 0.0

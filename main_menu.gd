@@ -25,6 +25,8 @@ var _btn_restart: Button
 var _btn_fullscreen: Button
 var _btn_shadows: Button
 var _btn_night: Button
+var _btn_sound: Button
+var _sound := true
 var _fullscreen := false
 var _shadows := true
 
@@ -141,7 +143,7 @@ func _build_main() -> VBoxContainer:
 	v.add_child(_btn_start)
 	_btn_restart = _button("Yenidən başla (yolun üstünə)", func(): restart_requested.emit())
 	v.add_child(_btn_restart)
-	v.add_child(_button("Texnika seçimi", func(): _show_page("vehicle")))
+	v.add_child(_button("Qaraj", func(): _show_page("vehicle")))
 	v.add_child(_button("İdarəetmə", func(): _show_page("controls")))
 	v.add_child(_button("Ayarlar", func(): _show_page("settings")))
 	v.add_child(_button("Çıxış", func(): quit_requested.emit()))
@@ -152,14 +154,19 @@ func _build_vehicle() -> VBoxContainer:
 	var v := VBoxContainer.new()
 	v.add_theme_constant_override("separation", 10)
 	var hint := Label.new()
-	hint.text = "Texnikanı seç. Maşın dərhal yolun üstündə dəyişir."
+	hint.text = "Qaraj: texnikanı seç. Maşın dərhal arxada yolun üstündə dəyişir."
 	hint.add_theme_font_size_override("font_size", 15)
 	hint.add_theme_color_override("font_color", Color(1, 1, 1, 0.65))
 	v.add_child(hint)
+	var grid := GridContainer.new()
+	grid.columns = 2
+	grid.add_theme_constant_override("h_separation", 10)
+	grid.add_theme_constant_override("v_separation", 10)
+	v.add_child(grid)
 	for i in OffroadTruck.SPECS.size():
 		var b := _button("", func(): _select_vehicle(i), 84.0)
 		_vehicle_buttons.append(b)
-		v.add_child(b)
+		grid.add_child(b)
 	v.add_child(_button("Geri", func(): _show_page("main")))
 	return v
 
@@ -185,7 +192,7 @@ func _build_controls() -> VBoxContainer:
 		["F", "diferensial kilidi"],
 		["T", "təkər növü"],
 		["Digər", ""],
-		["1 / 2 / 3", "texnika (Skaut, Yük maşını, Ağır tır)"],
+		["1 – 6", "texnika (Skaut, Yük maşını, Ağır tır, Niva, 2107, 2106)"],
 		["H", "düymə göstərişini aç / bağla"],
 		["Esc", "menyu"],
 	]
@@ -229,6 +236,8 @@ func _build_settings() -> VBoxContainer:
 	v.add_child(_btn_shadows)
 	_btn_night = _button("", _toggle_night)
 	v.add_child(_btn_night)
+	_btn_sound = _button("", _toggle_sound)
+	v.add_child(_btn_sound)
 	v.add_child(_button("Geri", func(): _show_page("main")))
 	_refresh_settings()
 	return v
@@ -247,6 +256,13 @@ func _toggle_fullscreen() -> void:
 	_fullscreen = not _fullscreen
 	if main != null:
 		main.set_fullscreen(_fullscreen)
+	_refresh_settings()
+
+
+func _toggle_sound() -> void:
+	_sound = not _sound
+	if main != null:
+		main.set_sound(_sound)
 	_refresh_settings()
 
 
@@ -276,6 +292,10 @@ func _first_button(n: Node) -> Button:
 	for c in n.get_children():
 		if c is Button and (c as Button).visible:
 			return c
+		if c is GridContainer:
+			var f := _first_button(c)
+			if f != null:
+				return f
 	return null
 
 
@@ -299,6 +319,7 @@ func _refresh_settings() -> void:
 	_btn_fullscreen.text = "Tam ekran:  " + ("açıq" if _fullscreen else "bağlı")
 	_btn_shadows.text = "Kölgələr:  " + ("açıq" if _shadows else "bağlı")
 	var is_night: bool = main != null and main.night
+	_btn_sound.text = "Səs:  " + ("açıq" if _sound else "bağlı")
 	_btn_night.text = "Vaxt:  " + ("Gecə" if is_night else "Gündüz")
 
 

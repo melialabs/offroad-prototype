@@ -4,6 +4,7 @@ var truck: OffroadTruck
 var cam: ChaseCamera
 var hud: Hud
 var menu: MainMenu
+var audio: GameAudio
 var _menu_open := false
 var _sun: DirectionalLight3D
 var _terrain: MudTerrain
@@ -74,6 +75,11 @@ func _ready() -> void:
 	cam.target = truck
 	cam.terrain = terrain
 	add_child(cam)
+
+	audio = GameAudio.new()
+	audio.truck = truck
+	audio.main_node = self
+	add_child(audio)
 
 	var layer := CanvasLayer.new()
 	hud = Hud.new()
@@ -307,6 +313,10 @@ func set_night(on: bool) -> void:
 		_env.adjustment_saturation = 1.15
 		if truck.lights.headlight_mode != 0:
 			truck.lights.set_headlights(0)
+
+
+func set_sound(on: bool) -> void:
+	audio.set_enabled(on)
 
 
 func set_fullscreen(on: bool) -> void:
