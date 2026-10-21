@@ -48,19 +48,21 @@ func _physics_process(_delta: float) -> bool:
 		_check(main.truck.controls_enabled, "başladıqdan sonra idarə açılmalıdır")
 		_check(main.hud.visible, "başladıqdan sonra HUD görünməlidir")
 		_check(not main.cam.menu_orbit, "başladıqdan sonra kamera izləməlidir")
-	if frames == 260:
+		_check(main.truck.engine_state == OffroadTruck.EngineState.OFF, "yeni oyunda mühərrik söndürülü olmalıdır")
+		main.truck.toggle_engine()
+	if frames == 330:
 		var moved := Vector2(main.truck.global_position.x - pos_before.x, main.truck.global_position.z - pos_before.z).length()
 		_check(moved > 8.0, "başladıqdan sonra maşın getməlidir: %.1f m" % moved)
 		_esc()
-	if frames == 264:
+	if frames == 334:
 		_check(main.menu.visible, "Esc oyun içində menyunu açmalıdır")
 		_check(main.menu.in_game, "oyun içində menyu 'Davam et' rejimində olmalıdır")
 		_check(main.menu._btn_start.text == "Davam et", "düymə 'Davam et' olmalıdır: %s" % main.menu._btn_start.text)
 		main.select_vehicle(2)
-	if frames == 268:
+	if frames == 338:
 		_check(main.truck.spec_idx == 2, "texnika seçimi işləmədi: %d" % main.truck.spec_idx)
 		_esc()
-	if frames == 272:
+	if frames == 342:
 		_check(not main.menu.visible, "Esc menyunu bağlamalıdır (davam et)")
 		_check(main.truck.controls_enabled, "davam etdikdən sonra idarə açılmalıdır")
 		for f in failures:

@@ -48,7 +48,17 @@ var fuel := 100.0
 var rpm := IDLE_RPM
 var mud_level := 0.0  # HUD üçün: orta batma dərəcəsi
 
+## HUD-a bildiriş göndərir (məs. mühərrik, işıq).
+signal message(text: String)
+
+enum EngineState { OFF, CRANKING, RUNNING }
+const CRANK_TIME := 0.9
+
 var controls_enabled := true  # menyu açıq olanda false: maşın dayanır, düymələr işləmir
+## Standart: işləyir (testlər üçün). Yeni oyun başlayanda main.gd söndürür, I düyməsi ilə işə salınır.
+var engine_state: int = EngineState.RUNNING
+var lights: VehicleLights
+var _crank_t := 0.0
 var _shift_cooldown := 0.0
 var _jeep: JeepModel
 var _box_nodes: Array[Node3D] = []
@@ -92,6 +102,8 @@ func _ready() -> void:
 		_default_wheel_pos.append(pos)
 
 	_load_jeep_model()
+	lights = VehicleLights.new()
+	add_child(lights)
 	apply_spec(spec_idx)
 
 
@@ -176,6 +188,12 @@ func _unhandled_input(event: InputEvent) -> void:
 	if not (event is InputEventKey) or not event.pressed or event.echo:
 		return
 	match event.physical_keycode:
+		KEY_I:
+			toggle_engine()
+		KEY_L:
+			message.emit(lights.cycle_headlights())
+		KEY_Z:
+			message.emit(lights.toggle_hazard())
 		KEY_Q:
 			low_range = not low_range
 			gear = clampi(gear, 1, _forward_gears().size())
@@ -193,6 +211,26 @@ func _unhandled_input(event: InputEvent) -> void:
 			apply_spec(1)
 		KEY_3:
 			apply_spec(2)
+
+
+## Mühərriki işə sal / söndür (I düyməsi).
+func toggle_engine() -> void:
+	if engine_state == EngineState.OFF:
+		if fuel <= 0.0:
+			message.emit("Yanacaq yoxdur, mühərrik işə düşmür")
+			return
+		engine_state = EngineState.CRANKING
+		_crank_t = CRANK_TIME
+		message.emit("Mühərrik işə düşür...")
+	else:
+		engine_state = EngineState.OFF
+		message.emit("Mühərrik söndürüldü")
+
+
+## Səssiz söndürmə (yeni oyun başlayanda).
+func stop_engine() -> void:
+	engine_state = EngineState.OFF
+	rpm = 0.0
 
 
 func _forward_gears() -> Array:
@@ -248,7 +286,16 @@ func _physics_process(delta: float) -> void:
 			gear = -1
 	if Input.is_physical_key_pressed(KEY_SPACE) or not controls_enabled:
 		braking = 1.0
-	if fuel <= 0.0:
+	if fuel <= 0.0 and engine_state != EngineState.OFF:
+		engine_state = EngineState.OFF
+		message.emit("Yanacaq bitdi, mühərrik söndü")
+	if engine_state == EngineState.CRANKING:
+		_crank_t -= delta
+		if _crank_t <= 0.0:
+			engine_state = EngineState.RUNNING
+			message.emit("Mühərrik işləyir")
+	var running := engine_state == EngineState.RUNNING
+	if not running or fuel <= 0.0:
 		drive = 0.0
 
 	# aparıcı təkərlər
@@ -273,11 +320,16 @@ func _physics_process(delta: float) -> void:
 	var target_rpm := IDLE_RPM
 	if contact_n > 0:
 		target_rpm = maxf(IDLE_RPM, rpm_sum / contact_n * ratio)
-	rpm = minf(lerpf(rpm, target_rpm, 0.25), REDLINE_RPM + 200.0)
+	if engine_state == EngineState.OFF:
+		rpm = lerpf(rpm, 0.0, 0.12)
+	elif engine_state == EngineState.CRANKING:
+		rpm = lerpf(rpm, 260.0 + sin(_crank_t * 38.0) * 60.0, 0.3)
+	else:
+		rpm = minf(lerpf(rpm, target_rpm, 0.25), REDLINE_RPM + 200.0)
 
 	# avtomatik dişli dəyişmə
 	_shift_cooldown -= delta
-	if gear > 0 and _shift_cooldown <= 0.0:
+	if running and gear > 0 and _shift_cooldown <= 0.0:
 		if rpm > SHIFT_UP_RPM and gear < _forward_gears().size():
 			gear += 1
 			_shift_cooldown = 0.5
@@ -302,10 +354,17 @@ func _physics_process(delta: float) -> void:
 	apply_central_force(-linear_velocity * linear_velocity.length() * MAX_SPEED_DRAG)
 
 	# yanacaq
-	var burn := 0.0015 + drive * rpm / REDLINE_RPM * 0.05
+	var burn := 0.0
+	if engine_state == EngineState.RUNNING:
+		burn = 0.0015 + drive * rpm / REDLINE_RPM * 0.05
+	elif engine_state == EngineState.CRANKING:
+		burn = 0.004
 	if awd_on:
 		burn *= 1.15
 	fuel = maxf(fuel - burn * delta, 0.0)
+
+	lights.braking = braking > 0.5
+	lights.reversing = gear < 0 and drive > 0.0
 
 	# təkər-yer qarşılıqlı təsiri
 	var tire: Dictionary = TIRES[tire_idx]

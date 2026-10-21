@@ -7,12 +7,16 @@ var menu: MainMenu
 var _menu_open := false
 var _sun: DirectionalLight3D
 var _terrain: MudTerrain
+var _env: Environment
+var _sky_mat: ShaderMaterial
+var night := false
 
 const SKY_SHADER := """
 shader_type sky;
 uniform vec3 top_col = vec3(0.16, 0.45, 0.85);
 uniform vec3 hor_col = vec3(0.70, 0.86, 0.98);
 uniform vec3 ground_col = vec3(0.45, 0.62, 0.40);
+uniform float night = 0.0;
 float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
 float vnoise(vec2 p) {
 	vec2 i = floor(p); vec2 f = fract(p);
@@ -34,11 +38,20 @@ void sky() {
 		float c = smoothstep(0.50, 0.78, fbm(uv));
 		c *= smoothstep(0.02, 0.2, d.y);
 		vec3 cc = mix(vec3(1.0), vec3(0.78, 0.84, 0.93), smoothstep(0.5, 1.0, fbm(uv + 7.0)));
-		col = mix(col, cc, c * 0.92);
+		col = mix(col, cc * mix(1.0, 0.07, night), c * mix(0.92, 0.6, night));
+	}
+	if (night > 0.0 && d.y > 0.0) {
+		vec2 sp = d.xz / (d.y + 0.35) * 55.0;
+		vec2 cell = floor(sp);
+		float h = hash(cell);
+		vec2 f = fract(sp) - 0.5;
+		float star = step(0.93, h) * smoothstep(0.22, 0.0, length(f)) * (0.5 + 0.5 * hash(cell + 3.1));
+		col += vec3(0.85, 0.9, 1.0) * star * night * smoothstep(0.0, 0.25, d.y);
 	}
 	vec3 sd = normalize(LIGHT0_DIRECTION);
 	float s = max(dot(d, sd), 0.0);
-	col += vec3(1.0, 0.92, 0.7) * (pow(s, 600.0) * 3.0 + pow(s, 12.0) * 0.12);
+	vec3 disc = mix(vec3(1.0, 0.92, 0.7), vec3(0.75, 0.85, 1.0), night);
+	col += disc * (pow(s, mix(600.0, 1500.0, night)) * mix(3.0, 2.2, night) + pow(s, 12.0) * mix(0.12, 0.05, night));
 	COLOR = col;
 }
 """
@@ -68,6 +81,7 @@ func _ready() -> void:
 	layer.add_child(hud)
 	add_child(layer)
 	cam.mode_changed.connect(hud.show_toast)
+	truck.message.connect(hud.show_toast)
 
 	var menu_layer := CanvasLayer.new()
 	menu_layer.layer = 10
@@ -76,7 +90,7 @@ func _ready() -> void:
 	menu.truck = truck
 	menu_layer.add_child(menu)
 	add_child(menu_layer)
-	menu.start_requested.connect(_close_menu)
+	menu.start_requested.connect(_start_new_game)
 	menu.resume_requested.connect(_close_menu)
 	menu.restart_requested.connect(_restart_from_menu)
 	menu.quit_requested.connect(get_tree().quit)
@@ -86,6 +100,7 @@ func _ready() -> void:
 
 func _setup_environment() -> void:
 	var sky_mat := ShaderMaterial.new()
+	_sky_mat = sky_mat
 	sky_mat.shader = Shader.new()
 	sky_mat.shader.code = SKY_SHADER
 	var sky := Sky.new()
@@ -109,6 +124,7 @@ func _setup_environment() -> void:
 	env.adjustment_enabled = true
 	env.adjustment_saturation = 1.15
 	env.adjustment_contrast = 1.05
+	_env = env
 	var we := WorldEnvironment.new()
 	we.environment = env
 	add_child(we)
@@ -244,8 +260,14 @@ func _close_menu() -> void:
 	menu.close()
 
 
+func _start_new_game() -> void:
+	truck.stop_engine()
+	_close_menu()
+
+
 func _restart_from_menu() -> void:
 	_place_on_road()
+	truck.stop_engine()
 	_close_menu()
 
 
@@ -253,6 +275,38 @@ func _restart_from_menu() -> void:
 func select_vehicle(i: int) -> void:
 	truck.apply_spec(i)
 	_place_on_road()
+
+
+## Gündüz / gecə rejimi. Gecə: ulduzlu səma, zəif ay işığı, qaranlıq duman; fənərlər avtomatik yanır.
+func set_night(on: bool) -> void:
+	night = on
+	_sky_mat.set_shader_parameter("night", 1.0 if on else 0.0)
+	if on:
+		_sky_mat.set_shader_parameter("top_col", Vector3(0.008, 0.015, 0.05))
+		_sky_mat.set_shader_parameter("hor_col", Vector3(0.05, 0.08, 0.16))
+		_sky_mat.set_shader_parameter("ground_col", Vector3(0.015, 0.025, 0.03))
+		_sun.rotation_degrees = Vector3(-38, 150, 0)
+		_sun.light_color = Color(0.55, 0.68, 1.0)
+		_sun.light_energy = 0.22
+		_env.ambient_light_energy = 0.16
+		_env.fog_light_color = Color(0.05, 0.08, 0.15)
+		_env.fog_density = 0.0035
+		_env.adjustment_saturation = 0.85
+		if truck.lights.headlight_mode == 0:
+			truck.lights.set_headlights(1)
+	else:
+		_sky_mat.set_shader_parameter("top_col", Vector3(0.16, 0.45, 0.85))
+		_sky_mat.set_shader_parameter("hor_col", Vector3(0.70, 0.86, 0.98))
+		_sky_mat.set_shader_parameter("ground_col", Vector3(0.45, 0.62, 0.40))
+		_sun.rotation_degrees = Vector3(-42, -30, 0)
+		_sun.light_color = Color(1.0, 0.95, 0.85)
+		_sun.light_energy = 1.3
+		_env.ambient_light_energy = 0.7
+		_env.fog_light_color = Color(0.72, 0.86, 0.98)
+		_env.fog_density = 0.0012
+		_env.adjustment_saturation = 1.15
+		if truck.lights.headlight_mode != 0:
+			truck.lights.set_headlights(0)
 
 
 func set_fullscreen(on: bool) -> void:
@@ -266,6 +320,9 @@ func set_shadows(on: bool) -> void:
 func _unhandled_input(event: InputEvent) -> void:
 	if get_tree().current_scene != self or _menu_open:
 		return
+	if event is InputEventKey and event.pressed and not event.echo and event.physical_keycode == KEY_N:
+		set_night(not night)
+		hud.show_toast("Gecə rejimi" if night else "Gündüz rejimi")
 	if event is InputEventKey and event.pressed and not event.echo and event.physical_keycode == KEY_ESCAPE:
 		_open_menu(true)
 

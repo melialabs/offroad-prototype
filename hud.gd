@@ -92,10 +92,29 @@ func _draw() -> void:
 	_draw_rpm(rc, small_r, s)
 	_draw_fuel(rc + Vector2((small_r + 6.0 * s) * 2.0 + 0.0, 0.0), small_r, s)
 
+	# mərkəz: mühərrik / fənər / qəza işığı göstəriciləri
+	var bw := 104.0 * s
+	var bx := sz.x * 0.5 - (bw * 3.0 + gap * 2.0) * 0.5
+	var by := sz.y - m - 22.0 * s - 14.0 * s
+	var eng_txt := "Mühərrik"
+	var eng_on: bool = truck.engine_state == OffroadTruck.EngineState.RUNNING
+	if truck.engine_state == OffroadTruck.EngineState.CRANKING:
+		eng_txt = "İşə düşür..."
+	elif not eng_on:
+		eng_txt = "Mühərrik: I"
+	_badge(Vector2(bx, by), bw, eng_txt, eng_on, s)
+	var hl: int = truck.lights.headlight_mode
+	_badge(Vector2(bx + bw + gap, by), bw, ["Fənər söndü", "Yaxın fənər", "Uzaq fənər"][hl], hl > 0, s)
+	var haz_on: bool = truck.lights.hazard
+	_badge(Vector2(bx + (bw + gap) * 2.0, by), bw, "Qəza işığı", haz_on and int(Time.get_ticks_msec() / 400) % 2 == 0, s)
+	if truck.engine_state == OffroadTruck.EngineState.OFF:
+		var pa := 0.6 + 0.4 * sin(Time.get_ticks_msec() * 0.005)
+		_text_c("Mühərriki işə salmaq üçün I düyməsinə bas", Vector2(sz.x * 0.5, by - 12.0 * s), int(16 * s), Color(1, 0.8, 0.3, pa))
+
 	# düymə göstərişi: ilk 16 saniyə, sonra H ilə
 	var hint_a := 0.5 if _hints_forced else clampf((16.0 - _t) / 3.0, 0.0, 1.0) * 0.5
 	if hint_a > 0.01:
-		_text_c("W/S qaz  ·  A/D sükan  ·  Space əl əyləci  ·  V kamera  ·  Q diapazon  ·  E AWD  ·  F diferensial  ·  T təkər  ·  Esc menyu  ·  H göstəriş",
+		_text_c("W/S qaz  ·  A/D sükan  ·  Space əl əyləci  ·  V kamera  ·  I mühərrik  ·  L fənər  ·  Z qəza  ·  N gecə  ·  Q diapazon  ·  E AWD  ·  F diferensial  ·  T təkər  ·  Esc menyu  ·  H göstəriş",
 			Vector2(sz.x * 0.5, sz.y - 7.0 * s), int(11 * s), Color(1, 1, 1, hint_a))
 
 	if _toast_t > 0.0:

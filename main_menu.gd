@@ -24,6 +24,7 @@ var _btn_start: Button
 var _btn_restart: Button
 var _btn_fullscreen: Button
 var _btn_shadows: Button
+var _btn_night: Button
 var _fullscreen := false
 var _shadows := true
 
@@ -172,6 +173,10 @@ func _build_controls() -> VBoxContainer:
 		["A / D", "sükan"],
 		["Space", "əl əyləci"],
 		["R", "maşını yolun üstünə qaytar"],
+		["I", "mühərriki işə sal / söndür"],
+		["L", "fənərlər: söndür / yaxın / uzaq"],
+		["Z", "qəza işıqları"],
+		["N", "gündüz / gecə"],
 		["Kamera", ""],
 		["V", "yaxın / uzaq / kapot kamerası"],
 		["Transmissiya", ""],
@@ -222,6 +227,8 @@ func _build_settings() -> VBoxContainer:
 	v.add_child(_btn_fullscreen)
 	_btn_shadows = _button("", _toggle_shadows)
 	v.add_child(_btn_shadows)
+	_btn_night = _button("", _toggle_night)
+	v.add_child(_btn_night)
 	v.add_child(_button("Geri", func(): _show_page("main")))
 	_refresh_settings()
 	return v
@@ -240,6 +247,12 @@ func _toggle_fullscreen() -> void:
 	_fullscreen = not _fullscreen
 	if main != null:
 		main.set_fullscreen(_fullscreen)
+	_refresh_settings()
+
+
+func _toggle_night() -> void:
+	if main != null:
+		main.set_night(not main.night)
 	_refresh_settings()
 
 
@@ -285,6 +298,8 @@ func _refresh_vehicle_buttons() -> void:
 func _refresh_settings() -> void:
 	_btn_fullscreen.text = "Tam ekran:  " + ("açıq" if _fullscreen else "bağlı")
 	_btn_shadows.text = "Kölgələr:  " + ("açıq" if _shadows else "bağlı")
+	var is_night: bool = main != null and main.night
+	_btn_night.text = "Vaxt:  " + ("Gecə" if is_night else "Gündüz")
 
 
 # --- düymə üslubu -------------------------------------------------------------------------
