@@ -8,11 +8,14 @@ const SCENE_PATH := "res://assets/jeep/scene.gltf"
 const BODY_CENTER_Y := 0.95  # fizika gövdəsinin mərkəzi (metr)
 # FBX-dən gələn mesh düyünlərində x100 miqyas var, xam koordinatlar isə metrdir
 const MODEL_SCALE := 0.01
+const TIRE_WIDTH := 0.49  # modeldən ölçülüb (metr)
 
 var body: Node3D
 ## Sıra: 0 = arxa (-x), 1 = arxa (+x), 2 = ön (-x), 3 = ön (+x). Model +Z irəlidir.
 var wheel_meshes: Array[ArrayMesh] = []
 var wheel_centers: Array[Vector3] = []  # model koordinatında
+var wheel_yaws_deg: Array[float] = []  # modeldəki ilkin yaw bucağı (düzəldilməzdən əvvəl)
+var static_tris := 0  # təkər meshindən gövdəyə qaytarılan üçbucaqların sayı
 var wheel_radius := 0.55
 var origin := Vector3.ZERO  # gövdə mərkəzi (model koordinatında)
 
@@ -88,6 +91,39 @@ static func _find(parent: PackedInt32Array, i: int) -> int:
 	return i
 
 
+## Təkər oxu X-ə paralel olanda z istiqamətindəki genişlik minimum (diametr) olur.
+## Yaw düzəlişini kobud, sonra dəqiq addımla axtarır (radian qaytarır).
+static func _best_yaw(pos: PackedVector3Array) -> float:
+	var best := 0.0
+	var best_e := INF
+	for s in range(-20, 21):
+		var a := deg_to_rad(s * 0.5)
+		var e := _z_extent(pos, a)
+		if e < best_e:
+			best_e = e
+			best = a
+	var center := best
+	for s in range(-10, 11):
+		var a := center + deg_to_rad(s * 0.05)
+		var e := _z_extent(pos, a)
+		if e < best_e:
+			best_e = e
+			best = a
+	return best
+
+
+static func _z_extent(pos: PackedVector3Array, yaw: float) -> float:
+	var sn := sin(yaw)
+	var cs := cos(yaw)
+	var zmin := INF
+	var zmax := -INF
+	for p in pos:
+		var z := -p.x * sn + p.z * cs
+		zmin = minf(zmin, z)
+		zmax = maxf(zmax, z)
+	return zmax - zmin
+
+
 func _split_wheels(srcs: Array[MeshInstance3D]) -> bool:
 	# 1) hər mənbə meshi bağlı hissələrə böl
 	var comps: Array = []  # {src, root, verts, tris, centroid}
@@ -118,11 +154,14 @@ func _split_wheels(srcs: Array[MeshInstance3D]) -> bool:
 		for i in v.size():
 			var r := _find(parent, i)
 			if not by_root.has(r):
-				by_root[r] = {"src": si, "verts": [], "tris": [], "sum": Vector3.ZERO}
+				by_root[r] = {"src": si, "verts": [], "tris": [], "sum": Vector3.ZERO,
+						"xmin": INF, "xmax": -INF}
 			var c: Dictionary = by_root[r]
 			c["verts"].append(i)
 			c["sum"] += xf * v[i]
 			var wp := xf * v[i]
+			c["xmin"] = minf(c["xmin"], wp.x)
+			c["xmax"] = maxf(c["xmax"], wp.x)
 			all_min = all_min.min(wp)
 			all_max = all_max.max(wp)
 		for t in range(0, idx.size(), 3):
@@ -141,11 +180,33 @@ func _split_wheels(srcs: Array[MeshInstance3D]) -> bool:
 
 	# 2) hissələri 4 təkərə paylaş
 	var acc: Array = []
-	for k in 4:
+	for k in 5:  # 0..3 = təkərlər, 4 = təkər meshində qalan, amma fırlanmamalı hissələr
 		acc.append({"pos": [], "nor": [], "tan": [], "uv": [], "idx": []})
+	# hər təkərin xarici kənarı (sol: ən kiçik x, sağ: ən böyük x)
+	var edges := [INF, -INF, INF, -INF]
 	for c in comps:
 		var cen: Vector3 = c["centroid"]
 		var k := (2 if cen.z > zm else 0) + (1 if cen.x > xm else 0)
+		c["wheel"] = k
+		if k % 2 == 0:
+			edges[k] = minf(edges[k], c["xmin"])
+		else:
+			edges[k] = maxf(edges[k], c["xmax"])
+	var tire_w := TIRE_WIDTH / MODEL_SCALE
+	var margin := 0.06 / MODEL_SCALE
+	for c in comps:
+		var cen: Vector3 = c["centroid"]
+		var k: int = c["wheel"]
+		# təkər enindən içəridə qalan hissələr (ox, əyləc çubuqları) fırlanmasın, gövdədə qalsın
+		var inside: bool
+		if k % 2 == 0:
+			inside = cen.x <= edges[k] + tire_w + margin
+		else:
+			inside = cen.x >= edges[k] - tire_w - margin
+		var scale_f := MODEL_SCALE
+		if not inside:
+			k = 4
+			scale_f = 1.0  # gövdə düyünü özü 0.01 miqyaslayır
 		var a: Dictionary = acc[k]
 		var mi := srcs[c["src"]]
 		var xf := _rel_xf(mi)
@@ -161,7 +222,7 @@ func _split_wheels(srcs: Array[MeshInstance3D]) -> bool:
 		var remap := {}
 		for vid in c["verts"]:
 			remap[vid] = a["pos"].size()
-			a["pos"].append(xf * v[vid] * MODEL_SCALE)
+			a["pos"].append(xf * v[vid] * scale_f)
 			a["nor"].append((xf.basis * nrm[vid]).normalized())
 			if tan.size() >= (vid + 1) * 4:
 				var tv := xf.basis * Vector3(tan[vid * 4], tan[vid * 4 + 1], tan[vid * 4 + 2])
@@ -175,27 +236,56 @@ func _split_wheels(srcs: Array[MeshInstance3D]) -> bool:
 	# 3) hər təkər üçün mesh qur, mərkəzə gətir
 	wheel_meshes.clear()
 	wheel_centers.clear()
+	wheel_yaws_deg.clear()
 	var radius_sum := 0.0
 	for k in 4:
 		var a: Dictionary = acc[k]
 		if a["pos"].is_empty():
 			return false
 		var pos := PackedVector3Array(a["pos"])
+		var nor := PackedVector3Array(a["nor"])
+		var tan := PackedFloat32Array(a["tan"])
 		var bmin := Vector3(INF, INF, INF)
 		var bmax := Vector3(-INF, -INF, -INF)
 		for p in pos:
 			bmin = bmin.min(p)
 			bmax = bmax.max(p)
-		var center := (bmin + bmax) * 0.5
+		var pivot := (bmin + bmax) * 0.5
+
+		# Modeldə ön təkərlər artıq bir az dönmüş vəziyyətdədir. Dönəndə əyri görünməsin
+		# deyə, oxu X-ə salan yaw düzəlişini tapırıq.
+		var yaw := _best_yaw(pos)
+		wheel_yaws_deg.append(rad_to_deg(yaw))
+		var rot := Basis(Vector3.UP, yaw)
+		for i in pos.size():
+			pos[i] = rot * (pos[i] - pivot) + pivot
+			nor[i] = rot * nor[i]
+		if tan.size() == pos.size() * 4:
+			for i in pos.size():
+				var tv := rot * Vector3(tan[i * 4], tan[i * 4 + 1], tan[i * 4 + 2])
+				tan[i * 4] = tv.x
+				tan[i * 4 + 1] = tv.y
+				tan[i * 4 + 2] = tv.z
+
+		bmin = Vector3(INF, INF, INF)
+		bmax = Vector3(-INF, -INF, -INF)
+		for p in pos:
+			bmin = bmin.min(p)
+			bmax = bmax.max(p)
+		var cy := (bmin.y + bmax.y) * 0.5
+		var cz := (bmin.z + bmax.z) * 0.5
+		var r := (bmax.y - bmin.y) * 0.5
+		# daxili hissələr artıq ayrılıb, qalan geometriya yalnız təkərdir
+		var center := Vector3((bmin.x + bmax.x) * 0.5, cy, cz)
 		for i in pos.size():
 			pos[i] -= center
-		radius_sum += (bmax.y - bmin.y) * 0.5
+		radius_sum += r
 		var arrays := []
 		arrays.resize(Mesh.ARRAY_MAX)
 		arrays[Mesh.ARRAY_VERTEX] = pos
-		arrays[Mesh.ARRAY_NORMAL] = PackedVector3Array(a["nor"])
-		if a["tan"].size() == pos.size() * 4:
-			arrays[Mesh.ARRAY_TANGENT] = PackedFloat32Array(a["tan"])
+		arrays[Mesh.ARRAY_NORMAL] = nor
+		if tan.size() == pos.size() * 4:
+			arrays[Mesh.ARRAY_TANGENT] = tan
 		if a["uv"].size() == pos.size():
 			arrays[Mesh.ARRAY_TEX_UV] = PackedVector2Array(a["uv"])
 		arrays[Mesh.ARRAY_INDEX] = PackedInt32Array(a["idx"])
@@ -206,4 +296,26 @@ func _split_wheels(srcs: Array[MeshInstance3D]) -> bool:
 		wheel_meshes.append(am)
 		wheel_centers.append(center)
 	wheel_radius = radius_sum / 4.0
+
+	# fırlanmamalı hissələri gövdəyə qaytar
+	var st: Dictionary = acc[4]
+	static_tris = st["idx"].size() / 3
+	if static_tris > 0:
+		var sarr := []
+		sarr.resize(Mesh.ARRAY_MAX)
+		sarr[Mesh.ARRAY_VERTEX] = PackedVector3Array(st["pos"])
+		sarr[Mesh.ARRAY_NORMAL] = PackedVector3Array(st["nor"])
+		if st["tan"].size() == st["pos"].size() * 4:
+			sarr[Mesh.ARRAY_TANGENT] = PackedFloat32Array(st["tan"])
+		if st["uv"].size() == st["pos"].size():
+			sarr[Mesh.ARRAY_TEX_UV] = PackedVector2Array(st["uv"])
+		sarr[Mesh.ARRAY_INDEX] = PackedInt32Array(st["idx"])
+		var sm := ArrayMesh.new()
+		sm.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, sarr)
+		if material != null:
+			sm.surface_set_material(0, material)
+		var smi := MeshInstance3D.new()
+		smi.name = "WheelStatic"
+		smi.mesh = sm
+		body.add_child(smi)
 	return true

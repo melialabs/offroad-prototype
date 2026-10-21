@@ -19,3 +19,7 @@ Poly Haven "Forest Ground 04" (https://polyhaven.com/a/forest_ground_04), CC0, 1
 ## Fizika parametrləri üçün istinad
 
 Rigs of Rods sənədləri (https://docs.rigsofrods.org) yalnız rəqəmləri və ideyaları öyrənmək üçün oxunub. Kod götürülməyib.
+
+## Asfalt teksturası
+
+Poly Haven "Clean Asphalt" (https://polyhaven.com/a/clean_asphalt), CC0, 1K. Sarı xətlər shader ilə çəkilir.

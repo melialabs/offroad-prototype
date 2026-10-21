@@ -3,6 +3,7 @@ extends Node3D
 var truck: OffroadTruck
 var cam: Camera3D
 var hud: Label
+var _terrain: MudTerrain
 
 const SKY_SHADER := """
 shader_type sky;
@@ -45,12 +46,13 @@ func _ready() -> void:
 
 	var terrain := MudTerrain.new()
 	add_child(terrain)
+	_terrain = terrain
 	_build_scenery(terrain)
 
 	truck = OffroadTruck.new()
 	truck.terrain = terrain
 	add_child(truck)
-	truck.position = Vector3(0, terrain.height_at(Vector3.ZERO) + 2.0, 0)
+	_place_on_road()
 
 	cam = Camera3D.new()
 	cam.fov = 70.0
@@ -210,9 +212,12 @@ func _scatter_grass(terrain: MudTerrain, rng: RandomNumberGenerator) -> void:
 	mat.roughness = 1.0
 	var xs: Array[Transform3D] = []
 	var extent := (MudTerrain.N - 1) * 0.5 * MudTerrain.CELL - 2.0
-	for n in 9000:
+	for n in 14000:
 		var p := Vector3(rng.randf_range(-extent, extent), 0, rng.randf_range(-extent, extent))
-		if p.length() < 6.0 or terrain.softness_at(p) > 0.35:
+		if p.length() < 6.0 or terrain.softness_at(p) > 0.35 \
+				or terrain.road_distance_at(p) < MudTerrain.ROAD_HALF + 2.0 \
+				or terrain.slope_at(p) > 0.5 or terrain.height_at(p) > 22.0 \
+				or terrain.height_at(p) < -2.0:
 			continue
 		p.y = terrain.height_at(p)
 		var s := rng.randf_range(0.5, 1.1)
@@ -253,9 +258,12 @@ func _scatter_trees(terrain: MudTerrain, rng: RandomNumberGenerator) -> void:
 	var tt: Array[Transform3D] = []
 	var lt: Array[Transform3D] = []
 	var extent := (MudTerrain.N - 1) * 0.5 * MudTerrain.CELL - 3.0
-	for n in 400:
+	for n in 650:
 		var p := Vector3(rng.randf_range(-extent, extent), 0, rng.randf_range(-extent, extent))
-		if p.length() < 18.0 or terrain.softness_at(p) > 0.2:
+		if p.length() < 18.0 or terrain.softness_at(p) > 0.2 \
+				or terrain.road_distance_at(p) < MudTerrain.ROAD_HALF + 6.0 \
+				or terrain.slope_at(p) > 0.45 or terrain.height_at(p) > 18.0 \
+				or terrain.height_at(p) < -1.5:
 			continue
 		p.y = terrain.height_at(p)
 		var s := rng.randf_range(0.8, 1.7)
@@ -279,6 +287,15 @@ func _add_multimesh(mesh: Mesh, mat: Material, xs: Array[Transform3D]) -> void:
 	add_child(inst)
 
 
+## Maşını asfalt yolun üzərinə, yolun istiqamətində qoyur.
+func _place_on_road() -> void:
+	var sp := _terrain.road_spawn()
+	truck.linear_velocity = Vector3.ZERO
+	truck.angular_velocity = Vector3.ZERO
+	truck.rotation = Vector3(0, sp["yaw"], 0)
+	truck.global_position = sp["pos"] + Vector3(0, 2.0, 0)
+
+
 func _physics_process(delta: float) -> void:
 	# kamera maşının arxasından yumşaq izləyir
 	var back := -truck.global_transform.basis.z
@@ -294,7 +311,4 @@ func _physics_process(delta: float) -> void:
 
 	# xəritədən düşsə avtomatik sıfırla
 	if Input.is_physical_key_pressed(KEY_R) or truck.global_position.y < -30.0:
-		truck.linear_velocity = Vector3.ZERO
-		truck.angular_velocity = Vector3.ZERO
-		truck.global_position = Vector3(0, 3.0, 0)
-		truck.rotation = Vector3.ZERO
+		_place_on_road()
