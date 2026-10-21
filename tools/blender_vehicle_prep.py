@@ -15,7 +15,9 @@ MODELS = {
     # length: real uzunluq (m); flip: 180° çevir (model +Y-ə baxırsa); wheels: ad ilə seçim (None = həndəsə ilə)
     "niva": {"length": 3.74, "flip": False, "wheel_prefix": ["wheel_low_niva", "wheel_low.001_", "wheel_low.002_", "wheel_low.003_"], "tex": 1024, "decimate": 1.0},
     "2107": {"length": 4.14, "flip": True, "wheel_prefix": ["Wheel P P", "Wheel P Z", "Wheel L P", "Wheel L Z"], "tex": 1024, "decimate": 1.0},
-    "2106": {"length": 4.17, "flip": False, "wheel_prefix": None, "tex": 1024, "decimate": 0.5},
+    "2106": {"length": 4.17, "flip": False, "wheel_prefix": None, "tex": 1024, "decimate": 0.5,
+             # baqaj kilidi (xrom düymə) gecə işıq kimi görünür: gövdədən silinir (x, y aralığı, z aralığı, max ölçü)
+             "strip": [(0.01, 1.95, 2.03, 0.69, 0.74, 0.06)]},
 }
 
 
@@ -148,6 +150,8 @@ def main():
     bpy.ops.object.origin_set(type="ORIGIN_CURSOR")
     bob.data.calc_loop_triangles()
     print("PREP body_tris=%d" % len(bob.data.loop_triangles))
+    for (xmax, ylo, yhi, zlo, zhi, smax) in cfg.get("strip", []):
+        strip_islands(bob, xmax, ylo, yhi, zlo, zhi, smax)
     if cfg["decimate"] < 1.0:
         # ciddi sətir: yalnız normalları qoruyan qrup-collapse
         bpy.ops.object.mode_set(mode="EDIT")
@@ -174,6 +178,38 @@ def main():
     bpy.ops.export_scene.gltf(filepath=dst, export_format="GLB", export_image_format="AUTO",
                               export_apply=False, export_yup=True, export_cameras=False, export_lights=False)
     print("PREP done")
+
+
+def strip_islands(ob, xmax, ylo, yhi, zlo, zhi, smax):
+    """Gövdədən kiçik bağlı hissələri (ölçü < smax) verilmiş qutu daxilində silir."""
+    bm = bmesh.new()
+    bm.from_mesh(ob.data)
+    seen = set()
+    kill = []
+    for f in bm.faces:
+        if f in seen:
+            continue
+        stack = [f]
+        seen.add(f)
+        faces = []
+        while stack:
+            c = stack.pop()
+            faces.append(c)
+            for e in c.edges:
+                for g in e.link_faces:
+                    if g not in seen:
+                        seen.add(g)
+                        stack.append(g)
+        vs = {v for g in faces for v in g.verts}
+        lo = [min(v.co[a] for v in vs) for a in range(3)]
+        hi = [max(v.co[a] for v in vs) for a in range(3)]
+        ctr = [(lo[a] + hi[a]) / 2 for a in range(3)]
+        if max(hi[a] - lo[a] for a in range(3)) < smax and abs(ctr[0]) < xmax and ylo <= ctr[1] <= yhi and zlo <= ctr[2] <= zhi:
+            kill.extend(faces)
+    print("PREP strip faces=%d" % len(kill))
+    bmesh.ops.delete(bm, geom=kill, context="FACES")
+    bm.to_mesh(ob.data)
+    bm.free()
 
 
 def geometric_wheels():
@@ -225,7 +261,8 @@ def geometric_wheels():
             lo, hi = world_bbox([o])
             oc = (lo + hi) / 2
             size = hi - lo
-            if abs(oc.x - c.x) < 0.13 and Vector((0, oc.y - c.y, oc.z - c.z)).length < r * 1.1 and max(size.y, size.z) < r * 2.6 and size.x < 0.3:
+            # təkər oxuna konsentrik hissələr (rezin, disk, qapaq, hub); gövdə hissələri (asma, qanad) oxdan kənardadır
+            if abs(oc.x - c.x) < 0.3 and Vector((0, oc.y - c.y, oc.z - c.z)).length < 0.05 and max(size.y, size.z) < r * 2.6 and size.x < 0.3:
                 g.append(o)
         groups["q%d%d" % k] = g
         print("PREP wheel group %s parts=%d" % (k, len(g)))
