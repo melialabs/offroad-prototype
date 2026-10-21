@@ -26,6 +26,11 @@ var reversing := false
 
 var _t := 0.0
 var _last_amber := false
+## Hazır modelin öz fənər meshləri: yananda üstünə əlavə (ADD) parıltı materialı qoyulur
+var _model_head: Array[MeshInstance3D] = []
+var _model_tail: Array[MeshInstance3D] = []
+var _ov_head: StandardMaterial3D
+var _ov_tail: StandardMaterial3D
 var _heads: Array[SpotLight3D] = []
 var _head_lens: Array[StandardMaterial3D] = []
 var _tail_lights: Array[OmniLight3D] = []
@@ -49,7 +54,7 @@ func _ready() -> void:
 		var o := OmniLight3D.new()
 		o.position = p + Vector3(0, 0, -0.15)
 		o.light_color = Color(1.0, 0.1, 0.05)
-		o.omni_range = 3.5
+		o.omni_range = 2.6
 		o.shadow_enabled = false
 		add_child(o)
 		_tail_lights.append(o)
@@ -59,7 +64,7 @@ func _ready() -> void:
 		var o := OmniLight3D.new()
 		o.position = p + Vector3(0, 0, 0.15 if p.z > 0.0 else -0.15)
 		o.light_color = Color(1.0, 0.6, 0.05)
-		o.omni_range = 4.0
+		o.omni_range = 2.8
 		o.shadow_enabled = false
 		add_child(o)
 		_amber_lights.append(o)
@@ -74,6 +79,56 @@ func _ready() -> void:
 	_rev_lens = _lens(REV_POS, Color(1, 1, 1), 0.045, rm)
 	_rev_mesh = rm[0]
 	_apply()
+
+
+## Hazır modelin fənər meshlərini bağlayır: işıq mənbələri onların mərkəzinə köçür, mesh üzərində parıltı yanır.
+func bind_model_lamps(head: Array[MeshInstance3D], head_pos: Array[Vector3], tail: Array[MeshInstance3D], tail_pos: Array[Vector3]) -> void:
+	clear_model_lamps()
+	_model_head = head
+	_model_tail = tail
+	if _ov_head == null:
+		_ov_head = _overlay()
+		_ov_tail = _overlay()
+	var hp: Array = head_pos if head_pos.size() == 2 else HEAD_POS
+	var tp: Array = tail_pos if tail_pos.size() == 2 else TAIL_POS
+	var fz: float = (hp[0] as Vector3).z + 0.12
+	var rz: float = (tp[0] as Vector3).z - 0.02
+	HEAD_POS = [Vector3(hp[0].x, hp[0].y, fz), Vector3(hp[1].x, hp[1].y, fz)]
+	TAIL_POS = [Vector3(tp[0].x, tp[0].y, rz), Vector3(tp[1].x, tp[1].y, rz)]
+	AMBER_POS = [HEAD_POS[0], HEAD_POS[1], TAIL_POS[0], TAIL_POS[1]]
+	REV_POS = Vector3(0, (tp[0] as Vector3).y, rz)
+	for i in 2:
+		_tail_lights[i].position = TAIL_POS[i] + Vector3(0, 0, -0.15)
+	for i in 4:
+		var p: Vector3 = AMBER_POS[i]
+		_amber_lights[i].position = p + Vector3(0, 0, 0.15 if p.z > 0.0 else -0.15)
+	_rev_light.position = REV_POS + Vector3(0, 0, -0.1)
+	_apply()
+
+
+func clear_model_lamps() -> void:
+	for m in _model_head + _model_tail:
+		if is_instance_valid(m):
+			m.material_overlay = null
+	_model_head = []
+	_model_tail = []
+
+
+func _overlay() -> StandardMaterial3D:
+	var m := StandardMaterial3D.new()
+	m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	m.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
+	m.albedo_color = Color(0, 0, 0, 1)
+	return m
+
+
+func _set_overlay(meshes: Array[MeshInstance3D], mat: StandardMaterial3D, c: Color) -> void:
+	var on := c.r + c.g + c.b > 0.02
+	mat.albedo_color = c
+	for m in meshes:
+		if is_instance_valid(m):
+			m.material_overlay = mat if on else null
 
 
 ## Hazır modeldə öz fənər şüşələri olanda yapışdırılmış kürələr gizlədilir (yalnız işıq mənbələri qalır).
@@ -153,14 +208,14 @@ func _process(delta: float) -> void:
 		tick.emit(amber_on)
 	_last_amber = amber_on
 	for i in _amber_lights.size():
-		_amber_lights[i].light_energy = 1.8 if amber_on else 0.0
+		_amber_lights[i].light_energy = 1.0 if amber_on else 0.0
 		_amber_lens[i].emission_energy_multiplier = 6.0 if amber_on else 0.0
 
 	var lamps_on := headlight_mode > 0
 	var tail_e := 0.0
 	var lens_e := 0.0
 	if braking:
-		tail_e = 1.6
+		tail_e = 1.1
 		lens_e = 6.0
 	elif lamps_on:
 		tail_e = 0.45
@@ -169,6 +224,24 @@ func _process(delta: float) -> void:
 		_tail_lights[i].light_energy = tail_e
 		_tail_lens[i].emission_energy_multiplier = lens_e
 
+	if not _model_head.is_empty() or not _model_tail.is_empty():
+		var amber := Color(2.2, 0.9, 0.05)
+		var hc := Color(0, 0, 0)
+		if headlight_mode == 1:
+			hc = Color(1.5, 1.4, 1.1)
+		elif headlight_mode == 2:
+			hc = Color(2.4, 2.3, 1.9)
+		if amber_on:
+			hc = amber
+		var tc := Color(0, 0, 0)
+		if braking:
+			tc = Color(2.4, 0.12, 0.05)
+		elif lamps_on:
+			tc = Color(0.9, 0.05, 0.02)
+		if amber_on:
+			tc = amber
+		_set_overlay(_model_head, _ov_head, hc)
+		_set_overlay(_model_tail, _ov_tail, tc)
 	_rev_light.light_energy = 0.9 if reversing else 0.0
 	_rev_lens.emission_energy_multiplier = 5.0 if reversing else 0.0
 

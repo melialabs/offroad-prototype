@@ -13,9 +13,13 @@ from mathutils import Vector, Matrix
 
 MODELS = {
     # length: real uzunluq (m); flip: 180° çevir (model +Y-ə baxırsa); wheels: ad ilə seçim (None = həndəsə ilə)
-    "niva": {"length": 3.74, "flip": False, "wheel_prefix": ["wheel_low_niva", "wheel_low.001_", "wheel_low.002_", "wheel_low.003_"], "tex": 1024, "decimate": 1.0},
-    "2107": {"length": 4.14, "flip": True, "wheel_prefix": ["Wheel P P", "Wheel P Z", "Wheel L P", "Wheel L Z"], "tex": 1024, "decimate": 1.0},
-    "2106": {"length": 4.17, "flip": False, "wheel_prefix": None, "tex": 1024, "decimate": 0.5,
+    # lamps: ön ("head") və arxa ("tail") fənərlər. obj = obyekt adı prefiksləri, mat = (material adı hissələri, region)
+    "niva": {"lamps": {"head": {"obj": ["headlight_low"]}, "tail": {"obj": ["taillight_low"]}},
+             "length": 3.74, "flip": False, "wheel_prefix": ["wheel_low_niva", "wheel_low.001_", "wheel_low.002_", "wheel_low.003_"], "tex": 1024, "decimate": 1.0},
+    "2107": {"lamps": {"head": {"obj": ["base_Fari_0"]}, "tail": {"mat": [["material_13", "material_14"], "rear"]}},
+             "length": 4.14, "flip": True, "wheel_prefix": ["Wheel P P", "Wheel P Z", "Wheel L P", "Wheel L Z"], "tex": 1024, "decimate": 1.0},
+    "2106": {"lamps": {"head": {"mat": [["Matte__FF00FFC8", "z_far"], "front"]}, "tail": {"mat": [["material.005", "material_4", "material_3", "material_5"], "rear"]}},
+             "length": 4.17, "flip": False, "wheel_prefix": None, "tex": 1024, "decimate": 0.5,
              # baqaj kilidi (xrom düymə) gecə işıq kimi görünür: gövdədən silinir (x, y aralığı, z aralığı, max ölçü)
              "strip": [(0.01, 1.95, 2.03, 0.69, 0.74, 0.06)]},
 }
@@ -83,7 +87,9 @@ def main():
     lo, hi = world_bbox(obs)
     if cfg["flip"]:
         for o in obs:
-            o.rotation_euler[2] += 3.14159265
+            # glTF importu kvaternion rejimi verir; euler yazmaq təsirsiz qalırdı (2107 tərs idi)
+            o.rotation_mode = "XYZ"
+            o.rotation_euler = (0.0, 0.0, 3.14159265)
         bpy.context.view_layer.update()
         select_only(obs)
         bpy.ops.object.transform_apply(location=True, rotation=True, scale=True)
@@ -142,9 +148,23 @@ def main():
         bpy.ops.object.origin_set(type="ORIGIN_CURSOR")
         final[k] = ob
 
-    # 4) gövdə
-    body = [o for o in meshes() if o not in wheel_objs]
+    # 4) fənər obyektləri (ad ilə), sonra gövdə
+    lamp_parts = {"head": [], "tail": []}
+    for kind, rule in cfg.get("lamps", {}).items():
+        for pref in rule.get("obj", []):
+            lamp_parts[kind] += [o for o in meshes() if o not in wheel_objs and o.name.startswith(pref)]
+    taken = set(sum(lamp_parts.values(), []))
+    body = [o for o in meshes() if o not in wheel_objs and o not in taken]
     bob = join(body, "Body")
+    # material ilə seçilən fənərlər: gövdənin yan-yana üzlərindən ayrılır
+    for kind, rule in cfg.get("lamps", {}).items():
+        if "mat" in rule:
+            names, region = rule["mat"]
+            part = extract_faces(bob, names, region, cfg["length"])
+            if part is not None:
+                lamp_parts[kind].append(part)
+    for kind, parts in lamp_parts.items():
+        finish_lamps(parts, kind)
     bpy.context.scene.cursor.location = (0, 0, 0)
     select_only([bob])
     bpy.ops.object.origin_set(type="ORIGIN_CURSOR")
@@ -178,6 +198,61 @@ def main():
     bpy.ops.export_scene.gltf(filepath=dst, export_format="GLB", export_image_format="AUTO",
                               export_apply=False, export_yup=True, export_cameras=False, export_lights=False)
     print("PREP done")
+
+
+def extract_faces(ob, names, region, length):
+    """Verilmiş material adlarını (hissə) daşıyan və ön/arxa bölgəsində olan üzləri ayrıca obyektə çıxarır."""
+    before = set(bpy.data.objects)
+    select_only([ob])
+    bpy.ops.object.mode_set(mode="EDIT")
+    bpy.ops.mesh.select_mode(type="FACE")
+    bpy.ops.mesh.select_all(action="DESELECT")
+    bm = bmesh.from_edit_mesh(ob.data)
+    yb = length * 0.5 - 0.35
+    n = 0
+    for f in bm.faces:
+        mat = ob.material_slots[f.material_index].material
+        nm = mat.name if mat else ""
+        y = f.calc_center_median().y
+        ok_region = (y < -yb) if region == "front" else (y > yb)
+        if ok_region and any(k in nm for k in names):
+            f.select = True
+            n += 1
+    bmesh.update_edit_mesh(ob.data)
+    if n:
+        bpy.ops.mesh.separate(type="SELECTED")
+    bpy.ops.object.mode_set(mode="OBJECT")
+    print("PREP lamp faces %s %s = %d" % (names, region, n))
+    new = [o for o in bpy.data.objects if o not in before]
+    return new[0] if new else None
+
+
+def finish_lamps(parts, kind):
+    """Fənər hissələrini birləşdirir, bağlı hissələrə bölür, x işarəsinə görə 2 obyektə (L_<kind>_N / _P) toplayır."""
+    parts = [p for p in parts if p is not None]
+    if not parts:
+        return
+    ob = join(parts, "L_tmp") if len(parts) > 1 else parts[0]
+    before = set(bpy.data.objects)
+    select_only([ob])
+    bpy.ops.object.mode_set(mode="EDIT")
+    bpy.ops.mesh.select_all(action="SELECT")
+    bpy.ops.mesh.separate(type="LOOSE")
+    bpy.ops.object.mode_set(mode="OBJECT")
+    pieces = [ob] + [o for o in bpy.data.objects if o not in before and o.type == "MESH"]
+    sides = {"N": [], "P": []}
+    for o in pieces:
+        lo, hi = world_bbox([o])
+        sides["P" if (lo.x + hi.x) / 2 > 0 else "N"].append(o)
+    for sd, g in sides.items():
+        if not g:
+            continue
+        j = join(g, "L_%s_%s" % (kind.upper(), sd)) if len(g) > 1 else g[0]
+        j.name = "L_%s_%s" % (kind.upper(), sd)
+        select_only([j])
+        bpy.ops.object.origin_set(type="ORIGIN_GEOMETRY", center="BOUNDS")
+        lo, hi = world_bbox([j])
+        print("PREP lamp %s center=%s size=%s" % (j.name, [round(v, 3) for v in (lo + hi) / 2], [round(v, 3) for v in (hi - lo)]))
 
 
 def strip_islands(ob, xmax, ylo, yhi, zlo, zhi, smax):

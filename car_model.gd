@@ -12,6 +12,11 @@ var wheel_centers: Array[Vector3] = []  # yer səviyyəsində, gövdə mərkəzi
 var wheel_radius := 0.3
 var length := 4.0
 var width := 1.8
+## Modelin öz fənər meshləri (Blender-də L_HEAD_N/P, L_TAIL_N/P kimi ayrılıb); mərkəzləri maşın koordinatındadır
+var head_lamps: Array[MeshInstance3D] = []
+var tail_lamps: Array[MeshInstance3D] = []
+var head_lamp_pos: Array[Vector3] = []
+var tail_lamp_pos: Array[Vector3] = []
 
 
 func load_model(path: String, origin_height: float) -> bool:
@@ -44,4 +49,13 @@ func load_model(path: String, origin_height: float) -> bool:
 		width = bb.size.x
 	root.position = Vector3(0, -origin_height, 0)
 	body = root
+	for sd in ["N", "P"]:
+		var h := root.find_child("L_HEAD_" + sd, true, false) as MeshInstance3D
+		if h != null:
+			head_lamps.append(h)
+			head_lamp_pos.append(h.position + root.position)
+		var t := root.find_child("L_TAIL_" + sd, true, false) as MeshInstance3D
+		if t != null:
+			tail_lamps.append(t)
+			tail_lamp_pos.append(t.position + root.position)
 	return true

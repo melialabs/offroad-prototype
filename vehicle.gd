@@ -213,9 +213,15 @@ func apply_spec(idx: int) -> void:
 		var half := cm.length * 0.5
 		var oh := float(spec["origin"])
 		lights.layout(half - 0.1, -half + 0.1, lp[0], lp[1], lp[2] - oh + 0.1, lp[3] - oh)
-		lights.set_lens_visible(false)
+		if not cm.head_lamps.is_empty() and not cm.tail_lamps.is_empty():
+			lights.bind_model_lamps(cm.head_lamps, cm.head_lamp_pos, cm.tail_lamps, cm.tail_lamp_pos)
+			lights.set_lens_visible(false)
+		else:
+			lights.clear_model_lamps()
+			lights.set_lens_visible(true)
 	else:
 		(_col.shape as BoxShape3D).size = Vector3(1.8, 0.9, 4.2)
+		lights.clear_model_lamps()
 		lights.layout(2.1, -2.08, 0.58, 0.76, 0.22, 0.2)
 		lights.set_lens_visible(true)
 	var positions: Array = []
