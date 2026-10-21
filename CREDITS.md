@@ -23,3 +23,11 @@ Rigs of Rods sənədləri (https://docs.rigsofrods.org) yalnız rəqəmləri və
 ## Asfalt teksturası
 
 Poly Haven "Clean Asphalt" (https://polyhaven.com/a/clean_asphalt), CC0, 1K. Sarı xətlər shader ilə çəkilir.
+
+## Terrain teksturaları (1K, CC0, Poly Haven)
+
+rocks_ground_08 (torpaq yol), brown_mud_02 (palçıq), brown_mud_03 (dərin palçıq), ganges_river_pebbles (daşlı səth),
+rocky_terrain_02 (ot), snow_02 (qar), rock_ground (qaya yamac). Mənbə: https://polyhaven.com/textures
+
+Qeyd: istifadəçinin `offroad_texture_references.zip` faylındakı şəkillər yalnız vizual istinad kimi istifadə olunub,
+oyuna daxil edilməyib.

@@ -46,6 +46,16 @@ var _dirty_max := Vector2i(-1, -1)
 var _big := FastNoiseLite.new()
 var _ridge := FastNoiseLite.new()
 
+var _material: ShaderMaterial
+var _ctrl_a_img: Image
+var _ctrl_b_img: Image
+var _ctrl_a_tex: ImageTexture
+var _ctrl_b_tex: ImageTexture
+var _grass_w := PackedFloat32Array()     # statik ot çəkisi (ctrl_b R kanalı)
+var _aux_dirt := PackedFloat32Array()    # torpaq çəkisi (yol kənarı və sahələr)
+var _aux_cobble := PackedFloat32Array()  # daş sahələri
+var _aux_deepk := PackedFloat32Array()   # palçığın dərin hissəsi
+
 var _road := PackedVector2Array()        # sıxlaşdırılmış yol xətti
 var _road_len := PackedFloat32Array()    # xəttin əvvəlindən yığılmış uzunluq
 var _road_h := PackedFloat32Array()      # yolun hündürlük profili
@@ -63,7 +73,8 @@ func _ready() -> void:
 	col.scale = Vector3(CELL, 1.0, CELL)
 	add_child(col)
 
-	_mesh_inst.material_override = _make_material()
+	_material = _make_material()
+	_mesh_inst.material_override = _material
 	add_child(_mesh_inst)
 	_rebuild_mesh()
 
@@ -79,85 +90,72 @@ func _process(delta: float) -> void:
 
 # --- material ---------------------------------------------------------------
 
-const TERRAIN_SHADER := """
-shader_type spatial;
-uniform sampler2D g_diff : source_color, filter_linear_mipmap_anisotropic, repeat_enable;
-uniform sampler2D g_nor : hint_normal, filter_linear_mipmap_anisotropic, repeat_enable;
-uniform sampler2D g_rough : hint_default_white, filter_linear_mipmap_anisotropic, repeat_enable;
-uniform sampler2D g_ao : hint_default_white, filter_linear_mipmap_anisotropic, repeat_enable;
-uniform sampler2D a_diff : source_color, filter_linear_mipmap_anisotropic, repeat_enable;
-uniform sampler2D a_nor : hint_normal, filter_linear_mipmap_anisotropic, repeat_enable;
-uniform sampler2D a_rough : hint_default_white, filter_linear_mipmap_anisotropic, repeat_enable;
-uniform float g_scale = 0.3;
-uniform float a_scale = 0.35;
-uniform float road_half = 4.0;
-varying vec3 wn;
-varying float wy;
-
-void vertex() {
-	wn = normalize((MODEL_MATRIX * vec4(NORMAL, 0.0)).xyz);
-	wy = (MODEL_MATRIX * vec4(VERTEX, 1.0)).y;
-}
-
-void fragment() {
-	vec2 gu = UV * g_scale;
-	vec2 au_ = UV * a_scale;
-	vec3 gd = texture(g_diff, gu).rgb * COLOR.rgb;
-	vec3 gn = texture(g_nor, gu).rgb;
-	float gr = texture(g_rough, gu).r;
-	float gao = texture(g_ao, gu).r;
-	vec3 ad = texture(a_diff, au_).rgb;
-	vec3 an = texture(a_nor, au_).rgb;
-	float ar = texture(a_rough, au_).r;
-
-	// dik yamaclarda qaya, hündürdə qar
-	float slope = 1.0 - wn.y;
-	float rock = smoothstep(0.20, 0.40, slope);
-	vec3 rock_col = vec3(dot(gd, vec3(0.333))) * vec3(1.0, 0.97, 0.93) * 0.8;
-	float snow = smoothstep(26.0, 34.0, wy) * (1.0 - smoothstep(0.35, 0.55, slope));
-	gd = mix(gd, rock_col, rock);
-	gd = mix(gd, vec3(0.92, 0.94, 0.98), snow);
-
-	float u = abs(UV2.x);
-	float along = UV2.y;
-	float road = 1.0 - smoothstep(road_half - 0.06, road_half + 0.06, u);
-	// yolun kənarında daha tünd çınqıl zolağı
-	float shoulder = (1.0 - smoothstep(road_half + 0.5, road_half + 1.3, u)) * (1.0 - road);
-	// sarı kənar xətləri və qırıq mərkəz xətti
-	float edge_line = smoothstep(road_half - 0.62, road_half - 0.56, u)
-			* (1.0 - smoothstep(road_half - 0.40, road_half - 0.34, u));
-	float dash = step(fract(along / 9.0), 0.55);
-	float center = (1.0 - smoothstep(0.08, 0.12, u)) * dash;
-	float paint = max(edge_line, center) * road;
-	vec3 yellow = vec3(0.78, 0.60, 0.07);
-	vec3 asphalt = ad * 1.15;
-	asphalt = mix(asphalt, yellow * (0.55 + ad.r * 1.4), paint * 0.88);
-
-	vec3 col = mix(gd, asphalt, road);
-	col = mix(col, col * 0.65, shoulder * 0.6);
-	ALBEDO = col;
-	ROUGHNESS = mix(gr, mix(ar, 0.85, paint), road);
-	NORMAL_MAP = mix(gn, an, road);
-	AO = mix(gao, 1.0, road);
-	AO_LIGHT_AFFECT = 0.6;
-}
-"""
 
 
 func _make_material() -> ShaderMaterial:
 	var sm := ShaderMaterial.new()
-	var shader := Shader.new()
-	shader.code = TERRAIN_SHADER
-	sm.shader = shader
-	sm.set_shader_parameter("g_diff", load("res://assets/tex/ground_diff.jpg"))
-	sm.set_shader_parameter("g_nor", load("res://assets/tex/ground_nor_gl.jpg"))
-	sm.set_shader_parameter("g_rough", load("res://assets/tex/ground_rough.jpg"))
-	sm.set_shader_parameter("g_ao", load("res://assets/tex/ground_ao.jpg"))
+	sm.shader = load("res://terrain.gdshader")
+	var tex := TerrainTextures.build()
+	if tex.is_empty():
+		push_warning("Terrain teksturaları yüklənmədi")
+	else:
+		sm.set_shader_parameter("tex_albedo", tex["albedo"])
+		sm.set_shader_parameter("tex_normal", tex["normal"])
+		sm.set_shader_parameter("tex_height", tex["height"])
+		sm.set_shader_parameter("tex_rough", tex["rough"])
+	sm.set_shader_parameter("tile_m", TerrainTextures.tiles())
+	sm.set_shader_parameter("layer_tint", TerrainTextures.tints())
 	sm.set_shader_parameter("a_diff", load("res://assets/tex/clean_asphalt_diff_1k.jpg"))
 	sm.set_shader_parameter("a_nor", load("res://assets/tex/clean_asphalt_nor_gl_1k.jpg"))
 	sm.set_shader_parameter("a_rough", load("res://assets/tex/clean_asphalt_rough_1k.jpg"))
 	sm.set_shader_parameter("road_half", ROAD_HALF)
+	sm.set_shader_parameter("ctrl_n", float(N))
+	sm.set_shader_parameter("cell", CELL)
+	_ctrl_a_tex = ImageTexture.create_from_image(_ctrl_a_img)
+	_ctrl_b_tex = ImageTexture.create_from_image(_ctrl_b_img)
+	sm.set_shader_parameter("ctrl_a", _ctrl_a_tex)
+	sm.set_shader_parameter("ctrl_b", _ctrl_b_tex)
+	# makro variasiya: eyni teksturanın təkrarı görünməsin
+	var noise := FastNoiseLite.new()
+	noise.seed = 5
+	noise.frequency = 0.02
+	noise.fractal_octaves = 4
+	var nimg := noise.get_seamless_image(256, 256)
+	nimg.generate_mipmaps()
+	sm.set_shader_parameter("macro_noise", ImageTexture.create_from_image(nimg))
 	return sm
+
+
+## Hava və fəsil: yağış (islanma), qar örtüyü, buz. Hamısı 0..1. İndi yalnız görünüşdür,
+## fizika 3-cü mərhələdə SurfaceType ilə bağlanacaq.
+func set_surface_conditions(wet: float, snow: float, ice: float) -> void:
+	_material.set_shader_parameter("wetness", clampf(wet, 0.0, 1.0))
+	_material.set_shader_parameter("snow_amount", clampf(snow, 0.0, 1.0))
+	_material.set_shader_parameter("ice_amount", clampf(ice, 0.0, 1.0))
+
+
+## Fəsil üçün ot rəngi (məsələn payızda sarımtıl).
+func set_grass_tint(tint: Color) -> void:
+	_material.set_shader_parameter("grass_tint", Vector3(tint.r, tint.g, tint.b))
+
+
+## Çəki xəritələrini hazır `soft`, yol və səs maskalarından qurur (generasiyadan sonra).
+func _build_ctrl() -> void:
+	_ctrl_a_img = Image.create(N, N, false, Image.FORMAT_RGBA8)
+	_ctrl_b_img = Image.create(N, N, false, Image.FORMAT_RGBA8)
+	_grass_w.resize(N * N)
+	for i in N * N:
+		var s := soft[i]
+		var deep := s * _aux_deepk[i]
+		var mud := s - deep
+		var dirt := _aux_dirt[i] * (1.0 - s)
+		var cobble := _aux_cobble[i] * (1.0 - s)
+		var grass := clampf(1.0 - (mud + deep + dirt + cobble), 0.0, 1.0)
+		_grass_w[i] = grass
+		var x := i % N
+		var z := i / N
+		_ctrl_a_img.set_pixel(x, z, Color(dirt, mud, deep, cobble))
+		_ctrl_b_img.set_pixel(x, z, Color(grass, 0.0, 0.0, 0.0))
 
 
 # --- yol xətti -------------------------------------------------------------
@@ -248,6 +246,15 @@ func _generate() -> void:
 	var mud := FastNoiseLite.new()
 	mud.seed = 21
 	mud.frequency = 0.02
+	var dirt_noise := FastNoiseLite.new()
+	dirt_noise.seed = 63
+	dirt_noise.frequency = 0.03
+	var cobble_noise := FastNoiseLite.new()
+	cobble_noise.seed = 71
+	cobble_noise.frequency = 0.045
+	_aux_dirt.resize(N * N)
+	_aux_cobble.resize(N * N)
+	_aux_deepk.resize(N * N)
 
 	_road = _spline(ROAD_POINTS, 16)
 	_road_len = _lengths(_road)
@@ -278,6 +285,7 @@ func _generate() -> void:
 			# başlanğıcdan bir az aralıda palçıq sahələri
 			var m := mud.get_noise_2d(wx + 40.0, wz) * 0.5 + 0.5
 			var s := clampf((m - 0.45) * 5.0, 0.0, 1.0) * clampf(dist / 12.0, 0.0, 1.0)
+			var deep_k := smoothstep(0.85, 1.0, s)  # palçığın ən dərin hissəsi
 
 			var p := Vector2(wx, wz)
 			# palçıq cığırı
@@ -299,6 +307,15 @@ func _generate() -> void:
 			# yolda və yaxınlığında palçıq olmasın
 			s *= smoothstep(ROAD_HALF + 0.8, ROAD_HALF + 3.0, d)
 
+			# səth qarışığı üçün köməkçi maskalar: yol kənarı torpağı, torpaq və daş sahələri
+			var shoulder_w := smoothstep(ROAD_HALF + 0.3, ROAD_HALF + 0.9, d) \
+					* (1.0 - smoothstep(ROAD_HALF + 2.0, ROAD_HALF + 5.0, d))
+			var dn := dirt_noise.get_noise_2d(wx, wz) * 0.5 + 0.5
+			var cn := cobble_noise.get_noise_2d(wx, wz) * 0.5 + 0.5
+			_aux_dirt[i] = clampf(maxf(shoulder_w, smoothstep(0.58, 0.78, dn) * 0.85), 0.0, 1.0)
+			_aux_cobble[i] = smoothstep(0.64, 0.80, cn) * 0.9
+			_aux_deepk[i] = deep_k
+
 			h[i] = hh
 			base[i] = hh
 			soft[i] = s
@@ -313,6 +330,7 @@ func _generate() -> void:
 			var gz := (h[_idx(x, z + 1)] - h[_idx(x, z - 1)]) / (2.0 * CELL)
 			if Vector2(gx, gz).length() > 0.45 or h[i] > 24.0:
 				soft[i] = 0.0
+	_build_ctrl()
 
 
 ## Güclü relyef: yuvarlanan təpələr + xəritənin kənarında silsilə dağlar.
@@ -367,19 +385,17 @@ func _rebuild_mesh(full := true) -> void:
 			_tangents[i * 4 + 1] = tg.y
 			_tangents[i * 4 + 2] = tg.z
 			_tangents[i * 4 + 3] = 1.0
+			# iz dərinliyi çəki xəritəsinə yazılır: dərin palçıq çəkisi artır
 			var depth := clampf((base[i] - h[i]) / MAX_DEPTH, 0.0, 1.0)
-			var grass := Color(0.60, 0.80, 0.40)
-			var wet := Color(0.55, 0.42, 0.30)
-			var rut := Color(0.30, 0.22, 0.16)
-			var c := grass.lerp(wet, clampf(soft[i] * 1.8, 0.0, 1.0))
-			_colors[i] = c.lerp(rut, depth)
+			_ctrl_b_img.set_pixel(x, z, Color(_grass_w[i], 0.0, depth, 0.0))
+	if _ctrl_b_tex != null:
+		_ctrl_b_tex.update(_ctrl_b_img)
 
 	var arrays := []
 	arrays.resize(Mesh.ARRAY_MAX)
 	arrays[Mesh.ARRAY_VERTEX] = _verts
 	arrays[Mesh.ARRAY_NORMAL] = _normals
 	arrays[Mesh.ARRAY_TANGENT] = _tangents
-	arrays[Mesh.ARRAY_COLOR] = _colors
 	arrays[Mesh.ARRAY_TEX_UV] = _uv
 	arrays[Mesh.ARRAY_TEX_UV2] = _uv2
 	arrays[Mesh.ARRAY_INDEX] = _indices

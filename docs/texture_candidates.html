@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="az"><head><meta charset="utf-8"><title>Tekstura namizədləri (Poly Haven, CC0)</title>
+<style>
+body{background:#111;color:#eee;font:13px sans-serif;margin:12px}
+h3{margin:14px 0 4px;color:#9cf}
+.row{display:flex;flex-wrap:wrap;gap:6px}
+.c{width:150px;background:#222;padding:3px}
+.c img{width:150px;height:150px;object-fit:cover;display:block;background:#333}
+</style></head><body>
+<h2>Poly Haven CC0 namizədləri. İstinad lövhəsi ilə müqayisə et</h2>
+<div id="g"></div>
+<script>
+const S={
+"Asfalt":["clean_asphalt","asphalt_02","road_damaged_clean"],
+"Torpaq yol":["dirt_aerial_02","dirt_aerial_03","brown_mud_dry","park_dirt","rocky_trail","grass_path_2"],
+"Palçıq":["brown_mud_02","aerial_mud_1","brown_mud","red_dirt_mud_01","brown_mud_rocks_01"],
+"Dərin palçıq":["brown_mud_03","brown_mud_02","brown_mud_rocks_01"],
+"Daşlı səth":["rocks_ground_08","rocks_ground_03","aerial_ground_rock","ganges_river_pebbles","rock_ground","rocky_terrain_02"],
+"Ot":["grass_ground","rocky_terrain","aerial_grass_rock","forest_ground_04","rocky_terrain_03"],
+"Qar":["snow_02","snow_03","snow_01","snow_05"],
+"Qaya (yamac)":["rock_face","rock_06","rock_boulder_dry","worn_rock_natural_01"]};
+let h="";
+for(const k in S){h+="<h3>"+k+"</h3><div class=row>"+S[k].map(id=>
+ '<div class=c><img src="https://cdn.polyhaven.com/asset_img/thumbs/'+id+'.png?width=256&height=256" alt="'+id+'"><div>'+id+'</div></div>').join("")+"</div>";}
+document.getElementById("g").innerHTML=h;
+</script></body></html>
