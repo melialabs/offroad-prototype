@@ -23,7 +23,11 @@ var target: OffroadTruck
 var terrain: MudTerrain
 var mode: int = Mode.CLOSE
 
+## Menyu açıq olanda maşının ətrafında yavaş fırlanır, maşın ekranın sağında qalır.
+var menu_orbit := false
+
 var _yaw := 0.0
+var _orbit_angle := 0.6
 var _fov := 68.0
 var _snap := true
 
@@ -55,10 +59,25 @@ func snap() -> void:
 func _physics_process(delta: float) -> void:
 	if target == null:
 		return
-	if mode == Mode.HOOD:
+	if menu_orbit:
+		_update_orbit(delta)
+	elif mode == Mode.HOOD:
 		_update_hood(delta)
 	else:
 		_update_chase(delta)
+
+
+func _update_orbit(delta: float) -> void:
+	_orbit_angle += delta * 0.22
+	var c := target.global_position
+	var pos := c + Vector3(cos(_orbit_angle) * 7.2, 2.3, sin(_orbit_angle) * 7.2)
+	var f := (c - pos).normalized()
+	var right := f.cross(Vector3.UP).normalized()
+	# baxış nöqtəsi maşının solundadır, ona görə maşın ekranın sağında görünür
+	look_at_from_position(pos, c + Vector3.UP * 0.9 - right * 2.6, Vector3.UP)
+	fov = 55.0
+	_fov = 55.0
+	_snap = true
 
 
 func _heading() -> Vector3:

@@ -48,6 +48,7 @@ var fuel := 100.0
 var rpm := IDLE_RPM
 var mud_level := 0.0  # HUD üçün: orta batma dərəcəsi
 
+var controls_enabled := true  # menyu açıq olanda false: maşın dayanır, düymələr işləmir
 var _shift_cooldown := 0.0
 var _jeep: JeepModel
 var _box_nodes: Array[Node3D] = []
@@ -170,6 +171,8 @@ func apply_spec(idx: int) -> void:
 
 
 func _unhandled_input(event: InputEvent) -> void:
+	if not controls_enabled:
+		return
 	if not (event is InputEventKey) or not event.pressed or event.echo:
 		return
 	match event.physical_keycode:
@@ -222,6 +225,10 @@ func _physics_process(delta: float) -> void:
 	elif Input.is_physical_key_pressed(KEY_D):
 		steer = -1.0
 
+	if not controls_enabled:
+		want = 0.0
+		steer = 0.0
+
 	# irəli/geri qərarı: hərəkətin əksinə basanda əyləc
 	var fwd_speed := linear_velocity.dot(global_transform.basis.z)
 	var drive := 0.0
@@ -239,7 +246,7 @@ func _physics_process(delta: float) -> void:
 		else:
 			drive = -want
 			gear = -1
-	if Input.is_physical_key_pressed(KEY_SPACE):
+	if Input.is_physical_key_pressed(KEY_SPACE) or not controls_enabled:
 		braking = 1.0
 	if fuel <= 0.0:
 		drive = 0.0

@@ -3,6 +3,9 @@ extends Node3D
 var truck: OffroadTruck
 var cam: ChaseCamera
 var hud: Hud
+var menu: MainMenu
+var _menu_open := false
+var _sun: DirectionalLight3D
 var _terrain: MudTerrain
 
 const SKY_SHADER := """
@@ -66,6 +69,20 @@ func _ready() -> void:
 	add_child(layer)
 	cam.mode_changed.connect(hud.show_toast)
 
+	var menu_layer := CanvasLayer.new()
+	menu_layer.layer = 10
+	menu = MainMenu.new()
+	menu.main = self
+	menu.truck = truck
+	menu_layer.add_child(menu)
+	add_child(menu_layer)
+	menu.start_requested.connect(_close_menu)
+	menu.resume_requested.connect(_close_menu)
+	menu.restart_requested.connect(_restart_from_menu)
+	menu.quit_requested.connect(get_tree().quit)
+	# menyu yalnız oyun əsas səhnə kimi açılanda görünür (testlər main.tscn-i alt düyün kimi yükləyir)
+	_maybe_open_menu.call_deferred()
+
 
 func _setup_environment() -> void:
 	var sky_mat := ShaderMaterial.new()
@@ -97,6 +114,7 @@ func _setup_environment() -> void:
 	add_child(we)
 
 	var sun := DirectionalLight3D.new()
+	_sun = sun
 	sun.rotation_degrees = Vector3(-42, -30, 0)
 	sun.light_color = Color(1.0, 0.95, 0.85)
 	sun.light_energy = 1.3
@@ -204,8 +222,56 @@ func _place_on_road() -> void:
 	truck.global_position = sp["pos"] + Vector3(0, 2.0, 0)
 
 
+func _maybe_open_menu() -> void:
+	if get_tree().current_scene == self:
+		_open_menu(false)
+
+
+func _open_menu(game_running: bool) -> void:
+	_menu_open = true
+	truck.controls_enabled = false
+	cam.menu_orbit = true
+	hud.visible = false
+	menu.open(game_running)
+
+
+func _close_menu() -> void:
+	_menu_open = false
+	truck.controls_enabled = true
+	cam.menu_orbit = false
+	cam.snap()
+	hud.visible = true
+	menu.close()
+
+
+func _restart_from_menu() -> void:
+	_place_on_road()
+	_close_menu()
+
+
+## Menyudan texnika seçimi: texnika dəyişir və yolun üstünə qoyulur.
+func select_vehicle(i: int) -> void:
+	truck.apply_spec(i)
+	_place_on_road()
+
+
+func set_fullscreen(on: bool) -> void:
+	DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_FULLSCREEN if on else DisplayServer.WINDOW_MODE_WINDOWED)
+
+
+func set_shadows(on: bool) -> void:
+	_sun.shadow_enabled = on
+
+
+func _unhandled_input(event: InputEvent) -> void:
+	if get_tree().current_scene != self or _menu_open:
+		return
+	if event is InputEventKey and event.pressed and not event.echo and event.physical_keycode == KEY_ESCAPE:
+		_open_menu(true)
+
+
 func _physics_process(_delta: float) -> void:
 	# xəritədən düşsə avtomatik sıfırla
-	if Input.is_physical_key_pressed(KEY_R) or truck.global_position.y < -30.0:
+	if (Input.is_physical_key_pressed(KEY_R) and not _menu_open) or truck.global_position.y < -30.0:
 		_place_on_road()
 		cam.snap()
