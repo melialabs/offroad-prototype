@@ -1,0 +1,2 @@
+incoming-vehicles/*.glb filter=lfs diff=lfs merge=lfs -text
+incoming-vehicles/*.zip filter=lfs diff=lfs merge=lfs -text
