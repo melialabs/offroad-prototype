@@ -2,6 +2,7 @@ extends Node3D
 
 var truck: OffroadTruck
 var cam: ChaseCamera
+var world_map: WorldMap
 var hud: Hud
 var menu: MainMenu
 var audio: GameAudio
@@ -87,7 +88,7 @@ func _ready() -> void:
 	layer.add_child(hud)
 	add_child(layer)
 	var map_layer := CanvasLayer.new()
-	var world_map := WorldMap.new()
+	world_map = WorldMap.new()
 	world_map.terrain = terrain
 	world_map.truck = truck
 	map_layer.add_child(world_map)
@@ -271,6 +272,7 @@ func _open_menu(game_running: bool) -> void:
 	truck.controls_enabled = false
 	cam.menu_orbit = true
 	hud.visible = false
+	world_map.visible = false
 	menu.open(game_running)
 
 
@@ -282,6 +284,7 @@ func _close_menu() -> void:
 	cam.menu_orbit = false
 	cam.snap()
 	hud.visible = true
+	world_map.visible = true
 	menu.close()
 
 

@@ -18,9 +18,9 @@ static func slip_speed(wheel_rpm: float, radius: float, ground_speed: float) -> 
 static func digging_rate(load_newtons: float, width: float, radius: float, slip: float) -> float:
 	var area := maxf(width * radius * 0.6, 0.02)
 	var pressure := clampf(load_newtons / area / 45000.0, 0.2, 3.0)
-	return pressure * (0.012 + 0.10 * clampf(slip / 3.0, 0.0, 1.0))
+	return pressure * (0.028 + 0.18 * clampf(slip / 3.0, 0.0, 1.0))
 
 
 static func resistance(softness: float, depth: float, radius: float) -> float:
 	var burial := clampf(depth / maxf(radius, 0.1), 0.0, 1.5)
-	return clampf(softness, 0.0, 1.0) * (0.08 + burial * burial * 1.4)
+	return clampf(softness, 0.0, 1.0) * (0.18 + burial * burial * 3.2)

@@ -45,7 +45,8 @@ func _ready() -> void:
 	for p in HEAD_POS:
 		var sp := SpotLight3D.new()
 		sp.position = p
-		sp.shadow_enabled = false
+		sp.shadow_enabled = true
+		sp.light_color = Color(1.0, 0.94, 0.79)
 		sp.spot_attenuation = 0.8
 		add_child(sp)
 		_heads.append(sp)
@@ -91,10 +92,9 @@ func bind_model_lamps(head: Array[MeshInstance3D], head_pos: Array[Vector3], tai
 		_ov_tail = _overlay()
 	var hp: Array = head_pos if head_pos.size() == 2 else HEAD_POS
 	var tp: Array = tail_pos if tail_pos.size() == 2 else TAIL_POS
-	var fz: float = (hp[0] as Vector3).z + 0.12
 	var rz: float = (tp[0] as Vector3).z - 0.02
-	HEAD_POS = [Vector3(hp[0].x, hp[0].y, fz), Vector3(hp[1].x, hp[1].y, fz)]
-	TAIL_POS = [Vector3(tp[0].x, tp[0].y, rz), Vector3(tp[1].x, tp[1].y, rz)]
+	HEAD_POS = [hp[0], hp[1]]
+	TAIL_POS = [tp[0] + Vector3(0, 0, -0.02), tp[1] + Vector3(0, 0, -0.02)]
 	AMBER_POS = [HEAD_POS[0], HEAD_POS[1], TAIL_POS[0], TAIL_POS[1]]
 	REV_POS = Vector3(0, (tp[0] as Vector3).y, rz)
 	for i in 2:
@@ -279,3 +279,5 @@ func _apply() -> void:
 		# SpotLight -Z-yə baxır, ona görə +Z (irəli) üçün 180° Y fırlanma, sonra aşağı əyilmə
 		sp.transform = Transform3D(Basis(Vector3.UP, PI) * Basis(Vector3.RIGHT, -pitch), HEAD_POS[i])
 		_head_lens[i].emission_energy_multiplier = 0.0 if headlight_mode == 0 else (3.5 if headlight_mode == 1 else 7.0)
+	if not _model_head.is_empty():
+		_set_overlay(_model_head, _ov_head, Color(3.2, 2.9, 2.4) if headlight_mode > 0 else Color.BLACK)

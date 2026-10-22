@@ -1,4 +1,4 @@
-# Surface physics: first iteration
+# Surface physics and mud upgrade
 
 This is an independently written approximation inspired by publicly documented
 off-road mechanics. No SnowRunner/MudRunner executable, source, assets or game
@@ -15,14 +15,21 @@ analysis was possible without a supplied game artifact and native provider.
 - Mud resistance acts at contacting wheels and opposes horizontal contact motion.
   Deeper ruts relative to tire radius create stronger resistance.
 - Vehicle-specific suspension travel, stiffness and damping for all six vehicles.
-- Existing model mount positions, controls and drivetrain remain in use.
+- A bounded pool of 256 clods flies in world space under gravity, hits the soil,
+  flattens into short-lived deposits and retires. Emission follows contact,
+  wetness, tire rotation and excess tread speed, including a stuck spinning tire.
+- Three shallow swamp basins and wet rut shading give the trail deeper sections.
+- Drivetrain torque is 35% stronger, with a taller final drive and fifth gear.
+  Actual loaded wheel radius is now used for force conversion.
 
 ## Limits
 
 The vehicle still uses Godot VehicleBody3D. Wheel load is an equal static-load
 approximation over wheels in contact, not measured dynamic load. The terrain
-grid is 1.5 m, so rut footprints remain deliberately broad; this is not precise
-tire-width geometry. No simulated soft tires, suspension articulation, water
+world grid is 4 m, with a 25 cm local grid around the vehicle for tire-width
+ruts. Soil support and the rendered rut use the same heights, updated at up to
+8.3 Hz. Maximum displacement is 1.15 m, limited by softness. The car can bottom
+out on its chassis before its wheels reach this depth. No simulated soft tires, suspension articulation, water
 forces, winch, trailer or full soil solver is included. Snow/ice weather shaders
 remain visual. Mud coefficients and suspension values require visible driving
 playtests. Headless tests cannot verify rendering, vehicle feel or M4 GPU FPS.

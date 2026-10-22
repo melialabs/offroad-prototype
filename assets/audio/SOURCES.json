@@ -1,0 +1,66 @@
+[
+  {
+    "file": "birds_dawn.ogg",
+    "layer": "birds_dawn",
+    "sound_id": "634511",
+    "credit": "resaural",
+    "licence": "CC0 1.0 (Creative Commons Zero)",
+    "licence_page": "https://freesound.org/people/resaural/sounds/634511/",
+    "source_url": "https://freesound.org/people/resaural/sounds/634511/",
+    "duration": 430.9,
+    "sample_rate": 48000,
+    "channels": 2,
+    "low_cut": 120.0,
+    "derivative_distribution": "https://github.com/euuuuuuan/todak-public/tree/main/assets/ambience",
+    "sha256": "924f47467bf4f68f06f7814d7d75f21d40a41d929b5d2678f49fcf0f065ec69f"
+  },
+  {
+    "file": "crickets.ogg",
+    "layer": "crickets",
+    "sound_id": "479041",
+    "credit": "felixblume",
+    "licence": "CC0 1.0 (Creative Commons Zero)",
+    "licence_page": "https://freesound.org/s/479041/",
+    "source_url": "https://freesound.org/people/felixblume/sounds/479041/",
+    "duration": 525.8,
+    "sample_rate": 96000,
+    "channels": 2,
+    "low_cut": 150.0,
+    "high_cut": 12000.0,
+    "derivative_distribution": "https://github.com/euuuuuuan/todak-public/tree/main/assets/ambience",
+    "sha256": "22b8a0eb03c5fa20460da891a908e4db281700ca352228bc9dccb7bb3add2845"
+  },
+  {
+    "file": "stream_brook.ogg",
+    "layer": "stream_brook",
+    "sound_id": "671883",
+    "credit": "cher1101",
+    "licence": "CC0 1.0 (Creative Commons Zero)",
+    "licence_page": "https://freesound.org/people/cher1101/sounds/671883/",
+    "source_url": "https://freesound.org/people/cher1101/sounds/671883/",
+    "duration": 90.1,
+    "sample_rate": 48000,
+    "channels": 2,
+    "low_cut": 80.0,
+    "derivative_distribution": "https://github.com/euuuuuuan/todak-public/tree/main/assets/ambience",
+    "sha256": "7b4d8a3a9851402093319b3a3c8d76faf6422eee89dffe5a0e9ead65fa0044e1"
+  },
+  {
+    "file": "forest.ogg",
+    "credit": "Joseph Sardin / BigSoundBank",
+    "licence": "CC0 1.0",
+    "source_url": "https://bigsoundbank.com/forest-s0100.html",
+    "download_url": "https://bigsoundbank.com/UPLOAD/ogg/0100.ogg",
+    "processing": "2-second circular crossfade, Vorbis re-encode",
+    "sha256": "03b28b1a85f1bc626faf8c3b8a0cc491c5b5a59c1598cb840d54e056f36d3aee"
+  },
+  {
+    "file": "tawny_owl.ogg",
+    "credit": "Joseph Sardin / BigSoundBank",
+    "licence": "CC0 1.0",
+    "source_url": "https://bigsoundbank.com/tawny-owl-1-s1763.html",
+    "download_url": "https://bigsoundbank.com/UPLOAD/ogg/1763.ogg",
+    "processing": "unmodified",
+    "sha256": "8ce7646a9abedb6c8fd2fcd1aca886e14168ccd1b0071072fe0cf2cc1408d032"
+  }
+]

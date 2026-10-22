@@ -63,4 +63,4 @@ Modellər `tools/blender_vehicle_prep.py` ilə oyun üçün hazırlanıb (miqyas
 
 ## Səslər
 
-Bütün səslər `game_audio.gd` ilə kod daxilində sintez olunur; xarici səs faylı və ya lisenziya yoxdur.
+Mühərrik və avtomobil effektləri `game_audio.gd` ilə sintez olunur. Meşə, quşlar, gecə həşəratları, bayquş və su səsləri real CC0 qeydləridir. Müəlliflər, mənbələr və emal məlumatları: [assets/audio/CREDITS.md](assets/audio/CREDITS.md) və [SOURCES.json](assets/audio/SOURCES.json).

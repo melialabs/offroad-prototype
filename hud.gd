@@ -4,7 +4,7 @@ extends Control
 ## Mərkəz boşdur ki, yol və maşın görünsün. Hamısı _draw() ilə çəkilir, ekran ölçüsünə görə miqyaslanır.
 ## Düymə göstərişi ilk 16 saniyə görünür, sonra H ilə açılıb-bağlanır.
 
-const MAX_KMH := 80.0
+const MAX_KMH := 120.0
 const MAX_RPM := 3500.0
 const CYAN := Color(0.25, 0.85, 1.0)
 const ORANGE := Color(1.0, 0.58, 0.12)
@@ -77,7 +77,7 @@ func _draw() -> void:
 
 	# sol blok: spidometr + AWD / diferensial / diapazon
 	var lw := 14.0 * s + (speedo_r + 8.0 * s) * 2.0 + gap + pill_w + 14.0 * s
-	var left := Rect2(m, y0, lw, h)
+	var left := Rect2(m + 226.0 * s, y0, lw, h)
 	_panel(left)
 	var sc := Vector2(left.position.x + 14.0 * s + speedo_r + 8.0 * s, y0 + h * 0.5)
 	_draw_speedo(sc, speedo_r, s)
@@ -95,7 +95,7 @@ func _draw() -> void:
 	# mərkəz: mühərrik / fənər / qəza işığı göstəriciləri
 	var bw := 104.0 * s
 	var bx := sz.x * 0.5 - (bw * 3.0 + gap * 2.0) * 0.5
-	var by := sz.y - m - 22.0 * s - 14.0 * s
+	var by := y0 - 32.0 * s
 	var eng_txt := "Mühərrik"
 	var eng_on: bool = truck.engine_state == OffroadTruck.EngineState.RUNNING
 	if truck.engine_state == OffroadTruck.EngineState.CRANKING:
@@ -114,12 +114,12 @@ func _draw() -> void:
 	# düymə göstərişi: ilk 16 saniyə, sonra H ilə
 	var hint_a := 0.5 if _hints_forced else clampf((16.0 - _t) / 3.0, 0.0, 1.0) * 0.5
 	if hint_a > 0.01:
-		_text_c("W/S qaz  ·  A/D sükan  ·  Space əl əyləci  ·  Siçan kamera  ·  V rejim  ·  I mühərrik  ·  L fənər  ·  Z qəza  ·  N gecə  ·  Q diapazon  ·  E AWD  ·  F diferensial  ·  T təkər  ·  Esc menyu  ·  H göstəriş",
+		_text_c("W/S qaz  ·  A/D sükan  ·  Space əl əyləci  ·  Siçan kamera  ·  V rejim  ·  I mühərrik  ·  L fənər  ·  Z qəza  ·  N gecə  ·  Q diapazon  ·  E AWD  ·  F diferensial  ·  T təkər  ·  M xəritə  ·  Esc menyu  ·  H göstəriş",
 			Vector2(sz.x * 0.5, sz.y - 7.0 * s), int(11 * s), Color(1, 1, 1, hint_a))
 
 	if _toast_t > 0.0:
 		var a := clampf(_toast_t / 0.4, 0.0, 1.0)
-		_text_c(_toast, Vector2(sz.x * 0.5, sz.y - m - h - 18.0 * s), int(22 * s), Color(1, 1, 1, a))
+		_text_c(_toast, Vector2(sz.x * 0.5, sz.y - m - h - 65.0 * s), int(22 * s), Color(1, 1, 1, a))
 
 
 # --- spidometr -------------------------------------------------------------------

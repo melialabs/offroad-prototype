@@ -1,6 +1,6 @@
 class_name WorldMap
 extends Control
-## M toggles a route overview with the live vehicle position.
+## Bottom-left GPS is always visible; M expands the same map.
 
 var terrain: MudTerrain
 var truck: OffroadTruck
@@ -13,7 +13,7 @@ func _ready() -> void:
 
 
 func _unhandled_input(event: InputEvent) -> void:
-	if event is InputEventKey and event.pressed and not event.echo and event.physical_keycode == KEY_M:
+	if visible and event is InputEventKey and event.pressed and not event.echo and event.physical_keycode == KEY_M:
 		opened = not opened
 		queue_redraw()
 		get_viewport().set_input_as_handled()
@@ -30,15 +30,13 @@ func _draw() -> void:
 	if terrain == null or truck == null:
 		return
 	var font := ThemeDB.fallback_font
-	var size := get_viewport_rect().size
-	draw_string(font, Vector2(size.x - 190, 30), "M · Xəritə  /  2 × 2 km", HORIZONTAL_ALIGNMENT_LEFT, -1, 16, Color.WHITE)
-	if not opened:
-		return
-	var side := minf(size.y - 150.0, size.x - 220.0)
-	var origin := (size - Vector2.ONE * side) * 0.5
-	var panel := Rect2(origin - Vector2(25, 50), Vector2(side + 260, side + 80))
+	var viewport_size := get_viewport_rect().size
+	var scale_ui := clampf(viewport_size.y / 900.0, 0.7, 1.5)
+	var side := minf(viewport_size.y - 180.0, viewport_size.x - 300.0) if opened else 206.0 * scale_ui
+	var origin := Vector2(14.0 * scale_ui, viewport_size.y - side - 42.0 * scale_ui)
+	var panel := Rect2(origin - Vector2(4, 25) * scale_ui, Vector2(side + (240.0 if opened else 8.0 * scale_ui), side + 52.0 * scale_ui))
 	draw_rect(panel, Color(0.025, 0.04, 0.04, 0.96))
-	draw_string(font, origin - Vector2(0, 20), "DAĞ YOLLARI · 2048 × 2048 m", HORIZONTAL_ALIGNMENT_LEFT, -1, 22, Color.WHITE)
+	draw_string(font, origin - Vector2(0, 7) * scale_ui, "GPS · N ↑   M: xəritə", HORIZONTAL_ALIGNMENT_LEFT, -1, int(14 * scale_ui), Color.WHITE)
 	for z in 32:
 		for x in 32:
 			var p := Vector3((x + 0.5) * 64.0 - 1024, 0, (z + 0.5) * 64.0 - 1024)
@@ -60,13 +58,19 @@ func _draw() -> void:
 		var point: Vector2 = place[1]
 		var screen := origin + (point + Vector2.ONE * 1024) / 2048.0 * side
 		draw_circle(screen, 5.0, Color(1, 0.68, 0.24))
-		draw_string(font, screen + Vector2(7, -6), str(row + 1), HORIZONTAL_ALIGNMENT_LEFT, -1, 15, Color.WHITE)
-		draw_string(font, origin + Vector2(side + 20, 30 + row * 30), "%d. %s" % [row + 1, place[0]], HORIZONTAL_ALIGNMENT_LEFT, -1, 16, Color.WHITE)
+		if opened:
+			draw_string(font, screen + Vector2(7, -6), str(row + 1), HORIZONTAL_ALIGNMENT_LEFT, -1, 15, Color.WHITE)
+			draw_string(font, origin + Vector2(side + 20, 30 + row * 30), "%d. %s" % [row + 1, place[0]], HORIZONTAL_ALIGNMENT_LEFT, -1, 16, Color.WHITE)
 		row += 1
 	var vehicle := Vector2(truck.global_position.x, truck.global_position.z)
 	var current := origin + (vehicle + Vector2.ONE * 1024) / 2048.0 * side
 	draw_circle(current, 6.0, Color(0.2, 0.95, 1))
 	var heading := Vector2(truck.global_basis.z.x, truck.global_basis.z.z).normalized()
 	draw_line(current, current + heading * 16, Color(0.2, 0.95, 1), 3.0)
-	draw_string(font, origin + Vector2(side + 20, 220), "Açıq: asfalt", HORIZONTAL_ALIGNMENT_LEFT, -1, 16, Color(0.9, 0.86, 0.69))
-	draw_string(font, origin + Vector2(side + 20, 250), "Qəhvəyi: palçıq", HORIZONTAL_ALIGNMENT_LEFT, -1, 16, Color(0.8, 0.5, 0.25))
+	draw_string(font, origin + Vector2(0, side + 19 * scale_ui), "X %d   Z %d · 2 km" % [vehicle.x, vehicle.y], HORIZONTAL_ALIGNMENT_LEFT, -1, int(12 * scale_ui), Color(0.6, 0.9, 0.87))
+	for swamp in MudTerrain.SWAMPS:
+		var mark := origin + (Vector2(swamp.x, swamp.y) + Vector2.ONE * 1024) / 2048.0 * side
+		draw_circle(mark, maxf(3.0, swamp.z / 2048.0 * side), Color(0.26, 0.14, 0.05, 0.8))
+	if opened:
+		draw_string(font, origin + Vector2(side + 20, 220), "Açıq: asfalt", HORIZONTAL_ALIGNMENT_LEFT, -1, 16, Color(0.9, 0.86, 0.69))
+		draw_string(font, origin + Vector2(side + 20, 250), "Qəhvəyi: bataqlıq", HORIZONTAL_ALIGNMENT_LEFT, -1, 16, Color(0.8, 0.5, 0.25))

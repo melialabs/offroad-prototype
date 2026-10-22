@@ -10,10 +10,10 @@ const IDLE_RPM := 800.0
 const REDLINE_RPM := 3000.0
 const SHIFT_UP_RPM := 2500.0
 const SHIFT_DOWN_RPM := 1000.0
-const FINAL_DRIVE := 3.2
+const FINAL_DRIVE := 2.9
 const DRIVETRAIN_EFF := 0.85
 const GEARS_LOW := [6.5, 4.2]
-const GEARS_HIGH := [3.8, 2.6, 1.8, 1.25, 0.9]
+const GEARS_HIGH := [3.8, 2.6, 1.8, 1.25, 0.72]
 const GEAR_REVERSE := -5.0
 ## Yük altında oturmuş asmanın ölçülmüş uzanması (m). Hardtail Lada modellərində təkər mərkəzi modeldəki yerə düşür.
 const SETTLED_EXTENSION := 0.25
@@ -56,6 +56,7 @@ const SUSPENSIONS := [
 	{"stiffness": 32.0, "travel": 0.26, "compression": 2.0, "rebound": 2.5, "width": 0.19},
 ]
 
+var mud_spray: MudSpray
 var terrain: MudTerrain
 var wheels: Array[VehicleWheel3D] = []
 var wheel_meshes: Array[MeshInstance3D] = []
@@ -133,6 +134,8 @@ func _ready() -> void:
 	lights = VehicleLights.new()
 	add_child(lights)
 	apply_spec(spec_idx)
+	mud_spray = MudSpray.new()
+	add_child(mud_spray)
 
 
 ## Jeep modeli assets/jeep/ içindədirsə, gövdəni və təkərləri ona bağlayır.
@@ -240,6 +243,10 @@ func apply_spec(idx: int) -> void:
 			1.436 - _jeep.origin.y, 0.2)
 		lights.set_lens_visible(true)
 		lights.set_front_lens_visible(false)
+		if _jeep.head_lamps.size() == 2:
+			var tail: Array[MeshInstance3D] = []
+			var tail_pos: Array[Vector3] = [lights.TAIL_POS[0], lights.TAIL_POS[1]]
+			lights.bind_model_lamps(_jeep.head_lamps, _jeep.head_lamp_pos, tail, tail_pos)
 	else:
 		(_col.shape as BoxShape3D).size = Vector3(1.8, 0.9, 4.2)
 		lights.clear_model_lamps()
@@ -367,7 +374,7 @@ func _torque_at(r: float) -> float:
 	if r >= REDLINE_RPM:
 		return 0.0
 	var x := (r - 1800.0) / 2000.0
-	return float(spec["torque"]) * clampf(1.0 - x * x * 0.75, 0.25, 1.0)
+	return float(spec["torque"]) * 1.35 * clampf(1.0 - x * x * 0.75, 0.25, 1.0)
 
 
 func _physics_process(delta: float) -> void:
@@ -461,10 +468,10 @@ func _physics_process(delta: float) -> void:
 	if not diff_lock:
 		diff_factor = lerpf(1.0, clampf(min_skid, 0.3, 1.0), 0.7)
 
-	var wheel_r := float(spec["radius"])
+	var wheel_r := wheels[0].wheel_radius
 	var total_force := _torque_at(rpm) * _ratio() * FINAL_DRIVE * DRIVETRAIN_EFF / wheel_r * drive
 	if driven.size() > 0:
-		engine_force = total_force * diff_factor / driven.size()
+		engine_force = total_force * diff_factor * clampf(1.0 - mud_level * 0.65, 0.25, 1.0) / driven.size()
 	else:
 		engine_force = 0.0
 	brake = braking * mass * 0.05
@@ -486,25 +493,31 @@ func _physics_process(delta: float) -> void:
 	lights.reversing = gear < 0 and drive > 0.0
 
 	# təkər-yer qarşılıqlı təsiri
+	if terrain != null:
+		terrain.prepare_mud(global_position)
+	if mud_spray != null:
+		mud_spray.stop_all()
 	var tire: Dictionary = TIRES[tire_idx]
 	var total_depth := 0.0
 	var soft_sum := 0.0
 	var contact_count := 0
 	for w in wheels:
+		if terrain != null:
+			total_depth += terrain.depth_at(w.global_position)
 		if w.is_in_contact():
 			contact_count += 1
 	var slip_sum := 0.0
 	# Approximate equal static load; dynamic per-wheel load needs custom suspension.
 	var load_per_wheel := mass * 9.81 / maxi(contact_count, 1)
 	var tire_width := float(SUSPENSIONS[spec_idx]["width"])
-	for w in wheels:
+	for wi in wheels.size():
+		var w := wheels[wi]
 		if not w.is_in_contact() or terrain == null:
 			continue
 		var contact := w.get_contact_point()
 		var soft := terrain.softness_at(contact)
 		var depth := terrain.depth_at(contact)
 		var asphalt := terrain.road_distance_fast(contact) < MudTerrain.ROAD_HALF
-		total_depth += depth
 		soft_sum += soft
 		w.wheel_friction_slip = OffroadSurface.grip(tire, asphalt, soft, depth)
 		var offset := contact - global_position
@@ -517,12 +530,14 @@ func _physics_process(delta: float) -> void:
 		slip_sum += slip
 		if not asphalt:
 			var rate := OffroadSurface.digging_rate(load_per_wheel, tire_width, w.wheel_radius, slip)
-			# Terrain grid is coarse (1.5 m); retain a broad footprint until chunk refinement.
-			terrain.deform(contact, 1.3, delta * rate)
+			# Quarter-metre soil collision follows the real tire footprint.
+			terrain.deform(contact, maxf(tire_width * 0.75, 0.26), delta * rate)
+			if mud_spray != null:
+				mud_spray.contact(wi, contact, point_velocity, rolling_direction, w.get_rpm(), w.wheel_radius, soft, slip)
 			var horizontal := Vector3(point_velocity.x, 0.0, point_velocity.z)
 			var drag := OffroadSurface.resistance(soft, depth, w.wheel_radius)
 			apply_force(-horizontal * mass / maxi(contact_count, 1) * drag, offset)
-	mud_level = total_depth / maxi(contact_count, 1) / MudTerrain.MAX_DEPTH
+	mud_level = total_depth / 4.0 / MudTerrain.MAX_DEPTH
 	wheel_slip = slip_sum / maxi(contact_count, 1)
 
 	# sükan: sürətlə azalır, bərk yerdə kilid sükanı çətinləşdirir

@@ -1,9 +1,7 @@
 class_name GameAudio
 extends Node
-## Proseduraldır: bütün səslər işə düşəndə koddan sintez olunur (fayl və lisenziya yoxdur).
-## Mühərrik (rpm-ə görə ton), starter, təkər/yol küyü (asfalt, torpaq, palçıq), külək,
-## zərbə, qəza işığının tıqqıltısı, gündüz quş cikkiltisi və gecə sirçanaqları.
-## Səslər real səs qeydləri deyil, sintezdir: ton və tənzimləmə qulaqla dəqiqləşdirilməlidir.
+## Engine/vehicle effects are synthesized; nature ambience uses real CC0 field recordings.
+## See assets/audio/CREDITS.md for authors, sources and transformations.
 
 const SR := 22050
 const ENGINE_REF_RPM := 1200.0  # mühərrik döngəsi bu rpm-də yazılıb (4 silindr: 40 Hz atəşləmə)
@@ -26,9 +24,9 @@ var _tick_a: AudioStreamWAV
 var _tick_b: AudioStreamWAV
 var _thud: AudioStreamWAV
 var _click: AudioStreamWAV
-var _birds: Array[AudioStreamWAV] = []
-var _hoot: AudioStreamWAV
-var _bird_t := 2.0
+var _hoot: AudioStream
+var _animal: AudioStreamPlayer3D
+var _brook: AudioStreamPlayer
 var _hoot_t := 12.0
 var _throttle := 0.0
 var _speed := 0.0
@@ -50,22 +48,27 @@ func _ready() -> void:
 	_road = _player(_noise_loop(1.6, 0.35, 0.02, 0.5), -80.0)
 	_mud = _player(_noise_loop(1.6, 0.04, 0.0, 0.9, true), -80.0)
 	_wind = _player(_noise_loop(2.4, 0.05, 0.002, 1.0), -80.0)
-	_bed = _player(_noise_loop(3.0, 0.03, 0.001, 1.0), -80.0)
-	_crickets = _player(_cricket_loop(), -80.0)
+	_bed = _player(_recording("forest"), -80.0)
+	_crickets = _player(_recording("crickets"), -80.0)
+	_brook = _player(_recording("stream_brook"), -80.0)
 	_sfx = _player(null, -4.0, false)
-	_bird = _player(null, -14.0, false)
+	_bird = _player(_recording("birds_dawn"), -80.0)
 	_tick_a = _tick(1900.0)
 	_tick_b = _tick(1300.0)
 	_thud = _thud_sound()
 	_click = _tick(2600.0, 0.03)
-	for k in 4:
-		_birds.append(_chirp(_rng.randf_range(2400.0, 4200.0), _rng.randf_range(0.18, 0.4), k))
-	_hoot = _hoot_sound()
+	_hoot = load("res://assets/audio/tawny_owl.ogg")
+	_animal = AudioStreamPlayer3D.new()
+	_animal.stream = _hoot
+	_animal.unit_size = 12.0
+	_animal.max_distance = 100.0
+	_animal.volume_db = -9.0
+	add_child(_animal)
 	if truck != null:
 		_prev_v = truck.linear_velocity
 		truck.message.connect(func(_t: String): _play_sfx(_click, -8.0))
 		truck.lights.tick.connect(_on_light_tick)
-	for p in [_engine, _growl, _road, _mud, _wind, _bed, _crickets]:
+	for p in [_engine, _growl, _road, _mud, _wind, _bed, _crickets, _bird, _brook]:
 		(p as AudioStreamPlayer).play()
 
 
@@ -161,29 +164,33 @@ func _update_road(delta: float) -> void:
 
 func _update_ambient(delta: float) -> void:
 	var day := 1.0 - _night_mix
-	_bed.volume_db = _db(0.35 + 0.2 * day) - 30.0
-	_bed.pitch_scale = 0.9 + 0.1 * _night_mix
-	_crickets.volume_db = _db(_night_mix) - 22.0
-	_bird_t -= delta
-	if _bird_t <= 0.0:
-		_bird_t = _rng.randf_range(1.5, 6.0)
-		if day > 0.6:
-			_bird.stream = _birds[_rng.randi() % _birds.size()]
-			_bird.pitch_scale = _rng.randf_range(0.85, 1.25)
-			_bird.volume_db = _rng.randf_range(-20.0, -12.0)
-			_bird.play()
+	# Smooth day/night crossfade, subdued at mountain altitude. Brook follows water.
+	var forest := 1.0 - smoothstep(70.0, 130.0, truck.global_position.y)
+	_bed.volume_db = _db((0.4 + 0.6 * day) * forest) - 19.0
+	_bird.volume_db = _db(day * forest) - 22.0
+	_crickets.volume_db = _db(_night_mix * forest) - 22.0
+	var water_distance := Vector2(truck.global_position.x + 150, truck.global_position.z + 120).length()
+	_brook.volume_db = _db((1.0 - smoothstep(90.0, 230.0, water_distance)) * forest) - 24.0
 	_hoot_t -= delta
 	if _hoot_t <= 0.0:
-		_hoot_t = _rng.randf_range(10.0, 25.0)
-		if _night_mix > 0.8:
-			_play_sfx(_hoot, -22.0)
+		_hoot_t = _rng.randf_range(24.0, 52.0)
+		if _night_mix > 0.8 and forest > 0.5:
+			var angle := _rng.randf_range(0.0, TAU)
+			_animal.global_position = truck.global_position + Vector3(cos(angle) * 32, 7, sin(angle) * 32)
+			_animal.play()
+
+
+func _recording(name: String) -> AudioStreamOggVorbis:
+	var stream := load("res://assets/audio/%s.ogg" % name).duplicate() as AudioStreamOggVorbis
+	stream.loop = true
+	return stream
 
 
 func _on_light_tick(on: bool) -> void:
 	_play_sfx(_tick_a if on else _tick_b, -10.0)
 
 
-func _play_sfx(s: AudioStreamWAV, db: float) -> void:
+func _play_sfx(s: AudioStream, db: float) -> void:
 	# üst-üstə düşən səslər üçün ayrıca tək-atım oyunçusu
 	var p := AudioStreamPlayer.new()
 	p.stream = s
@@ -282,20 +289,6 @@ func _noise_loop(seconds: float, lp: float, hp: float, gain: float, crunchy: boo
 	return _wav(out, true)
 
 
-## Sirçanaq: ~4.3 kHz tonun sürətli partlayışları.
-func _cricket_loop() -> AudioStreamWAV:
-	var n := SR * 2
-	var out := PackedFloat32Array()
-	out.resize(n)
-	for i in n:
-		var t := float(i) / SR
-		var gate := maxf(0.0, sin(TAU * 26.0 * t))  # saniyədə 26 vuruş
-		gate *= smoothstep(0.0, 0.1, fmod(t, 0.5)) * (1.0 - smoothstep(0.35, 0.45, fmod(t, 0.5)))
-		var tone := sin(TAU * 4300.0 * t) + 0.3 * sin(TAU * 8600.0 * t)
-		out[i] = tone * gate * 0.35
-	return _wav(out, true)
-
-
 func _starter_sound() -> AudioStreamWAV:
 	var n := int(0.9 * SR)
 	var out := PackedFloat32Array()
@@ -335,36 +328,4 @@ func _thud_sound() -> AudioStreamWAV:
 		var t := float(i) / SR
 		lp += (r.randf_range(-1.0, 1.0) - lp) * 0.15
 		out[i] = (sin(TAU * (70.0 - 35.0 * t) * t) * exp(-t * 7.0) + lp * exp(-t * 18.0) * 0.8) * 0.9
-	return _wav(out, false)
-
-
-func _chirp(base: float, dur: float, variant: int) -> AudioStreamWAV:
-	var n := int(dur * SR)
-	var out := PackedFloat32Array()
-	out.resize(n)
-	var phase := 0.0
-	for i in n:
-		var t := float(i) / SR
-		var u := t / dur
-		var f := base * (1.0 + 0.25 * sin(TAU * (6.0 + variant * 3.0) * u) + 0.3 * u * (1.0 if variant % 2 == 0 else -1.0))
-		phase += TAU * f / SR
-		var env := sin(PI * u)
-		env *= 0.5 + 0.5 * maxf(0.0, sin(TAU * (3.0 + variant) * u))  # bir neçə notaya bölür
-		out[i] = sin(phase) * env * 0.5
-	return _wav(out, false)
-
-
-func _hoot_sound() -> AudioStreamWAV:
-	var n := int(1.6 * SR)
-	var out := PackedFloat32Array()
-	out.resize(n)
-	for i in n:
-		var t := float(i) / SR
-		var env := 0.0
-		for st in [0.0, 0.55, 1.1]:
-			var u: float = t - st
-			if u >= 0.0 and u < 0.35:
-				env = maxf(env, sin(PI * u / 0.35))
-		var f := 380.0 - 40.0 * fmod(t, 0.55)
-		out[i] = (sin(TAU * f * t) + 0.3 * sin(TAU * f * 2.0 * t)) * env * 0.4
 	return _wav(out, false)
