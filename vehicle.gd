@@ -502,7 +502,7 @@ func _physics_process(delta: float) -> void:
 	var soft_sum := 0.0
 	var contact_count := 0
 	for w in wheels:
-		if terrain != null:
+		if terrain != null and (not w.is_in_contact() or _is_soil_support(w)):
 			total_depth += terrain.depth_at(w.global_position)
 		if w.is_in_contact():
 			contact_count += 1
@@ -515,8 +515,9 @@ func _physics_process(delta: float) -> void:
 		if not w.is_in_contact() or terrain == null:
 			continue
 		var contact := w.get_contact_point()
-		var soft := terrain.softness_at(contact)
-		var depth := terrain.depth_at(contact)
+		var soil_support := _is_soil_support(w)
+		var soft := terrain.softness_at(contact) if soil_support else 0.0
+		var depth := terrain.depth_at(contact) if soil_support else 0.0
 		var asphalt := terrain.road_distance_fast(contact) < MudTerrain.ROAD_HALF
 		soft_sum += soft
 		w.wheel_friction_slip = OffroadSurface.grip(tire, asphalt, soft, depth)
@@ -528,7 +529,7 @@ func _physics_process(delta: float) -> void:
 		var ground_speed := point_velocity.dot(rolling_direction)
 		var slip := OffroadSurface.slip_speed(w.get_rpm(), w.wheel_radius, ground_speed)
 		slip_sum += slip
-		if not asphalt:
+		if soil_support and not asphalt:
 			var rate := OffroadSurface.digging_rate(load_per_wheel, tire_width, w.wheel_radius, slip)
 			# Quarter-metre soil collision follows the real tire footprint.
 			terrain.deform(contact, maxf(tire_width * 0.75, 0.26), delta * rate)
@@ -557,3 +558,8 @@ func hud_text() -> String:
 	return "%s | dişli %s (%s) | %d dövr | yanacaq %d L\nAWD: %s [E] | diff kilid: %s [F] | təkər: %s [T] | diapazon [Q]" % [
 		spec["name"], gear_txt, "aşağı" if low_range else "yuxarı", int(rpm), int(fuel),
 		awd_txt, diff_txt, tire["name"]]
+
+
+func _is_soil_support(wheel: VehicleWheel3D) -> bool:
+	var support := wheel.get_contact_body()
+	return support is MudTerrain or support is MudPatch

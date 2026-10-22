@@ -121,7 +121,7 @@ func _build() -> void:
 	col.add_child(holder)
 	_pages["main"] = _build_main()
 	_pages["vehicle"] = _build_vehicle()
-	_pages["controls"] = _build_controls()
+	_pages["controls"] = _controls_scroll()
 	_pages["settings"] = _build_settings()
 	for k in _pages:
 		holder.add_child(_pages[k])
@@ -187,7 +187,7 @@ func _build_controls() -> VBoxContainer:
 		["W / S", "qaz / əyləc və geri"],
 		["A / D", "sükan"],
 		["Space", "əl əyləci"],
-		["R", "maşını yolun üstünə qaytar"],
+		["R", "yola qaytar / aktiv yarışda Retry"],
 		["I", "mühərriki işə sal / söndür"],
 		["L", "fənərlər: söndür / yaxın / uzaq"],
 		["Z", "qəza işıqları"],
@@ -197,11 +197,14 @@ func _build_controls() -> VBoxContainer:
 		["V", "yaxın / uzaq / kapot kamerası"],
 		["Transmissiya", ""],
 		["Q", "aşağı / yuxarı diapazon"],
-		["E", "AWD aç / bağla"],
+		["E", "AWD / dayanılmış dairədə Hill Climb başlat"],
 		["F", "diferensial kilidi"],
 		["T", "təkər növü"],
 		["Digər", ""],
 		["1 – 6", "texnika (Skaut, Yük maşını, Ağır tır, Niva, 2107, 2106)"],
+		["M", "GPS xəritəsini böyüt / kiçilt"],
+		["Backspace", "Hill Climb-dən çıx"],
+		["[ / ]", "aktivlik məntəqəsində marşrut seç"],
 		["H", "düymə göstərişini aç / bağla"],
 		["Esc", "menyu"],
 	]
@@ -364,3 +367,11 @@ func _button(text: String, on_press: Callable, height: float = 52.0) -> Button:
 	b.add_theme_stylebox_override("pressed", _style(Color(0.1, 0.28, 0.36, 0.95), CYAN, 5))
 	b.pressed.connect(on_press)
 	return b
+
+
+func _controls_scroll() -> ScrollContainer:
+	var scroll := ScrollContainer.new()
+	scroll.custom_minimum_size = Vector2(700,clampf(get_viewport_rect().size.y-340,220,380))
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	scroll.add_child(_build_controls())
+	return scroll

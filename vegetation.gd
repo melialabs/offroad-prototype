@@ -129,10 +129,11 @@ func _height(x: float, z: float) -> float:
 	var z0 := int(gz)
 	var fx := gx - x0
 	var fz := gz - z0
-	var h00 := terrain.h[z0 * n + x0]
-	var h10 := terrain.h[z0 * n + x0 + 1]
-	var h01 := terrain.h[(z0 + 1) * n + x0]
-	var h11 := terrain.h[(z0 + 1) * n + x0 + 1]
+	var original := terrain.vegetation_heights()
+	var h00 := original[z0 * n + x0]
+	var h10 := original[z0 * n + x0 + 1]
+	var h01 := original[(z0 + 1) * n + x0]
+	var h11 := original[(z0 + 1) * n + x0 + 1]
 	return lerpf(lerpf(h00, h10, fx), lerpf(h01, h11, fx), fz)
 
 
@@ -161,9 +162,9 @@ func _tree_ok(x: float, z: float, h: float) -> bool:
 	var p := Vector3(x, h, z)
 	if terrain.road_distance_fast(p) < MudTerrain.ROAD_HALF + 5.0:
 		return false
-	if terrain.softness_at(p) > 0.2:
+	if terrain.vegetation_softness_at(p) > 0.2:
 		return false
-	if terrain.slope_at(p) > 0.42:
+	if terrain.vegetation_slope_at(p) > 0.42:
 		return false
 	return true
 
@@ -279,10 +280,10 @@ func _under_ok(x: float, z: float, h: float, soft_limit: float) -> bool:
 	var p := Vector3(x, h, z)
 	if terrain.road_distance_fast(p) < MudTerrain.ROAD_HALF + 2.2:
 		return false
-	var s := terrain.softness_at(p)
+	var s := terrain.vegetation_softness_at(p)
 	if s > soft_limit and _rng.randf() < clampf((s - soft_limit) * 2.5, 0.0, 1.0):
 		return false  # dərin palçıqda az bitki
-	if terrain.slope_at(p) > 0.62:
+	if terrain.vegetation_slope_at(p) > 0.62:
 		return false
 	return true
 
@@ -357,6 +358,8 @@ func _place_wood() -> void:
 
 ## Ölü gövdə və kötük üçün toqquşma: mesh-in LOD0 qutusuna görə (miqyas və fırlanma ilə).
 func _add_wood_collider(sp: String, xf: Transform3D) -> void:
+	if terrain.activity_clearing(xf.origin):
+		return
 	var d: Dictionary = SPECIES[sp]
 	var lods: Array = (_assets[d["asset"]] as Dictionary).values()[0]
 	if lods.is_empty() or lods[0] == null:
@@ -393,8 +396,8 @@ func _place_grass() -> void:
 			var h := _height(jx, jz)
 			var p := Vector3(jx, h, jz)
 			if h > WATER_LEVEL + 0.25 and h < 105.0 and terrain.road_distance_fast(p) > MudTerrain.ROAD_HALF + 0.9:
-				var s := terrain.softness_at(p)
-				var slope := terrain.slope_at(p)
+				var s := terrain.vegetation_softness_at(p)
+				var slope := terrain.vegetation_slope_at(p)
 				var floor_n := _n_floor.get_noise_2d(jx, jz) * 0.5 + 0.5
 				var dens := 0.30 + 0.55 * _forest(jx, jz) * floor_n + 0.4 * _moist(jx, jz, h) - s * 1.2 - slope * 0.5
 				if _rng.randf() < dens and slope < 0.8:
@@ -429,12 +432,20 @@ func _add_instance(sp: String, pos: Vector3, sc: float, tilt_small: bool) -> Tra
 	if not _inst.has(key):
 		_inst[key] = []
 	var xf := Transform3D(basis, pos)
+	if terrain.activity_clearing(pos):
+		return xf
+	if terrain.hill_zone != null and HillClimbCatalog.ZONE.has_point(Vector2(pos.x,pos.z)):
+		xf.origin.y += terrain.height_at(pos)-_height(pos.x,pos.z)
 	(_inst[key] as Array).append(xf)
 	stats[sp] = int(stats.get(sp, 0)) + 1
 	return xf
 
 
 func _add_tree_collider(pos: Vector3, radius: float) -> void:
+	if terrain.activity_clearing(pos):
+		return
+	if terrain.hill_zone != null and HillClimbCatalog.ZONE.has_point(Vector2(pos.x,pos.z)):
+		pos.y += terrain.height_at(pos)-_height(pos.x,pos.z)
 	var cs := CylinderShape3D.new()
 	cs.radius = maxf(radius, 0.15)
 	cs.height = 5.0

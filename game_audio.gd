@@ -130,6 +130,11 @@ func _update_engine(delta: float) -> void:
 			var f := clampf(truck.rpm / 500.0, 0.0, 1.0)
 			body_db = lerpf(-60.0, body_db, f)
 			growl_db = lerpf(-80.0, growl_db, f)
+	# Load-sensitive strain while climbing: existing engine, without a fake speed boost.
+	var incline := clampf(absf(truck.global_basis.z.y) * 2.0,0,1)
+	var strain := incline * _throttle if st == OffroadTruck.EngineState.RUNNING else 0.0
+	growl_db += strain * 7.0
+	body_db += strain * 2.0
 	last_engine_db = body_db
 	_engine.volume_db = body_db
 	_growl.volume_db = growl_db
@@ -159,7 +164,8 @@ func _update_road(delta: float) -> void:
 	_mud.volume_db = _db(amt * soft + 0.12 * soft * clampf(truck.rpm / 3000.0, 0.0, 1.0) * grounded) - 7.0
 	var wamt := clampf(_speed / 35.0, 0.0, 1.0)
 	_wind.pitch_scale = 0.8 + wamt * 0.7
-	_wind.volume_db = _db(wamt * wamt) - 14.0
+	var summit_wind := smoothstep(100.0,190.0,truck.global_position.y) * 0.25
+	_wind.volume_db = _db(maxf(wamt * wamt,summit_wind)) - 14.0
 
 
 func _update_ambient(delta: float) -> void:
@@ -329,3 +335,12 @@ func _thud_sound() -> AudioStreamWAV:
 		lp += (r.randf_range(-1.0, 1.0) - lp) * 0.15
 		out[i] = (sin(TAU * (70.0 - 35.0 * t) * t) * exp(-t * 7.0) + lp * exp(-t * 18.0) * 0.8) * 0.9
 	return _wav(out, false)
+
+
+func play_activity_cue(kind: String) -> void:
+	match kind:
+		"countdown": _play_sfx(_tick(660.0,0.1),-20.0)
+		"start": _play_sfx(_tick(1320.0,0.18),-16.0)
+		"checkpoint": _play_sfx(_tick(980.0,0.08),-22.0)
+		"finish": _play_sfx(_tick(1760.0,0.25),-15.0)
+		"fail": _play_sfx(_tick(330.0,0.18),-22.0)

@@ -2,6 +2,7 @@ class_name WorldMap
 extends Control
 ## Bottom-left GPS is always visible; M expands the same map.
 
+var activities: HillClimbActivity
 var terrain: MudTerrain
 var truck: OffroadTruck
 var opened := false
@@ -62,6 +63,7 @@ func _draw() -> void:
 			draw_string(font, screen + Vector2(7, -6), str(row + 1), HORIZONTAL_ALIGNMENT_LEFT, -1, 15, Color.WHITE)
 			draw_string(font, origin + Vector2(side + 20, 30 + row * 30), "%d. %s" % [row + 1, place[0]], HORIZONTAL_ALIGNMENT_LEFT, -1, 16, Color.WHITE)
 		row += 1
+	_draw_activities(origin,side)
 	var vehicle := Vector2(truck.global_position.x, truck.global_position.z)
 	var current := origin + (vehicle + Vector2.ONE * 1024) / 2048.0 * side
 	draw_circle(current, 6.0, Color(0.2, 0.95, 1))
@@ -74,3 +76,35 @@ func _draw() -> void:
 	if opened:
 		draw_string(font, origin + Vector2(side + 20, 220), "Açıq: asfalt", HORIZONTAL_ALIGNMENT_LEFT, -1, 16, Color(0.9, 0.86, 0.69))
 		draw_string(font, origin + Vector2(side + 20, 250), "Qəhvəyi: bataqlıq", HORIZONTAL_ALIGNMENT_LEFT, -1, 16, Color(0.8, 0.5, 0.25))
+		if activities != null:
+			draw_string(font,origin+Vector2(side+20,280),"▲ Hill Climb · 12 routes",HORIZONTAL_ALIGNMENT_LEFT,-1,15,Color(1,0.78,0.3))
+
+
+func _draw_activities(origin: Vector2, side: float) -> void:
+	if activities == null:
+		return
+	for i in activities.markers.size():
+		if not activities.marker_enabled(i):
+			continue
+		var marker: Dictionary = activities.markers[i]
+		var p: Vector3 = marker["p"]
+		var at := origin + (Vector2(p.x,p.z)+Vector2.ONE*1024)/2048.0*side
+		var color: Color = HillClimbCatalog.COLORS[activities.routes[marker["route"]]["difficulty"]]
+		var radius := 5.0 if opened or marker["hub"] else 2.8
+		draw_colored_polygon(PackedVector2Array([at+Vector2(0,-radius),at+Vector2(radius,radius),at+Vector2(-radius,radius)]),color)
+		if opened:
+			draw_string(ThemeDB.fallback_font,at+Vector2(6,0),"HC" if marker["hub"] else str(int(marker["route"])+1),HORIZONTAL_ALIGNMENT_LEFT,-1,12,Color.WHITE)
+	if activities.engaged():
+		var route: Dictionary = activities.routes[activities.active_index]
+		var line := PackedVector2Array()
+		for p in route["points"]:
+			line.append(origin+(p+Vector2.ONE*1024)/2048.0*side)
+		draw_polyline(line,Color(1,0.75,0.24),2.5,true)
+		if route.has("alternative"):
+			var bypass := PackedVector2Array()
+			for p in route["alternative"]:
+				bypass.append(origin+(p+Vector2.ONE*1024)/2048.0*side)
+			draw_polyline(bypass,Color(0.4,0.9,0.7),2,true)
+		if activities.next_checkpoint < activities.checkpoints.size():
+			var p: Vector3 = activities.checkpoints[activities.next_checkpoint]
+			draw_circle(origin+(Vector2(p.x,p.z)+Vector2.ONE*1024)/2048.0*side,5,Color.WHITE)

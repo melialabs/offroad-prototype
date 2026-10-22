@@ -5,10 +5,14 @@ extends StaticBody3D
 
 const N := 513             # 512 cells x 4 m = 2048 m on each side
 const CELL := 4.0          # coarse world grid; road has a separate smooth ribbon
+const DETAIL_UNDERFLOOR := 1.60
 const MAX_DEPTH := 1.15     # yerin ən çox batma dərinliyi
 const REBUILD_INTERVAL := 0.1
 const CHUNK_CELLS := 32
 const ROUTE_BIN := 64.0
+var pre_hill_h := PackedFloat32Array()
+var pre_hill_soft := PackedFloat32Array()
+var hill_zone: HillClimbZone
 var _chunks := {}
 var _road_bins := {}
 var _trail_bins := {}
@@ -75,10 +79,13 @@ var road_dist := PackedFloat32Array()    # hər təpənin asfalt yol oxuna məsa
 var _road := PackedVector2Array()        # sıxlaşdırılmış yol xətti
 var _road_len := PackedFloat32Array()    # xəttin əvvəlindən yığılmış uzunluq
 var _road_h := PackedFloat32Array()      # yolun hündürlük profili
+var _trail_len := PackedFloat32Array()
 var _trail := PackedVector2Array()
 
 
 func _ready() -> void:
+	if ProjectSettings.get_setting("offroad/hill_climb_enabled", true):
+		hill_zone = HillClimbZone.new()
 	_generate()
 	_build_indices()
 	_material = _make_material()
@@ -306,7 +313,8 @@ func _generate() -> void:
 	_road = _spline(ROAD_POINTS, 12)
 	_road_len = _lengths(_road)
 	_trail = _spline(TRAIL_POINTS, 10)
-	var trail_len := _lengths(_trail)
+	_trail_len = _lengths(_trail)
+	var trail_len := _trail_len
 	_road_bins = _route_index(_road, 100.0)
 	_trail_bins = _route_index(_trail, 24.0)
 
@@ -398,6 +406,10 @@ func _generate() -> void:
 			var gz := (h[_idx(x, z + 1)] - h[_idx(x, z - 1)]) / (2.0 * CELL)
 			if Vector2(gx, gz).length() > 0.45 or h[i] > 70.0:
 				soft[i] = 0.0
+	if hill_zone != null:
+		pre_hill_h = h.duplicate()
+		pre_hill_soft = soft.duplicate()
+		hill_zone.sculpt(self)
 	_build_ctrl()
 
 
@@ -530,7 +542,7 @@ func softness_at(world_pos: Vector3) -> float:
 func depth_at(world_pos: Vector3) -> float:
 	var patch = _fine_patches.get(_detail_key(world_pos))
 	if patch != null:
-		return patch.depth_at(world_pos)
+		return patch.depth_at(world_pos) + maxf(0.0, sample_grid(base,world_pos) - base_height_at(world_pos))
 	var g := _to_grid(world_pos)
 	var x := roundi(g.x)
 	var z := roundi(g.y)
@@ -691,7 +703,7 @@ func _detail_floor(p: Vector2) -> float:
 	var lo := Vector2(_detail_center.x - 1, _detail_center.y - 1) * DETAIL_SIZE
 	var hi := lo + Vector2.ONE * DETAIL_SIZE * 3.0
 	var edge := minf(minf(p.x - lo.x, hi.x - p.x), minf(p.y - lo.y, hi.y - p.y))
-	return (MAX_DEPTH + 0.15) * smoothstep(0.0, CELL, edge)
+	return DETAIL_UNDERFLOOR * smoothstep(0.0, CELL, edge)
 
 
 func _build_swamp_water() -> void:
@@ -712,3 +724,36 @@ func _build_swamp_water() -> void:
 		mi.material_override = mat
 		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		add_child(mi)
+
+
+func base_height_at(p: Vector3) -> float:
+	var height := sample_grid(base, p)
+	if hill_zone != null and HillClimbCatalog.ZONE.has_point(Vector2(p.x,p.z)):
+		var rut := hill_zone.initial_rut(Vector2(p.x,p.z))
+		if rut < -0.001 and road_distance_fast(p) >= 18.0 and _near_route(Vector2(p.x,p.z), _trail, _trail_len, _trail_bins)[0] >= 6.0:
+			height += rut
+	return height
+
+
+func activity_clearing(p: Vector3) -> bool:
+	return hill_zone != null and hill_zone.clearing(Vector2(p.x,p.z))
+
+
+# Vegetation placement consumes the same original values and random sequence.
+# Local pruning/relocation happens after placement, preserving the outside forest.
+func vegetation_heights() -> PackedFloat32Array:
+	return h if pre_hill_h.is_empty() else pre_hill_h
+
+func vegetation_softness_at(p: Vector3) -> float:
+	if pre_hill_soft.is_empty():
+		return softness_at(p)
+	var g := _to_grid(p)
+	return pre_hill_soft[_idx(roundi(g.x),roundi(g.y))]
+
+func vegetation_slope_at(p: Vector3) -> float:
+	if pre_hill_h.is_empty():
+		return slope_at(p)
+	var g := _to_grid(p)
+	var x := roundi(g.x)
+	var z := roundi(g.y)
+	return Vector2(pre_hill_h[_idx(x+1,z)]-pre_hill_h[_idx(x-1,z)],pre_hill_h[_idx(x,z+1)]-pre_hill_h[_idx(x,z-1)]).length()/(2.0*CELL)

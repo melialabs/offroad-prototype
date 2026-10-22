@@ -23,7 +23,7 @@ func _ready() -> void:
 	for z in SIDE:
 		for x in SIDE:
 			var p := position + Vector3(x * STEP, 0, z * STEP)
-			_base.append(terrain.sample_grid(terrain.base, p))
+			_base.append(terrain.base_height_at(p))
 			_soft.append(terrain.sample_grid(terrain.soft, p))
 			_uv.append(Vector2(p.x, p.z))
 			var route := terrain._near_route(Vector2(p.x, p.z), terrain._road, terrain._road_len, terrain._road_bins)
@@ -98,7 +98,7 @@ func depth_at(p: Vector3) -> float:
 		lerpf(depths[(z + 1) * SIDE + x], depths[(z + 1) * SIDE + x + 1], clampf(g.x - x, 0, 1)), clampf(g.y - z, 0, 1))
 
 func height_at(p: Vector3) -> float:
-	return terrain.sample_grid(terrain.base, p) - depth_at(p)
+	return terrain.base_height_at(p) - depth_at(p)
 
 func dig(p: Vector3, radius: float, amount: float) -> void:
 	var gx := (p.x - position.x) / STEP
@@ -115,7 +115,7 @@ func dig(p: Vector3, radius: float, amount: float) -> void:
 			var world := position + Vector3(x * STEP, 0, z * STEP)
 			if terrain.road_distance_fast(world) < MudTerrain.ROAD_HALF + 0.6:
 				continue
-			var rim := terrain._detail_floor(Vector2(world.x, world.z)) / (MudTerrain.MAX_DEPTH + 0.15)
+			var rim := terrain._detail_floor(Vector2(world.x, world.z)) / MudTerrain.DETAIL_UNDERFLOOR
 			var profile := 1.0 - smoothstep(reach * 0.3, reach, d)
 			depths[i] = minf(depths[i] + amount * profile * _soft[i] * rim, MudTerrain.MAX_DEPTH * _soft[i])
 			_dirty = true
