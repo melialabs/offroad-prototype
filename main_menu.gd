@@ -162,7 +162,12 @@ func _build_vehicle() -> VBoxContainer:
 	grid.columns = 2
 	grid.add_theme_constant_override("h_separation", 10)
 	grid.add_theme_constant_override("v_separation", 10)
-	v.add_child(grid)
+	var scroll := ScrollContainer.new()
+	scroll.custom_minimum_size = Vector2(BTN_W * 2.0 + 40.0, clampf(get_viewport_rect().size.y - 340, 220, 380))
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	grid.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	scroll.add_child(grid)
+	v.add_child(scroll)
 	for i in OffroadTruck.SPECS.size():
 		var b := _button("", func(): _select_vehicle(i), 96.0)
 		var thumb := "res://assets/ui/car_%d.png" % i
@@ -201,7 +206,7 @@ func _build_controls() -> VBoxContainer:
 		["F", "diferensial kilidi"],
 		["T", "təkər növü"],
 		["Digər", ""],
-		["1 – 6", "texnika (Skaut, Yük maşını, Ağır tır, Niva, 2107, 2106)"],
+		["1 – 9", "texnika; 7: UAZ Expedition, 8: Bukhanka, 9: UAZ 469"],
 		["M", "GPS xəritəsini böyüt / kiçilt"],
 		["Backspace", "Hill Climb-dən çıx"],
 		["[ / ]", "aktivlik məntəqəsində marşrut seç"],

@@ -32,6 +32,7 @@ func load_model(path: String, origin_height: float) -> bool:
 	for i in 4:
 		var n := root.find_child(WHEEL_NAMES[i], true, false) as MeshInstance3D
 		if n == null:
+			root.free()
 			return false
 		var aabb := n.get_aabb()
 		var c := n.transform.origin  # mənşə təkər mərkəzindədir (Blender-də origin_set)

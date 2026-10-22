@@ -1,6 +1,8 @@
-# Pending UAZ models
+# Original UAZ models
 
-Original user-supplied files, stored with Git LFS for later vehicle preparation. They are not imported or selectable in the game yet. The `.gdignore` keeps Godot from loading these source assets.
+Original user-supplied files, stored with Git LFS. All three now have prepared,
+selectable versions in `assets/cars/`; see `docs/uaz_vehicles.md`. The `.gdignore`
+keeps Godot from loading these large source assets directly.
 
 Download the actual files with `git lfs pull --include="incoming-vehicles/**"`.
 

@@ -80,8 +80,45 @@ func run() -> void:
 	main.truck.position = a.markers[0]["p"]+Vector3.UP
 	a._scan_markers(1.0)
 	check(a.start_challenge(0),"same marker can be replayed")
+	# The final checkpoint must transition to RESULTS before notifying the world:
+	# its active checkpoint ring otherwise indexes one past the path's end.
+	var invalid_running_indices: Array[int] = []
+	a.changed.connect(func():
+		if a.state == HillClimbActivity.State.RUNNING and a.next_checkpoint >= a.checkpoints.size():
+			invalid_running_indices.append(a.next_checkpoint)
+	)
+	a.state = HillClimbActivity.State.RUNNING
+	a.next_checkpoint = a.checkpoints.size() - 1
+	a.elapsed = 20.0
+	var finish_position := a.checkpoints[-1] + Vector3.UP
+	a._previous_position = finish_position
+	a.advance_run(0.1,finish_position)
+	check(a.state == HillClimbActivity.State.RESULTS and ui._results.visible,"final crossing displays results with world and UI attached")
+	check(invalid_running_indices.is_empty(),"final crossing never publishes an invalid active checkpoint")
+	a.retry()
 	main.select_vehicle(4)
 	check(a.state == HillClimbActivity.State.FREE_ROAM and main.truck.spec_idx == 4,"garage selection exits safely before swapping vehicle")
+	# Newly appended UAZs share activation, retry and per-vehicle record storage.
+	for vehicle in [6, 7, 8]:
+		main.select_vehicle(vehicle)
+		main.truck.freeze = true
+		main.truck.position = a.markers[0]["p"] + Vector3.UP
+		main.truck.linear_velocity = Vector3.ZERO
+		a._scan_markers(1.0)
+		check(a.start_challenge(0), "UAZ can activate challenge: %d" % vehicle)
+		key(KEY_7 if vehicle != 6 else KEY_9)
+		check(main.truck.spec_idx == vehicle, "number keys cannot replace UAZ during run: %d" % vehicle)
+		a.state = HillClimbActivity.State.RUNNING
+		a.elapsed = 25.0
+		a.next_checkpoint = a.checkpoints.size() - 1
+		var uaz_finish := a.checkpoints[-1] + Vector3.UP
+		a._previous_position = uaz_finish
+		a.advance_run(0.1, uaz_finish)
+		check(a.records.record(a.routes[0]["id"], vehicle)["completions"] == 1, "UAZ earns its own record: %d" % vehicle)
+		a.retry()
+		check(a.state == HillClimbActivity.State.COUNTDOWN and main.truck.spec_idx == vehicle, "UAZ retry keeps selected vehicle: %d" % vehicle)
+		a.exit_challenge()
+	check(main.menu._vehicle_buttons.size() == 9, "garage exposes all nine vehicles")
 	check(main.world_map.activities == a,"GPS shares live activity state")
 	a.set_activity_enabled(a.routes[0]["id"],false)
 	check(not a.marker_enabled(0) and a.marker_enabled(12),"per-route disable retains other activity hubs")

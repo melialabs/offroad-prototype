@@ -46,6 +46,11 @@ func _draw() -> void:
 			if height < -2.4:
 				color = Color(0.10, 0.33, 0.46)
 			draw_rect(Rect2(origin + Vector2(x, z) * side / 32.0, Vector2.ONE * (side / 32.0 + 0.5)), color)
+	# Terrain overlays sit beneath roads, activities and the vehicle arrow.
+	# A player inside a swamp must remain visible on the GPS.
+	for swamp in MudTerrain.SWAMPS:
+		var mark := origin + (Vector2(swamp.x, swamp.y) + Vector2.ONE * 1024) / 2048.0 * side
+		draw_circle(mark, maxf(3.0, swamp.z / 2048.0 * side), Color(0.26, 0.14, 0.05, 0.8))
 	var road := PackedVector2Array()
 	for p in terrain._road:
 		road.append(origin + (p + Vector2.ONE * 1024) / 2048.0 * side)
@@ -70,14 +75,15 @@ func _draw() -> void:
 	var heading := Vector2(truck.global_basis.z.x, truck.global_basis.z.z).normalized()
 	draw_line(current, current + heading * 16, Color(0.2, 0.95, 1), 3.0)
 	draw_string(font, origin + Vector2(0, side + 19 * scale_ui), "X %d   Z %d · 2 km" % [vehicle.x, vehicle.y], HORIZONTAL_ALIGNMENT_LEFT, -1, int(12 * scale_ui), Color(0.6, 0.9, 0.87))
-	for swamp in MudTerrain.SWAMPS:
-		var mark := origin + (Vector2(swamp.x, swamp.y) + Vector2.ONE * 1024) / 2048.0 * side
-		draw_circle(mark, maxf(3.0, swamp.z / 2048.0 * side), Color(0.26, 0.14, 0.05, 0.8))
 	if opened:
 		draw_string(font, origin + Vector2(side + 20, 220), "Açıq: asfalt", HORIZONTAL_ALIGNMENT_LEFT, -1, 16, Color(0.9, 0.86, 0.69))
 		draw_string(font, origin + Vector2(side + 20, 250), "Qəhvəyi: bataqlıq", HORIZONTAL_ALIGNMENT_LEFT, -1, 16, Color(0.8, 0.5, 0.25))
 		if activities != null:
-			draw_string(font,origin+Vector2(side+20,280),"▲ Hill Climb · 12 routes",HORIZONTAL_ALIGNMENT_LEFT,-1,15,Color(1,0.78,0.3))
+			var enabled_count := 0
+			for route_index in activities.routes.size():
+				if activities.route_enabled(route_index):
+					enabled_count += 1
+			draw_string(font,origin+Vector2(side+20,280),"▲ Hill Climb · %d routes" % enabled_count,HORIZONTAL_ALIGNMENT_LEFT,-1,15,Color(1,0.78,0.3))
 
 
 func _draw_activities(origin: Vector2, side: float) -> void:

@@ -34,14 +34,17 @@ var _prev_v := Vector3.ZERO
 var _prev_engine := -1
 var _rng := RandomNumberGenerator.new()
 var _night_mix := 0.0
+var _ambient_time := 0.0
+var _engine_load := 0.0
 ## test üçün oxunur
 var last_engine_pitch := 0.0
 var last_engine_db := -80.0
+var last_engine_load := 0.0
 var thuds := 0
 
 
 func _ready() -> void:
-	_rng.seed = 4242
+	_rng.randomize()
 	_engine = _player(_engine_loop(false), -80.0)
 	_growl = _player(_engine_loop(true), -80.0)
 	_starter = _player(_starter_sound(), -6.0, false)
@@ -69,7 +72,12 @@ func _ready() -> void:
 		truck.message.connect(func(_t: String): _play_sfx(_click, -8.0))
 		truck.lights.tick.connect(_on_light_tick)
 	for p in [_engine, _growl, _road, _mud, _wind, _bed, _crickets, _bird, _brook]:
-		(p as AudioStreamPlayer).play()
+		# Long field recordings should not restart with the same bird call on
+		# every visit. Keep their pitch intact, with an independent loop phase.
+		var offset := 0.0
+		if p.stream is AudioStreamOggVorbis:
+			offset = _rng.randf_range(0.0, maxf(0.0, p.stream.get_length() - 2.0))
+		(p as AudioStreamPlayer).play(offset)
 
 
 func set_enabled(on: bool) -> void:
@@ -130,11 +138,22 @@ func _update_engine(delta: float) -> void:
 			var f := clampf(truck.rpm / 500.0, 0.0, 1.0)
 			body_db = lerpf(-60.0, body_db, f)
 			growl_db = lerpf(-80.0, growl_db, f)
-	# Load-sensitive strain while climbing: existing engine, without a fake speed boost.
-	var incline := clampf(absf(truck.global_basis.z.y) * 2.0,0,1)
-	var strain := incline * _throttle if st == OffroadTruck.EngineState.RUNNING else 0.0
-	growl_db += strain * 7.0
-	body_db += strain * 2.0
+	# Positive grade in the driven direction loads the engine. A descending
+	# vehicle or an airborne wheel must not sound as if it is climbing.
+	var contacts := 0
+	for w in truck.wheels:
+		if w.is_in_contact():
+			contacts += 1
+	var drive_direction := -1.0 if truck.gear < 0 else 1.0
+	var incline := clampf(truck.global_basis.z.y * drive_direction * 2.0, 0.0, 1.0)
+	var bog_load := truck.mud_level * clampf(truck.wheel_slip / 5.0, 0.0, 1.0)
+	var load_target := maxf(incline, bog_load) * _throttle * float(contacts) / 4.0
+	if st != OffroadTruck.EngineState.RUNNING:
+		load_target = 0.0
+	_engine_load = lerpf(_engine_load, load_target, 1.0 - exp(-5.0 * delta))
+	last_engine_load = _engine_load
+	growl_db += _engine_load * 7.0
+	body_db += _engine_load * 2.0
 	last_engine_db = body_db
 	_engine.volume_db = body_db
 	_growl.volume_db = growl_db
@@ -161,22 +180,31 @@ func _update_road(delta: float) -> void:
 	_mud.pitch_scale = clampf(0.7 + _speed / 25.0, 0.7, 1.6)
 	var road_gain := 1.0 - soft
 	_road.volume_db = _db(amt * road_gain * (1.0 if on_road else 0.6)) - 12.0
-	_mud.volume_db = _db(amt * soft + 0.12 * soft * clampf(truck.rpm / 3000.0, 0.0, 1.0) * grounded) - 7.0
+	# A stationary idling engine does not churn mud; spinning wheels do.
+	var churn := clampf(truck.wheel_slip / 8.0, 0.0, 1.0) * grounded
+	_mud.volume_db = _db(amt * soft + 0.3 * soft * churn) - 7.0
 	var wamt := clampf(_speed / 35.0, 0.0, 1.0)
 	_wind.pitch_scale = 0.8 + wamt * 0.7
-	var summit_wind := smoothstep(100.0,190.0,truck.global_position.y) * 0.25
-	_wind.volume_db = _db(maxf(wamt * wamt,summit_wind)) - 14.0
+	var summit_wind := smoothstep(70.0, 150.0, truck.global_position.y) * 0.35
+	var gust := 0.68 + 0.20 * sin(_ambient_time * 0.31) + 0.12 * sin(_ambient_time * 0.73 + 1.4)
+	_wind.volume_db = _db(maxf(wamt * wamt, summit_wind * gust)) - 14.0
 
 
 func _update_ambient(delta: float) -> void:
+	_ambient_time += delta
 	var day := 1.0 - _night_mix
 	# Smooth day/night crossfade, subdued at mountain altitude. Brook follows water.
 	var forest := 1.0 - smoothstep(70.0, 130.0, truck.global_position.y)
-	_bed.volume_db = _db((0.4 + 0.6 * day) * forest) - 19.0
+	# The forest bed also contains real daytime birds. Fade it out at night
+	# rather than leaving a dawn chorus beneath the owl and crickets.
+	var foliage := 0.93 + 0.07 * sin(_ambient_time * 0.17)
+	_bed.volume_db = _db(day * forest * foliage) - 19.0
 	_bird.volume_db = _db(day * forest) - 22.0
 	_crickets.volume_db = _db(_night_mix * forest) - 22.0
 	var water_distance := Vector2(truck.global_position.x + 150, truck.global_position.z + 120).length()
 	_brook.volume_db = _db((1.0 - smoothstep(90.0, 230.0, water_distance)) * forest) - 24.0
+	if _night_mix < 0.5 or forest < 0.2:
+		_animal.stop()
 	_hoot_t -= delta
 	if _hoot_t <= 0.0:
 		_hoot_t = _rng.randf_range(24.0, 52.0)

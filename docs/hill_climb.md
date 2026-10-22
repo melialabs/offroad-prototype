@@ -84,7 +84,9 @@ activity lights or per-frame terrain rebuilds were added.
   records, persistence, disable flags, idempotent finish and corrupt-save protection.
 - Full-scene integration covers actual buffered keyboard input, E/AWD isolation,
   countdown, pause/resume, results UI buttons, R versus road reset, Backspace,
-  garage transitions and shared GPS state.
+  garage transitions, shared GPS state and the final checkpoint transition with
+  the world marker/UI attached. Finishing publishes RESULTS before refreshing
+  checkpoint geometry, so no out-of-range checkpoint is exposed.
 - Baseline comparison verifies all terrain outside the zone, all protected roads
   and the existing valley trail keep their previous heights. The feature-off
   world has the original heightfield.

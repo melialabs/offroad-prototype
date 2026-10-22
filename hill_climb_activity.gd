@@ -103,7 +103,7 @@ func _input(event: InputEvent) -> void:
 	elif prompt_ready() and markers[near_marker]["hub"] and key in [KEY_BRACKETLEFT, KEY_BRACKETRIGHT]:
 		cycle_selection(-1 if key == KEY_BRACKETLEFT else 1)
 		get_viewport().set_input_as_handled()
-	elif engaged() and key in [KEY_R, KEY_BACKSPACE, KEY_ENTER, KEY_TAB, KEY_1, KEY_2, KEY_3, KEY_4, KEY_5, KEY_6]:
+	elif engaged() and key in [KEY_R, KEY_BACKSPACE, KEY_ENTER, KEY_TAB, KEY_1, KEY_2, KEY_3, KEY_4, KEY_5, KEY_6, KEY_7, KEY_8, KEY_9]:
 		get_viewport().set_input_as_handled()
 		if key == KEY_BACKSPACE:
 			exit_challenge()
@@ -219,10 +219,10 @@ func advance_run(delta: float, position: Vector3) -> void:
 		next_checkpoint += 1
 		_idle_time = 0
 		cue.emit("checkpoint")
-		changed.emit()
 		if next_checkpoint >= checkpoints.size():
 			finish()
 			return
+		changed.emit()
 	var corridor := Geometry2D.get_closest_point_to_segment(Vector2(position.x,position.z), Vector2(prev.x,prev.z), Vector2(target.x,target.z))
 	var off_route := Vector2(position.x,position.z).distance_to(corridor) > 22.0
 	_off_route_time = _off_route_time + delta if off_route else 0.0

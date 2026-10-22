@@ -36,6 +36,20 @@ const SPECS := [
 	{"name": "Lada 2106", "mass": 1030.0, "torque": 240.0, "fuel": 39.0,
 		"radius": 0.3, "awd": "none", "diff": "none", "tire": 0,
 		"car": "res://assets/cars/lada_2106.glb", "origin": 0.72, "lights": [0.5, 0.55, 0.5, 0.74]},
+	# User-supplied UAZ models. Indices are appended to preserve vehicle records.
+	# Torque/suspension are gameplay tuning, not manufacturer specifications.
+	{"name": "UAZ Expedition", "mass": 2300.0, "torque": 520.0, "fuel": 90.0,
+		"radius": 0.468, "awd": "switch", "diff": "switch", "tire": 2,
+		"car": "res://assets/cars/uaz_expedition.glb", "origin": 1.05, "lights": [0.66, 1.0, 1.36, 1.3],
+		"collision_size": Vector3(2.0, 0.85, 4.8), "collision_offset": Vector3(0, 0.15, -0.1)},
+	{"name": "UAZ 452 Bukhanka", "mass": 1900.0, "torque": 430.0, "fuel": 77.0,
+		"radius": 0.43, "awd": "switch", "diff": "switch", "tire": 1,
+		"car": "res://assets/cars/uaz_452.glb", "origin": 0.95, "lights": [0.6, 0.85, 1.08, 1.05],
+		"collision_size": Vector3(1.95, 0.9, 4.4), "collision_offset": Vector3(0, 0.15, -0.05)},
+	{"name": "UAZ 469 Classic", "mass": 1700.0, "torque": 400.0, "fuel": 78.0,
+		"radius": 0.404, "awd": "switch", "diff": "switch", "tire": 1,
+		"car": "res://assets/cars/uaz_469.glb", "origin": 0.9, "lights": [0.6, 0.75, 1.08, 0.85],
+		"collision_size": Vector3(1.72, 0.8, 3.95), "collision_offset": Vector3(0, 0.08, -0.02)},
 ]
 
 # hard = bərk yerdə tutuşma, mud = palçıqda tutuşma
@@ -54,6 +68,9 @@ const SUSPENSIONS := [
 	{"stiffness": 30.0, "travel": 0.42, "compression": 1.8, "rebound": 2.2, "width": 0.23},
 	{"stiffness": 32.0, "travel": 0.26, "compression": 2.0, "rebound": 2.5, "width": 0.19},
 	{"stiffness": 32.0, "travel": 0.26, "compression": 2.0, "rebound": 2.5, "width": 0.19},
+	{"stiffness": 30.0, "travel": 0.48, "compression": 1.9, "rebound": 2.3, "width": 0.34},
+	{"stiffness": 30.0, "travel": 0.42, "compression": 1.9, "rebound": 2.3, "width": 0.25},
+	{"stiffness": 30.0, "travel": 0.44, "compression": 1.8, "rebound": 2.2, "width": 0.25},
 ]
 
 var mud_spray: MudSpray
@@ -210,6 +227,7 @@ func apply_spec(idx: int) -> void:
 	var use_car := not car.is_empty()
 	var use_jeep: bool = spec.get("model", false) and _jeep != null
 	var use_model := use_car or use_jeep
+	_col.position = spec.get("collision_offset", Vector3.ZERO)
 	if use_car:
 		r = (car["model"] as CarModel).wheel_radius
 	elif use_jeep:
@@ -223,7 +241,7 @@ func apply_spec(idx: int) -> void:
 	if use_car:
 		var cm: CarModel = car["model"]
 		var box := _col.shape as BoxShape3D
-		box.size = Vector3(cm.width * 0.9, 0.7, cm.length - 0.1)
+		box.size = spec.get("collision_size", Vector3(cm.width * 0.9, 0.7, cm.length - 0.1))
 		var lp: Array = spec["lights"]
 		var half := cm.length * 0.5
 		var oh := float(spec["origin"])
@@ -337,6 +355,12 @@ func _unhandled_input(event: InputEvent) -> void:
 			apply_spec(4)
 		KEY_6:
 			apply_spec(5)
+		KEY_7:
+			apply_spec(6)
+		KEY_8:
+			apply_spec(7)
+		KEY_9:
+			apply_spec(8)
 
 
 ## Mühərriki işə sal / söndür (I düyməsi).
