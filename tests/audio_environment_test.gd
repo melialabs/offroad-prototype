@@ -27,6 +27,7 @@ func run() -> void:
 	Input.action_press(&"ui_up")
 	t.engine_state = OffroadTruck.EngineState.RUNNING
 	t.controls_enabled = true
+	t.throttle = 1.0
 	t.gear = 1
 	t.mud_level = 0.0
 	t.wheel_slip = 0.0

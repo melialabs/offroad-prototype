@@ -328,8 +328,10 @@ func _refresh_vehicle_buttons() -> void:
 		var awd: String = {"always": "həmişə", "switch": "açar-bağla"}.get(sp["awd"], "yox")
 		var diff: String = {"none": "yoxdur", "switch": "var", "always": "həmişə"}.get(sp["diff"], "yox")
 		var cur := truck != null and truck.spec_idx == i
+		var bank: Dictionary = VehicleEngineAudio.BANKS[i if i < 6 else 0]
+		_vehicle_buttons[i].tooltip_text = str(bank["label"])
 		_vehicle_buttons[i].text = "%s%s\n%d kq  ·  %d N·m  ·  %d L\nAWD: %s  ·  dif. kilidi: %s" % [
-			"✓ " if cur else "", sp["name"], int(sp["mass"]), int(sp["torque"]), int(sp["fuel"]), awd, diff]
+			"✓ " if cur else "", sp["name"], int(sp["mass"]), int(VehicleDynamics.for_vehicle(i)["torque"]), int(sp["fuel"]), awd, diff]
 
 
 func _refresh_settings() -> void:

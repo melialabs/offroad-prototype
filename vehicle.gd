@@ -4,36 +4,28 @@ extends VehicleBody3D
 ## AWD, diferensial kilidi, təkər növləri və yanacaq.
 ## Rəqəmlər öz tərəfimizdən seçilib, heç bir oyundan çıxarılmayıb.
 
-const MAX_SPEED_DRAG := 0.6
 const STEER_MAX := 0.5
 const IDLE_RPM := 800.0
-const REDLINE_RPM := 3000.0
-const SHIFT_UP_RPM := 2500.0
-const SHIFT_DOWN_RPM := 1000.0
-const FINAL_DRIVE := 2.9
 const DRIVETRAIN_EFF := 0.85
-const GEARS_LOW := [6.5, 4.2]
-const GEARS_HIGH := [3.8, 2.6, 1.8, 1.25, 0.72]
-const GEAR_REVERSE := -5.0
 ## Yük altında oturmuş asmanın ölçülmüş uzanması (m). Hardtail Lada modellərində təkər mərkəzi modeldəki yerə düşür.
 const SETTLED_EXTENSION := 0.25
 
 # awd/diff: "none" yoxdur, "switch" açar-bağlar, "always" həmişə açıq
 const SPECS := [
-	{"name": "Skaut", "mass": 1800.0, "torque": 450.0, "fuel": 80.0,
+	{"name": "Skaut", "mass": 1800.0, "torque": 340.0, "fuel": 80.0,
 		"radius": 0.55, "awd": "switch", "diff": "none", "tire": 1, "model": true},
-	{"name": "Yük maşını", "mass": 3500.0, "torque": 800.0, "fuel": 140.0,
+	{"name": "Yük maşını", "mass": 3500.0, "torque": 650.0, "fuel": 140.0,
 		"radius": 0.55, "awd": "switch", "diff": "switch", "tire": 1},
-	{"name": "Ağır tır", "mass": 5500.0, "torque": 1300.0, "fuel": 220.0,
+	{"name": "Ağır tır", "mass": 5500.0, "torque": 1250.0, "fuel": 220.0,
 		"radius": 0.65, "awd": "always", "diff": "switch", "tire": 2},
 	# Lada modelləri (CC BY 4.0, CREDITS.md): real kütlə, zəif mühərrik, yalnız Niva dörd təkərli
-	{"name": "Lada Niva", "mass": 1250.0, "torque": 330.0, "fuel": 42.0,
+	{"name": "Lada Niva", "mass": 1250.0, "torque": 140.0, "fuel": 42.0,
 		"radius": 0.36, "awd": "always", "diff": "switch", "tire": 1,
 		"car": "res://assets/cars/lada_niva.glb", "origin": 0.8, "lights": [0.55, 0.78, 0.55, 0.62]},
-	{"name": "Lada 2107", "mass": 1050.0, "torque": 240.0, "fuel": 39.0,
+	{"name": "Lada 2107", "mass": 1050.0, "torque": 125.0, "fuel": 39.0,
 		"radius": 0.28, "awd": "none", "diff": "none", "tire": 0,
 		"car": "res://assets/cars/lada_2107.glb", "origin": 0.72, "lights": [0.55, 0.7, 0.55, 0.78]},
-	{"name": "Lada 2106", "mass": 1030.0, "torque": 240.0, "fuel": 39.0,
+	{"name": "Lada 2106", "mass": 1030.0, "torque": 116.0, "fuel": 39.0,
 		"radius": 0.3, "awd": "none", "diff": "none", "tire": 0,
 		"car": "res://assets/cars/lada_2106.glb", "origin": 0.72, "lights": [0.5, 0.55, 0.5, 0.74]},
 	# User-supplied UAZ models. Indices are appended to preserve vehicle records.
@@ -80,6 +72,11 @@ var wheel_meshes: Array[MeshInstance3D] = []
 
 var spec_idx := 0
 var spec: Dictionary = SPECS[0]
+var powertrain: Dictionary = VehicleDynamics.for_vehicle(0)
+var throttle := 0.0
+var shift_remaining := 0.0
+signal gear_changed(previous: int, current: int)
+signal vehicle_changed(index: int)
 var tire_idx := 1
 var gear := 1
 var low_range := false
@@ -114,7 +111,10 @@ var _jeep_wheel_pos: Array[Vector3] = []
 func _ready() -> void:
 	center_of_mass_mode = RigidBody3D.CENTER_OF_MASS_MODE_CUSTOM
 	center_of_mass = Vector3(0, -0.4, 0)
-	linear_damp = 0.15
+	# Aerodynamic drag is applied below; avoid the default damping acting
+	# as a large hidden speed limiter on every powertrain.
+	linear_damp_mode = RigidBody3D.DAMP_MODE_REPLACE
+	linear_damp = 0.012
 
 	var mat := StandardMaterial3D.new()
 	mat.albedo_color = Color(0.85, 0.45, 0.10)
@@ -215,6 +215,12 @@ func _add_wheel(pos: Vector3, front: bool) -> void:
 func apply_spec(idx: int) -> void:
 	spec_idx = clampi(idx, 0, SPECS.size() - 1)
 	spec = SPECS[spec_idx]
+	powertrain = VehicleDynamics.for_vehicle(spec_idx)
+	throttle = 0.0
+	shift_remaining = 0.0
+	_shift_cooldown = 0.0
+	if engine_state == EngineState.RUNNING:
+		rpm = float(powertrain["idle"])
 	mass = float(spec["mass"])
 	tire_idx = int(spec["tire"])
 	fuel = float(spec["fuel"])
@@ -293,6 +299,7 @@ func apply_spec(idx: int) -> void:
 	wheel_slip = 0.0
 	linear_velocity = Vector3.ZERO
 	angular_velocity = Vector3.ZERO
+	vehicle_changed.emit(spec_idx)
 
 
 ## Godot VehicleWheel3D bağlantı nöqtəsini yalnız ağaca ilk girəndə oxuyur: işləmə vaxtı position
@@ -384,22 +391,18 @@ func stop_engine() -> void:
 
 
 func _forward_gears() -> Array:
-	return GEARS_LOW if low_range else GEARS_HIGH
+	return powertrain["gears"]
 
 
 func _ratio() -> float:
 	if gear < 0:
-		return GEAR_REVERSE
+		return -float(powertrain["reverse"]) * (float(powertrain["low"]) if low_range else 1.0)
 	var g := _forward_gears()
-	return g[clampi(gear - 1, 0, g.size() - 1)]
+	return float(g[clampi(gear - 1, 0, g.size() - 1)]) * (float(powertrain["low"]) if low_range else 1.0)
 
 
 func _torque_at(r: float) -> float:
-	if r >= REDLINE_RPM:
-		return 0.0
-	var x := (r - 1800.0) / 2000.0
-	return float(spec["torque"]) * 1.35 * clampf(1.0 - x * x * 0.75, 0.25, 1.0)
-
+	return VehicleDynamics.torque_at(powertrain,r)
 
 func _physics_process(delta: float) -> void:
 	var want := Input.get_axis(&"ui_down", &"ui_up")
@@ -448,6 +451,8 @@ func _physics_process(delta: float) -> void:
 	if not running or fuel <= 0.0:
 		drive = 0.0
 
+	throttle = move_toward(throttle, drive, delta * float(powertrain["response"]))
+	shift_remaining = maxf(0.0, shift_remaining - delta)
 	# aparıcı təkərlər
 	var driven: Array[VehicleWheel3D] = []
 	for w in wheels:
@@ -466,26 +471,35 @@ func _physics_process(delta: float) -> void:
 			min_skid = minf(min_skid, w.get_skidinfo())
 		else:
 			min_skid = 0.0
-	var ratio := absf(_ratio()) * FINAL_DRIVE
-	var target_rpm := IDLE_RPM
+	var ratio := absf(_ratio()) * float(powertrain["final"])
+	var idle := float(powertrain["idle"])
+	var redline := float(powertrain["redline"])
+	var target_rpm := idle
 	if contact_n > 0:
-		target_rpm = maxf(IDLE_RPM, rpm_sum / contact_n * ratio)
+		target_rpm = maxf(idle, rpm_sum / contact_n * ratio)
+	if contact_n == 0 and drive > 0.0:
+		target_rpm = lerpf(idle, redline * 0.93, throttle)
 	if engine_state == EngineState.OFF:
-		rpm = lerpf(rpm, 0.0, 0.12)
+		rpm = lerpf(rpm, 0.0, 1.0 - exp(-8.0 * delta))
 	elif engine_state == EngineState.CRANKING:
 		rpm = lerpf(rpm, 260.0 + sin(_crank_t * 38.0) * 60.0, 0.3)
 	else:
-		rpm = minf(lerpf(rpm, target_rpm, 0.25), REDLINE_RPM + 200.0)
+		rpm = minf(lerpf(rpm, target_rpm, 1.0 - exp(-float(powertrain["response"]) * delta)), redline + 150.0)
 
 	# avtomatik dişli dəyişmə
 	_shift_cooldown -= delta
 	if running and gear > 0 and _shift_cooldown <= 0.0:
-		if rpm > SHIFT_UP_RPM and gear < _forward_gears().size():
+		var previous_gear := gear
+		if rpm > float(powertrain["up"]) and gear < _forward_gears().size():
 			gear += 1
-			_shift_cooldown = 0.5
-		elif rpm < SHIFT_DOWN_RPM and gear > 1:
+			_shift_cooldown = float(powertrain["shift"]) + 0.35
+		elif rpm < float(powertrain["down"]) and gear > 1:
 			gear -= 1
-			_shift_cooldown = 0.5
+			_shift_cooldown = float(powertrain["shift"]) + 0.35
+
+		if gear != previous_gear:
+			shift_remaining = float(powertrain["shift"])
+			gear_changed.emit(previous_gear, gear)
 
 	# açıq diferensial: sürüşən təkər gücü aparır, kilid bunu aradan qaldırır
 	var diff_factor := 1.0
@@ -493,7 +507,16 @@ func _physics_process(delta: float) -> void:
 		diff_factor = lerpf(1.0, clampf(min_skid, 0.3, 1.0), 0.7)
 
 	var wheel_r := wheels[0].wheel_radius
-	var total_force := _torque_at(rpm) * _ratio() * FINAL_DRIVE * DRIVETRAIN_EFF / wheel_r * drive
+	var total_force := _torque_at(rpm) * _ratio() * float(powertrain["final"]) * DRIVETRAIN_EFF / wheel_r * throttle
+	# Fade propulsion near the per-vehicle target; never clamp body velocity.
+	var top := float(powertrain["top"]) / 3.6
+	if gear < 0:
+		top = minf(top, 30.0 / 3.6)
+	total_force *= 1.0 - smoothstep(top * 0.94, top, absf(fwd_speed))
+	if shift_remaining > 0.0:
+		total_force *= 0.12
+	if not running:
+		total_force = 0.0
 	if driven.size() > 0:
 		engine_force = total_force * diff_factor * clampf(1.0 - mud_level * 0.65, 0.25, 1.0) / driven.size()
 	else:
@@ -501,12 +524,12 @@ func _physics_process(delta: float) -> void:
 	brake = braking * mass * 0.05
 
 	# hava müqaviməti
-	apply_central_force(-linear_velocity * linear_velocity.length() * MAX_SPEED_DRAG)
+	apply_central_force(-linear_velocity * linear_velocity.length() * float(powertrain["drag"]))
 
 	# yanacaq
 	var burn := 0.0
 	if engine_state == EngineState.RUNNING:
-		burn = 0.0015 + drive * rpm / REDLINE_RPM * 0.05
+		burn = 0.0015 + throttle * rpm / redline * 0.05
 	elif engine_state == EngineState.CRANKING:
 		burn = 0.004
 	if awd_on:

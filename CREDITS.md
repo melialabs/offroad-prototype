@@ -76,4 +76,28 @@ Dəyişikliklər: dünya transformları tətbiq edilib, dörd təkər və həqiq
 
 ## Səslər
 
-Mühərrik və avtomobil effektləri `game_audio.gd` ilə sintez olunur. Meşə, quşlar, gecə həşəratları, bayquş və su səsləri real CC0 qeydləridir. Müəlliflər, mənbələr və emal məlumatları: [assets/audio/CREDITS.md](assets/audio/CREDITS.md) və [SOURCES.json](assets/audio/SOURCES.json).
+Mühərriklər səs yazılarından qurulur; bəzi avtomobil effektləri sintez olunur (aşağıdakı mənbələrə bax). Meşə, quşlar, gecə həşəratları, bayquş və su səsləri real CC0 qeydləridir. Müəlliflər, mənbələr və emal məlumatları: [assets/audio/CREDITS.md](assets/audio/CREDITS.md) və [SOURCES.json](assets/audio/SOURCES.json).
+
+## Recorded vehicle audio (prototype substitutes)
+
+All source pages list CC0. No recording below is claimed to be an authentic
+recording of the represented in-game vehicle. Prepared edits and exact source
+cuts: `assets/audio/engines/SOURCES.json`.
+
+| Game vehicle / effect | Actual recording | Source |
+| --- | --- | --- |
+| Skaut | AC Cobra 427, Joseph Sardin | https://bigsoundbank.com/ac-cobra-engine-s0534.html |
+| Yük maşını | Iveco Daily 3.0, Joseph Sardin | https://bigsoundbank.com/truck-engine-s1145.html |
+| Yük rev/load | Iveco acceleration, Joseph Sardin | https://bigsoundbank.com/truck-engine-big-accelerations-s1147.html |
+| Ağır tır | Unidentified truck, Joseph Sardin | https://bigsoundbank.com/truck-engine-2-s1443.html |
+| Lada Niva | Unidentified retro car #2, DenisChardonnet | https://bigsoundbank.com/car-engine-2-s0291.html |
+| Lada 2107 | Peugeot 107 1.0 petrol, Joseph Sardin | https://bigsoundbank.com/small-gasoline-engine-s0966.html |
+| Lada 2106 | Unidentified retro car #1, DenisChardonnet | https://bigsoundbank.com/motor-car-1-s0290.html |
+| Gravel rolling | MTB on gravel, Joseph Sardin | https://bigsoundbank.com/bike-on-gravel-mtb-1-s1284.html |
+| Mud churn | Liquid-mud footsteps, Joseph Sardin | https://bigsoundbank.com/steps-in-the-mud-s0495.html |
+
+Recorded start/stop excerpts also come from the AC Cobra and Peugeot files;
+they are generic substitute effects for the other vehicles. Missing: authentic
+six-vehicle recording sets and measured RPM/load sweeps. Tire hiss, wind,
+collision thuds and mechanical transients are synthesized. No engine oscillator
+is used. Details: `docs/vehicle_audio.md`.

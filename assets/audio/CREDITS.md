@@ -18,7 +18,8 @@ BigSoundBank permissions: https://bigsoundbank.com/droit.html
 Runtime mix: independent recording offsets, smooth day/night transition, daytime
 birds replaced by crickets at night, occasional positional owl calls, and lake
 distance attenuation. High summits fade forest wildlife and add wind gusts.
-The separate wind, engine, tire, mud and activity effects are synthesized in
+Recorded engine banks and gravel/mud foley are listed in the root CREDITS.md.
+The separate wind, tire hiss, collision and activity effects are synthesized in
 `game_audio.gd`; they are not attributed to the field-recording authors.
 Engine strain responds to grounded uphill driving (including reverse) and mud
 wheelspin. An idling vehicle does not produce mud churn by RPM alone.

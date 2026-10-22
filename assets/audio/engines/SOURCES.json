@@ -1,0 +1,379 @@
+{
+  "notice": "All vehicle recordings are disclosed substitutes, not authentic recordings of the represented game vehicles. Layer RPM anchors are estimates for playback. Idle/rev/load can be designed from steady recordings; no measured multi-RPM/load capture is claimed.",
+  "sources": {
+    "0534": {
+      "url": "https://bigsoundbank.com/ac-cobra-engine-s0534.html",
+      "download": "https://bigsoundbank.com/UPLOAD/bwf-en/0534.wav",
+      "identity": "AC Cobra 427",
+      "author": "Joseph Sardin",
+      "license": "CC0",
+      "sha256": "bdb932dfe8990afc584cd0d579fba068ce6b23c87d7389724e89567e2d0020a8"
+    },
+    "1145": {
+      "url": "https://bigsoundbank.com/truck-engine-s1145.html",
+      "download": "https://bigsoundbank.com/UPLOAD/bwf-en/1145.wav",
+      "identity": "Iveco Daily 3.0 40C14 HPI",
+      "author": "Joseph Sardin",
+      "license": "CC0",
+      "sha256": "1c89ce25f7926544ac2cac655a8b0d090ffa1423e92c33bf67ee2b3ae9750513"
+    },
+    "1443": {
+      "url": "https://bigsoundbank.com/truck-engine-2-s1443.html",
+      "download": "https://bigsoundbank.com/UPLOAD/bwf-en/1443.wav",
+      "identity": "unidentified truck",
+      "author": "Joseph Sardin",
+      "license": "CC0",
+      "sha256": "b1a51ef8a4737df8b1a69635e2bcf209962b384219adb664e0c004fd8d92cfaf"
+    },
+    "0291": {
+      "url": "https://bigsoundbank.com/car-engine-2-s0291.html",
+      "download": "https://bigsoundbank.com/UPLOAD/bwf-en/0291.wav",
+      "identity": "unidentified retro car #2",
+      "author": "DenisChardonnet",
+      "license": "CC0",
+      "sha256": "e4f9d8c586198f9ab743328a68b8d153294c64c904e560749fd836beb196dcda"
+    },
+    "0966": {
+      "url": "https://bigsoundbank.com/small-gasoline-engine-s0966.html",
+      "download": "https://bigsoundbank.com/UPLOAD/bwf-en/0966.wav",
+      "identity": "Peugeot 107 1.0 petrol",
+      "author": "Joseph Sardin",
+      "license": "CC0",
+      "sha256": "2bf9670da9b8b046164aba54579013a3fb15e0e5b8f41af3f7d397726448c5a5"
+    },
+    "0290": {
+      "url": "https://bigsoundbank.com/motor-car-1-s0290.html",
+      "download": "https://bigsoundbank.com/UPLOAD/bwf-en/0290.wav",
+      "identity": "unidentified retro car #1",
+      "author": "DenisChardonnet",
+      "license": "CC0",
+      "sha256": "7b318c16bf306c6d14398c2206c09d6b7921b228c140b731ec55953f02fed2c6"
+    },
+    "1147": {
+      "url": "https://bigsoundbank.com/truck-engine-big-accelerations-s1147.html",
+      "download": "https://bigsoundbank.com/UPLOAD/bwf-en/1147.wav",
+      "identity": "Iveco Daily 3.0 40C14 HPI accelerations",
+      "author": "Joseph Sardin",
+      "license": "CC0",
+      "sha256": "57a195b4f5365a115b64f3d83c5101316b6f328167e7f1b76fcc3a295821f101"
+    },
+    "1284": {
+      "url": "https://bigsoundbank.com/bike-on-gravel-mtb-1-s1284.html",
+      "download": "https://bigsoundbank.com/UPLOAD/bwf-en/1284.wav",
+      "identity": "MTB rolling on gravel (foley substitute)",
+      "author": "Joseph Sardin",
+      "license": "CC0",
+      "sha256": "3077882ac6e1fc5c3a39a82a81d015d8319943b48e3558be8a5887935e2e2f05"
+    },
+    "0495": {
+      "url": "https://bigsoundbank.com/steps-in-the-mud-s0495.html",
+      "download": "https://bigsoundbank.com/UPLOAD/bwf-en/0495.wav",
+      "identity": "liquid mud footsteps (foley substitute)",
+      "author": "Joseph Sardin",
+      "license": "CC0",
+      "sha256": "1fc9a1686e1441cb17c317943208aba4fa2e084f6281b9759d2da64e6fe6de25"
+    }
+  },
+  "files": [
+    {
+      "file": "scout_idle.wav",
+      "seconds": 3.91,
+      "sha256": "8ee9445dbc43b08abe475f31d7156f199f2137a2a3d905ee93512b9496533699",
+      "loop": true,
+      "vehicle": "scout",
+      "layer": "idle",
+      "source": "0534",
+      "cut": [
+        14,
+        18
+      ]
+    },
+    {
+      "file": "scout_rev.wav",
+      "seconds": 2.91,
+      "sha256": "0e92be7390784efce89fe8bc758f1175604014640fd82eeeecaf140399975175",
+      "loop": true,
+      "vehicle": "scout",
+      "layer": "rev",
+      "source": "0534",
+      "cut": [
+        3,
+        6
+      ]
+    },
+    {
+      "file": "scout_load.wav",
+      "seconds": 2.91,
+      "sha256": "7cbc0b2e4cb8fac36367580fa7792bf8daa056347c02724bd13cae0ad09337ba",
+      "loop": true,
+      "vehicle": "scout",
+      "layer": "load",
+      "source": "0534",
+      "cut": [
+        8,
+        11
+      ]
+    },
+    {
+      "file": "cargo_idle.wav",
+      "seconds": 3.91,
+      "sha256": "e196107017fbc0779fccea7dcd192513c8bc67a04e8a38dd359e607034dd324c",
+      "loop": true,
+      "vehicle": "cargo",
+      "layer": "idle",
+      "source": "1145",
+      "cut": [
+        4,
+        8
+      ]
+    },
+    {
+      "file": "cargo_rev.wav",
+      "seconds": 2.91,
+      "sha256": "d908f2c297669344a8df03c855537d67228b0930679f423a04c3ebaed73672e9",
+      "loop": true,
+      "vehicle": "cargo",
+      "layer": "rev",
+      "source": "1147",
+      "cut": [
+        4,
+        7
+      ]
+    },
+    {
+      "file": "cargo_load.wav",
+      "seconds": 2.91,
+      "sha256": "90ef9a2b1bc7297d0eb710e946297389bc447002f8f4e97736b9a705e80dd9cf",
+      "loop": true,
+      "vehicle": "cargo",
+      "layer": "load",
+      "source": "1147",
+      "cut": [
+        9,
+        12
+      ]
+    },
+    {
+      "file": "heavy_idle.wav",
+      "seconds": 3.91,
+      "sha256": "d9e806e10fafd91b7a0c1513d4382633073308051a43ef1f96b0dea42c12037e",
+      "loop": true,
+      "vehicle": "heavy",
+      "layer": "idle",
+      "source": "1443",
+      "cut": [
+        8,
+        12
+      ]
+    },
+    {
+      "file": "heavy_rev.wav",
+      "seconds": 3.91,
+      "sha256": "330f8d4065af917bc0923e6cf75ecee86e29b9758f342b7879342c51079fae4c",
+      "loop": true,
+      "vehicle": "heavy",
+      "layer": "rev",
+      "source": "1443",
+      "cut": [
+        34,
+        38
+      ]
+    },
+    {
+      "file": "heavy_load.wav",
+      "seconds": 2.91,
+      "sha256": "7397228e2bb1cd79b8dd78d4c67472e670c07cbcf9d4a4f3ca9fea0576deeaa0",
+      "loop": true,
+      "vehicle": "heavy",
+      "layer": "load",
+      "source": "1443",
+      "cut": [
+        49,
+        52
+      ]
+    },
+    {
+      "file": "niva_idle.wav",
+      "seconds": 0.69,
+      "sha256": "f0edda1807fff29c3ce68f01217d898571ccfc79b2f38e91015d74d4e9d8b634",
+      "loop": true,
+      "vehicle": "niva",
+      "layer": "idle",
+      "source": "0291",
+      "cut": [
+        0.12,
+        0.9
+      ]
+    },
+    {
+      "file": "niva_rev.wav",
+      "seconds": 1.21,
+      "sha256": "2695aabec0e0213de0bbf628985075da1f93dee8dbbe77e1bbb942d0182b2cb8",
+      "loop": true,
+      "vehicle": "niva",
+      "layer": "rev",
+      "source": "0291",
+      "cut": [
+        1.2,
+        2.5
+      ]
+    },
+    {
+      "file": "niva_load.wav",
+      "seconds": 1.41,
+      "sha256": "03473208140197824349a531ad5acec9a4426dbb17e3e9a6e78ccfcf6a824f49",
+      "loop": true,
+      "vehicle": "niva",
+      "layer": "load",
+      "source": "0291",
+      "cut": [
+        3.0,
+        4.5
+      ]
+    },
+    {
+      "file": "lada2107_idle.wav",
+      "seconds": 3.91,
+      "sha256": "5032ffb0a08f367833df82bdfcdcb1338848c22b7858896db6777fda872209d0",
+      "loop": true,
+      "vehicle": "lada2107",
+      "layer": "idle",
+      "source": "0966",
+      "cut": [
+        8,
+        12
+      ]
+    },
+    {
+      "file": "lada2107_rev.wav",
+      "seconds": 3.91,
+      "sha256": "c83092657b0cd8053276b81ed07e3dd9b19849bcf2aea7c1d9b288cf0fb6485d",
+      "loop": true,
+      "vehicle": "lada2107",
+      "layer": "rev",
+      "source": "0966",
+      "cut": [
+        17,
+        21
+      ]
+    },
+    {
+      "file": "lada2107_load.wav",
+      "seconds": 3.91,
+      "sha256": "b05f571a8a73f7c8066ded6133191d647149193136cba4847ec4c834b928f609",
+      "loop": true,
+      "vehicle": "lada2107",
+      "layer": "load",
+      "source": "0966",
+      "cut": [
+        31,
+        35
+      ]
+    },
+    {
+      "file": "lada2106_idle.wav",
+      "seconds": 0.56,
+      "sha256": "2b7ee2eb016e5f5c10584f475ee28f1d9e9f18a0df148a053a4dbafac8d49dc8",
+      "loop": true,
+      "vehicle": "lada2106",
+      "layer": "idle",
+      "source": "0290",
+      "cut": [
+        0.1,
+        0.75
+      ]
+    },
+    {
+      "file": "lada2106_rev.wav",
+      "seconds": 0.71,
+      "sha256": "3a3ae5b926e16e167b6194c526a913972dea68173d6c06af36852c47ef4b9033",
+      "loop": true,
+      "vehicle": "lada2106",
+      "layer": "rev",
+      "source": "0290",
+      "cut": [
+        0.85,
+        1.65
+      ]
+    },
+    {
+      "file": "lada2106_load.wav",
+      "seconds": 0.76,
+      "sha256": "a2e92f08c6d19ce3cbcacc80f488a21958ad4ffd731383b614726f4e339d49b3",
+      "loop": true,
+      "vehicle": "lada2106",
+      "layer": "load",
+      "source": "0290",
+      "cut": [
+        1.65,
+        2.5
+      ]
+    },
+    {
+      "file": "gravel_roll.wav",
+      "seconds": 14.91,
+      "sha256": "dec063dad6ef575004fd9cba5139d244fdc94f256e6db0bc0fe7580414c99a53",
+      "loop": true,
+      "source": "1284",
+      "cut": [
+        2,
+        17
+      ]
+    },
+    {
+      "file": "mud_foley.wav",
+      "seconds": 8.91,
+      "sha256": "a2ad7a5f6c29441a9fddb870fa5df486bc6998cd786a51034fdfb2966086f110",
+      "loop": true,
+      "source": "0495",
+      "cut": [
+        0.2,
+        9.2
+      ]
+    },
+    {
+      "file": "starter_petrol.wav",
+      "seconds": 1.5,
+      "sha256": "ee6e4e4f3c97ab7a87b3bc97213166060ca7340896c5456b12cbbfc29530d1ae",
+      "loop": false,
+      "source": "0966",
+      "cut": [
+        2.0,
+        3.5
+      ]
+    },
+    {
+      "file": "starter_v8.wav",
+      "seconds": 1.5,
+      "sha256": "f0c48cba54de0896cff63efe612543a0f73e01fcfbc690d745bd58499b194900",
+      "loop": false,
+      "source": "0534",
+      "cut": [
+        0,
+        1.5
+      ]
+    },
+    {
+      "file": "stop_petrol.wav",
+      "seconds": 2.0,
+      "sha256": "d2fc5953869cf93b29ffdb2c170655572eee1f5c7ae04c2e3991c1ced48c7347",
+      "loop": false,
+      "source": "0966",
+      "cut": [
+        47,
+        49
+      ]
+    },
+    {
+      "file": "stop_v8.wav",
+      "seconds": 2.5,
+      "sha256": "e2d087f4e880faf0748244adb6f00c55b5c6aab3bb4d7a9ed3f45e2cd932e80d",
+      "loop": false,
+      "source": "0534",
+      "cut": [
+        22,
+        24.5
+      ]
+    }
+  ]
+}

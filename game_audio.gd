@@ -1,18 +1,22 @@
 class_name GameAudio
 extends Node
-## Engine/vehicle effects are synthesized; nature ambience uses real CC0 field recordings.
+## Recorded independent engine banks and nature recordings; synthesized foley is labeled.
 ## See assets/audio/CREDITS.md for authors, sources and transformations.
 
 const SR := 22050
-const ENGINE_REF_RPM := 1200.0  # mühərrik döngəsi bu rpm-də yazılıb (4 silindr: 40 Hz atəşləmə)
 
 var truck: OffroadTruck
 var main_node: Node
 var enabled := true
 
+var engine_bank: VehicleEngineAudio
+var _load: AudioStreamPlayer
+var _gravel: AudioStreamPlayer
+var _impact_cooldown := 0.0
 var _engine: AudioStreamPlayer
 var _growl: AudioStreamPlayer
 var _starter: AudioStreamPlayer
+var _stopper: AudioStreamPlayer
 var _road: AudioStreamPlayer
 var _mud: AudioStreamPlayer
 var _wind: AudioStreamPlayer
@@ -45,11 +49,17 @@ var thuds := 0
 
 func _ready() -> void:
 	_rng.randomize()
-	_engine = _player(_engine_loop(false), -80.0)
-	_growl = _player(_engine_loop(true), -80.0)
-	_starter = _player(_starter_sound(), -6.0, false)
+	engine_bank = VehicleEngineAudio.new()
+	add_child(engine_bank)
+	engine_bank.select_vehicle(truck.spec_idx if truck != null else 0)
+	_engine = engine_bank.idle
+	_growl = engine_bank.rev
+	_load = engine_bank.load_layer
+	_starter = _player(load("res://assets/audio/engines/starter_v8.wav"), -13.0, false)
+	_stopper = _player(load("res://assets/audio/engines/stop_v8.wav"), -16.0, false)
 	_road = _player(_noise_loop(1.6, 0.35, 0.02, 0.5), -80.0)
-	_mud = _player(_noise_loop(1.6, 0.04, 0.0, 0.9, true), -80.0)
+	_mud = _player(_effect_loop("mud_foley"), -80.0)
+	_gravel = _player(_effect_loop("gravel_roll"), -80.0)
 	_wind = _player(_noise_loop(2.4, 0.05, 0.002, 1.0), -80.0)
 	_bed = _player(_recording("forest"), -80.0)
 	_crickets = _player(_recording("crickets"), -80.0)
@@ -71,7 +81,12 @@ func _ready() -> void:
 		_prev_v = truck.linear_velocity
 		truck.message.connect(func(_t: String): _play_sfx(_click, -8.0))
 		truck.lights.tick.connect(_on_light_tick)
-	for p in [_engine, _growl, _road, _mud, _wind, _bed, _crickets, _bird, _brook]:
+		truck.gear_changed.connect(func(_old: int,_new: int):
+			engine_bank.shift()
+			_play_sfx(_click,-23.0)
+		)
+		truck.vehicle_changed.connect(_on_vehicle_changed)
+	for p in [_road, _mud, _gravel, _wind, _bed, _crickets, _bird, _brook]:
 		# Long field recordings should not restart with the same bird call on
 		# every visit. Keep their pitch intact, with an independent loop phase.
 		var offset := 0.0
@@ -105,7 +120,9 @@ func _process(delta: float) -> void:
 	# zərbə
 	var dv := truck.linear_velocity - _prev_v
 	_prev_v = truck.linear_velocity
-	if dv.length() > 4.5 and truck.controls_enabled:
+	_impact_cooldown = maxf(0.0,_impact_cooldown-delta)
+	if dv.length() > 4.5 and truck.controls_enabled and _impact_cooldown <= 0.0:
+		_impact_cooldown = 0.18
 		thuds += 1
 		_play_sfx(_thud, clampf(-22.0 + dv.length() * 1.6, -22.0, 2.0))
 
@@ -114,30 +131,22 @@ func _update_engine(delta: float) -> void:
 	var st := truck.engine_state
 	if st != _prev_engine:
 		if st == OffroadTruck.EngineState.CRANKING:
+			_stopper.stop()
 			_starter.play()
+		elif st == OffroadTruck.EngineState.OFF and _prev_engine == OffroadTruck.EngineState.RUNNING:
+			_starter.stop()
+			_stopper.play()
 		_prev_engine = st
-	var want := 0.0
-	if Input.is_physical_key_pressed(KEY_W) or Input.is_action_pressed(&"ui_up"):
-		want = 1.0
-	if Input.is_physical_key_pressed(KEY_S) or Input.is_action_pressed(&"ui_down"):
-		want = maxf(want, 0.7)
+	if st != OffroadTruck.EngineState.CRANKING and _starter.playing:
+		_starter.volume_db = move_toward(_starter.volume_db,-80.0,delta*480.0)
+		if _starter.volume_db < -70.0:
+			_starter.stop()
+	elif st == OffroadTruck.EngineState.CRANKING:
+		_starter.volume_db = -13.0
+	var want := truck.throttle
 	if not truck.controls_enabled or st != OffroadTruck.EngineState.RUNNING:
 		want = 0.0
 	_throttle = lerpf(_throttle, want, 1.0 - exp(-6.0 * delta))
-	var alive := st == OffroadTruck.EngineState.RUNNING or truck.rpm > 150.0
-	var pitch := clampf(truck.rpm / ENGINE_REF_RPM, 0.3, 3.4)
-	last_engine_pitch = pitch
-	_engine.pitch_scale = pitch
-	_growl.pitch_scale = pitch
-	var body_db := -80.0
-	var growl_db := -80.0
-	if alive and st != OffroadTruck.EngineState.CRANKING:
-		body_db = -16.0 + 7.0 * _throttle + 4.0 * clampf(truck.rpm / 3000.0, 0.0, 1.0)
-		growl_db = -34.0 + 20.0 * _throttle * clampf(truck.rpm / 2200.0, 0.3, 1.0)
-		if st != OffroadTruck.EngineState.RUNNING:
-			var f := clampf(truck.rpm / 500.0, 0.0, 1.0)
-			body_db = lerpf(-60.0, body_db, f)
-			growl_db = lerpf(-80.0, growl_db, f)
 	# Positive grade in the driven direction loads the engine. A descending
 	# vehicle or an airborne wheel must not sound as if it is climbing.
 	var contacts := 0
@@ -152,11 +161,9 @@ func _update_engine(delta: float) -> void:
 		load_target = 0.0
 	_engine_load = lerpf(_engine_load, load_target, 1.0 - exp(-5.0 * delta))
 	last_engine_load = _engine_load
-	growl_db += _engine_load * 7.0
-	body_db += _engine_load * 2.0
-	last_engine_db = body_db
-	_engine.volume_db = body_db
-	_growl.volume_db = growl_db
+	engine_bank.update(delta,truck,_throttle,_engine_load)
+	last_engine_pitch = _growl.pitch_scale
+	last_engine_db = maxf(_engine.volume_db,maxf(_growl.volume_db,_load.volume_db))
 
 
 func _update_road(delta: float) -> void:
@@ -179,7 +186,9 @@ func _update_road(delta: float) -> void:
 	_road.pitch_scale = pitch
 	_mud.pitch_scale = clampf(0.7 + _speed / 25.0, 0.7, 1.6)
 	var road_gain := 1.0 - soft
-	_road.volume_db = _db(amt * road_gain * (1.0 if on_road else 0.6)) - 12.0
+	_road.volume_db = _db(amt * road_gain * (1.0 if on_road else 0.18)) - 15.0
+	_gravel.volume_db = _db(amt * road_gain * (0.0 if on_road else 0.8)) - 17.0
+	_gravel.pitch_scale = clampf(0.8+_speed/30.0,0.8,1.5)
 	# A stationary idling engine does not churn mud; spinning wheels do.
 	var churn := clampf(truck.wheel_slip / 8.0, 0.0, 1.0) * grounded
 	_mud.volume_db = _db(amt * soft + 0.3 * soft * churn) - 7.0
@@ -257,37 +266,6 @@ static func _wav(samples: PackedFloat32Array, loop: bool) -> AudioStreamWAV:
 	return s
 
 
-## 1 saniyəlik dövr: 40 Hz atəşləmə tezliyinin harmonikləri + yarım-tərtib ("qeyri-bərabər" atəşləmə).
-func _engine_loop(growl: bool) -> AudioStreamWAV:
-	var n := SR
-	var out := PackedFloat32Array()
-	out.resize(n)
-	var r := RandomNumberGenerator.new()
-	r.seed = 77 if growl else 31
-	var parts: Array = []  # [frekans, amplituda, faza]
-	var hmax := 70 if growl else 14
-	for h in range(1, hmax + 1):
-		var a := pow(float(h), -0.9) if not growl else (0.5 if h > 8 else 0.1)
-		if growl and h <= 8:
-			a *= 0.3
-		if h % 2 == 0 and not growl:
-			a *= 1.25
-		parts.append([40.0 * h, a, r.randf() * TAU])
-		if h < (30 if growl else 8):
-			parts.append([40.0 * (h - 0.5), a * 0.4, r.randf() * TAU])
-	var peak := 0.0001
-	for i in n:
-		var t := float(i) / SR
-		var s := 0.0
-		for p in parts:
-			s += p[1] * sin(TAU * p[0] * t + p[2])
-		out[i] = s
-		peak = maxf(peak, absf(s))
-	for i in n:
-		out[i] = out[i] / peak * 0.7
-	return _wav(out, true)
-
-
 ## Süzülmüş ağ küy dövrəsi. lp/hp: bir qütblü süzgəc əmsalları (kiçik lp = daha bas).
 func _noise_loop(seconds: float, lp: float, hp: float, gain: float, crunchy: bool = false) -> AudioStreamWAV:
 	var n := int(seconds * SR)
@@ -323,24 +301,6 @@ func _noise_loop(seconds: float, lp: float, hp: float, gain: float, crunchy: boo
 	return _wav(out, true)
 
 
-func _starter_sound() -> AudioStreamWAV:
-	var n := int(0.9 * SR)
-	var out := PackedFloat32Array()
-	out.resize(n)
-	var r := RandomNumberGenerator.new()
-	r.seed = 5
-	var lp := 0.0
-	for i in n:
-		var t := float(i) / SR
-		var env := smoothstep(0.0, 0.05, t) * (1.0 - smoothstep(0.8, 0.9, t))
-		var whirr := sin(TAU * (95.0 + 60.0 * t) * t) * 0.5
-		var ratchet := maxf(0.0, sin(TAU * 11.0 * t)) # mühərrikin firlanma vuruşları
-		var rough := ratchet * sin(TAU * 55.0 * t) * 0.8
-		lp += (r.randf_range(-1.0, 1.0) - lp) * 0.1
-		out[i] = (whirr + rough + lp * 0.5) * env * 0.6
-	return _wav(out, false)
-
-
 func _tick(freq: float, dur: float = 0.045) -> AudioStreamWAV:
 	var n := int(dur * SR)
 	var out := PackedFloat32Array()
@@ -372,3 +332,24 @@ func play_activity_cue(kind: String) -> void:
 		"checkpoint": _play_sfx(_tick(980.0,0.08),-22.0)
 		"finish": _play_sfx(_tick(1760.0,0.25),-15.0)
 		"fail": _play_sfx(_tick(330.0,0.18),-22.0)
+
+
+func _effect_loop(name: String) -> AudioStreamWAV:
+	var stream := load("res://assets/audio/engines/%s.wav" % name).duplicate() as AudioStreamWAV
+	stream.loop_end = int(round(stream.get_length() * stream.mix_rate))
+	stream.loop_mode = AudioStreamWAV.LOOP_FORWARD
+	stream.loop_begin = 0
+	return stream
+
+
+func _on_vehicle_changed(index: int) -> void:
+	engine_bank.select_vehicle(index)
+	_throttle = 0.0
+	_engine_load = 0.0
+	_prev_v = truck.linear_velocity
+	_prev_engine = truck.engine_state
+	_starter.stop()
+	_stopper.stop()
+	var identity := "v8" if index == 0 else "petrol"
+	_starter.stream = load("res://assets/audio/engines/starter_%s.wav" % identity)
+	_stopper.stream = load("res://assets/audio/engines/stop_%s.wav" % identity)

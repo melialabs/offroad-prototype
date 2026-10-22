@@ -1,11 +1,9 @@
 class_name Hud
 extends Control
-## Aşağı HUD, iki künc bloku: solda spidometr + AWD/diferensial/diapazon, sağda təkər/texnika/palçıq + dövr və yanacaq.
+## Vehicle-specific instruments in the lower-right; GPS remains lower-left.
 ## Mərkəz boşdur ki, yol və maşın görünsün. Hamısı _draw() ilə çəkilir, ekran ölçüsünə görə miqyaslanır.
 ## Düymə göstərişi ilk 16 saniyə görünür, sonra H ilə açılıb-bağlanır.
 
-const MAX_KMH := 120.0
-const MAX_RPM := 3500.0
 const CYAN := Color(0.25, 0.85, 1.0)
 const ORANGE := Color(1.0, 0.58, 0.12)
 const RED := Color(1.0, 0.22, 0.16)
@@ -48,7 +46,7 @@ func _process(delta: float) -> void:
 		return
 	_t += delta
 	_toast_t = maxf(_toast_t - delta, 0.0)
-	_speed_smooth = lerpf(_speed_smooth, truck.linear_velocity.length() * 3.6, 1.0 - exp(-12.0 * delta))
+	_speed_smooth = lerpf(_speed_smooth, Vector2(truck.linear_velocity.x, truck.linear_velocity.z).length() * 3.6, 1.0 - exp(-12.0 * delta))
 	_rpm_smooth = lerpf(_rpm_smooth, truck.rpm, 1.0 - exp(-14.0 * delta))
 	queue_redraw()
 
@@ -66,31 +64,26 @@ func _draw() -> void:
 	if truck == null:
 		return
 	var sz := get_viewport_rect().size
-	var s := clampf(sz.y / 900.0, 0.7, 1.5)
+	var s := minf(clampf(sz.y / 900.0, 0.7, 1.5),maxf(0.45,(sz.x-250.0)/670.0))
 	var m := 14.0 * s
-	var h := 112.0 * s
+	# One compact instrument cluster; lower-left GPS remains unobstructed.
+	var h := 178.0 * s
 	var y0 := sz.y - m - h
 	var gap := 10.0 * s
-	var pill_w := 156.0 * s
-	var speedo_r := 54.0 * s
-	var small_r := 36.0 * s
-
-	# sol blok: spidometr + AWD / diferensial / diapazon
-	var lw := 14.0 * s + (speedo_r + 8.0 * s) * 2.0 + gap + pill_w + 14.0 * s
-	var left := Rect2(m + 226.0 * s, y0, lw, h)
-	_panel(left)
-	var sc := Vector2(left.position.x + 14.0 * s + speedo_r + 8.0 * s, y0 + h * 0.5)
-	_draw_speedo(sc, speedo_r, s)
-	_draw_left_badges(Vector2(sc.x + speedo_r + 8.0 * s + gap, y0 + (h - 78.0 * s) * 0.5), pill_w, s)
-
-	# sağ blok: təkər / texnika / palçıq + dövr və yanacaq
-	var rw := 14.0 * s + pill_w + gap + (small_r + 6.0 * s) * 2.0 * 2.0 + gap + 14.0 * s
-	var right := Rect2(sz.x - m - rw, y0, rw, h)
-	_panel(right)
-	_draw_right_badges(Vector2(right.position.x + 14.0 * s, y0 + (h - 78.0 * s) * 0.5), pill_w, s)
-	var rc := Vector2(right.position.x + 14.0 * s + pill_w + gap + small_r + 6.0 * s, y0 + h * 0.5)
-	_draw_rpm(rc, small_r, s)
-	_draw_fuel(rc + Vector2((small_r + 6.0 * s) * 2.0 + 0.0, 0.0), small_r, s)
+	var panel := Rect2(Vector2(sz.x - m - 640.0 * s,y0),Vector2(640,178)*s)
+	_panel(panel)
+	var o := panel.position
+	_text_l(str(truck.spec["name"]).to_upper(),o+Vector2(22,22)*s,int(12*s),DIM)
+	_text_l("SÜRÜŞ GÖSTƏRİCİLƏRİ",o+Vector2(410,20)*s,int(10*s),DIM)
+	_draw_speedo(o+Vector2(90,92)*s,62.0*s,s)
+	_draw_rpm(o+Vector2(234,92)*s,43.0*s,s)
+	_draw_fuel(o+Vector2(341,92)*s,36.0*s,s)
+	_draw_left_badges(o+Vector2(410,32)*s,208.0*s,s)
+	_badge(o+Vector2(410,116)*s,208.0*s,"Təkər: "+str(OffroadTruck.TIRES[truck.tire_idx]["name"]),true,s)
+	var mud_bar := Rect2(o+Vector2(410,146)*s,Vector2(208,12)*s)
+	draw_rect(mud_bar,PILL)
+	draw_rect(Rect2(mud_bar.position,Vector2(mud_bar.size.x*clampf(truck.mud_level,0,1),mud_bar.size.y)),Color(0.52,0.32,0.16))
+	_text_c("PALÇIQ %d%%" % int(truck.mud_level*100),mud_bar.position+Vector2(104,10)*s,int(8*s),DIM)
 
 	# mərkəz: mühərrik / fənər / qəza işığı göstəriciləri
 	var bw := 104.0 * s
@@ -125,14 +118,15 @@ func _draw() -> void:
 # --- spidometr -------------------------------------------------------------------
 
 func _draw_speedo(c: Vector2, r: float, s: float) -> void:
+	var max_kmh := speed_scale()
 	draw_circle(c, r + 6.0 * s, Color(0, 0, 0, 0.35))
 	draw_arc(c, r, A_START, A_START + A_SWEEP, 72, Color(1, 1, 1, 0.12), 6.0 * s, true)
-	var frac := clampf(_speed_smooth / MAX_KMH, 0.0, 1.0)
+	var frac := clampf(_speed_smooth / max_kmh, 0.0, 1.0)
 	var col := CYAN.lerp(ORANGE, smoothstep(0.55, 0.85, frac)).lerp(RED, smoothstep(0.88, 1.0, frac))
 	if frac > 0.003:
 		draw_arc(c, r, A_START, A_START + A_SWEEP * frac, 72, col, 6.0 * s, true)
-	for k in range(0, int(MAX_KMH / 10.0) + 1):
-		var a := A_START + A_SWEEP * (float(k) * 10.0 / MAX_KMH)
+	for k in range(0, int(max_kmh / 10.0) + 1):
+		var a := A_START + A_SWEEP * (float(k) * 10.0 / max_kmh)
 		var d := Vector2(cos(a), sin(a))
 		var major := k % 2 == 0
 		draw_line(c + d * (r - (10.0 if major else 6.0) * s), c + d * (r - 3.0 * s), Color(1, 1, 1, 0.7 if major else 0.35), (1.6 if major else 1.0) * s, true)
@@ -144,22 +138,29 @@ func _draw_speedo(c: Vector2, r: float, s: float) -> void:
 	draw_circle(c, 4.5 * s, Color(0.12, 0.14, 0.17))
 	draw_circle(c, 2.2 * s, Color(1, 0.35, 0.2))
 	_text_c(str(int(round(_speed_smooth))), c + Vector2(0, 28.0 * s), int(26 * s), Color.WHITE)
-	_text_c("km/saat", c + Vector2(0, 41.0 * s), int(9 * s), DIM)
+	_text_c("KM/H", c + Vector2(0, 41.0 * s), int(9 * s), DIM)
 
 
 # --- RPM və dişli ------------------------------------------------------------------
 
 func _draw_rpm(c: Vector2, r: float, s: float) -> void:
+	var max_rpm := rpm_scale()
 	draw_arc(c, r, A_START, A_START + A_SWEEP, 54, Color(1, 1, 1, 0.12), 5.0 * s, true)
-	var red_from := 2700.0 / MAX_RPM
+	var red_from := float(truck.powertrain["redline"]) / max_rpm
+	for mark in range(0,int(max_rpm/1000.0)+1):
+		var angle := A_START+A_SWEEP*float(mark)*1000.0/max_rpm
+		var direction := Vector2(cos(angle),sin(angle))
+		draw_line(c+direction*(r-7.0*s),c+direction*(r-2.0*s),DIM,1.0*s,true)
 	draw_arc(c, r, A_START + A_SWEEP * red_from, A_START + A_SWEEP, 16, Color(RED, 0.5), 5.0 * s, true)
-	var frac := clampf(_rpm_smooth / MAX_RPM, 0.0, 1.0)
+	var frac := clampf(_rpm_smooth / max_rpm, 0.0, 1.0)
 	var col := GREEN.lerp(ORANGE, smoothstep(0.5, 0.74, frac)).lerp(RED, smoothstep(0.74, 0.86, frac))
 	draw_arc(c, r, A_START, A_START + A_SWEEP * frac, 54, col, 5.0 * s, true)
 	var gear_txt := "R" if truck.gear < 0 else str(truck.gear)
+	if truck.shift_remaining > 0.0:
+		gear_txt = "·"
 	_text_c(gear_txt, c + Vector2(0, 9.0 * s), int(26 * s), Color.WHITE)
 	_text_c("DİŞLİ", c + Vector2(0, -16.0 * s), int(8 * s), DIM)
-	_text_c("%d" % int(round(_rpm_smooth / 10.0) * 10.0), c + Vector2(0, r + 12.0 * s), int(9 * s), DIM)
+	_text_c("%d RPM" % int(round(_rpm_smooth / 10.0) * 10.0), c + Vector2(0, r + 12.0 * s), int(9 * s), DIM)
 
 
 # --- yanacaq -----------------------------------------------------------------------
@@ -226,3 +227,11 @@ func _text_c(text: String, pos: Vector2, size: int, color: Color) -> void:
 func _text_l(text: String, pos: Vector2, size: int, color: Color) -> void:
 	draw_string(_font, pos + Vector2(1, 1), text, HORIZONTAL_ALIGNMENT_LEFT, -1, size, Color(0, 0, 0, color.a * 0.6))
 	draw_string(_font, pos, text, HORIZONTAL_ALIGNMENT_LEFT, -1, size, color)
+
+
+func speed_scale() -> float:
+	return ceilf(float(truck.powertrain["top"]) / 20.0) * 20.0
+
+
+func rpm_scale() -> float:
+	return ceilf(float(truck.powertrain["redline"]) / 1000.0) * 1000.0
