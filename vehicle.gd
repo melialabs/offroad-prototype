@@ -10,10 +10,10 @@ const IDLE_RPM := 800.0
 const REDLINE_RPM := 3000.0
 const SHIFT_UP_RPM := 2500.0
 const SHIFT_DOWN_RPM := 1000.0
-const FINAL_DRIVE := 3.2
+const FINAL_DRIVE := 2.9
 const DRIVETRAIN_EFF := 0.85
 const GEARS_LOW := [6.5, 4.2]
-const GEARS_HIGH := [3.8, 2.6, 1.8, 1.25, 0.9]
+const GEARS_HIGH := [3.8, 2.6, 1.8, 1.25, 0.72]
 const GEAR_REVERSE := -5.0
 ## Yük altında oturmuş asmanın ölçülmüş uzanması (m). Hardtail Lada modellərində təkər mərkəzi modeldəki yerə düşür.
 const SETTLED_EXTENSION := 0.25
@@ -36,6 +36,20 @@ const SPECS := [
 	{"name": "Lada 2106", "mass": 1030.0, "torque": 240.0, "fuel": 39.0,
 		"radius": 0.3, "awd": "none", "diff": "none", "tire": 0,
 		"car": "res://assets/cars/lada_2106.glb", "origin": 0.72, "lights": [0.5, 0.55, 0.5, 0.74]},
+	# User-supplied UAZ models. Indices are appended to preserve vehicle records.
+	# Torque/suspension are gameplay tuning, not manufacturer specifications.
+	{"name": "UAZ Expedition", "mass": 2300.0, "torque": 520.0, "fuel": 90.0,
+		"radius": 0.468, "awd": "switch", "diff": "switch", "tire": 2,
+		"car": "res://assets/cars/uaz_expedition.glb", "origin": 1.05, "lights": [0.66, 1.0, 1.36, 1.3],
+		"collision_size": Vector3(2.0, 0.85, 4.8), "collision_offset": Vector3(0, 0.15, -0.1)},
+	{"name": "UAZ 452 Bukhanka", "mass": 1900.0, "torque": 430.0, "fuel": 77.0,
+		"radius": 0.43, "awd": "switch", "diff": "switch", "tire": 1,
+		"car": "res://assets/cars/uaz_452.glb", "origin": 0.95, "lights": [0.6, 0.85, 1.08, 1.05],
+		"collision_size": Vector3(1.95, 0.9, 4.4), "collision_offset": Vector3(0, 0.15, -0.05)},
+	{"name": "UAZ 469 Classic", "mass": 1700.0, "torque": 400.0, "fuel": 78.0,
+		"radius": 0.404, "awd": "switch", "diff": "switch", "tire": 1,
+		"car": "res://assets/cars/uaz_469.glb", "origin": 0.9, "lights": [0.6, 0.75, 1.08, 0.85],
+		"collision_size": Vector3(1.72, 0.8, 3.95), "collision_offset": Vector3(0, 0.08, -0.02)},
 ]
 
 # hard = bərk yerdə tutuşma, mud = palçıqda tutuşma
@@ -54,8 +68,12 @@ const SUSPENSIONS := [
 	{"stiffness": 30.0, "travel": 0.42, "compression": 1.8, "rebound": 2.2, "width": 0.23},
 	{"stiffness": 32.0, "travel": 0.26, "compression": 2.0, "rebound": 2.5, "width": 0.19},
 	{"stiffness": 32.0, "travel": 0.26, "compression": 2.0, "rebound": 2.5, "width": 0.19},
+	{"stiffness": 30.0, "travel": 0.48, "compression": 1.9, "rebound": 2.3, "width": 0.34},
+	{"stiffness": 30.0, "travel": 0.42, "compression": 1.9, "rebound": 2.3, "width": 0.25},
+	{"stiffness": 30.0, "travel": 0.44, "compression": 1.8, "rebound": 2.2, "width": 0.25},
 ]
 
+var mud_spray: MudSpray
 var terrain: MudTerrain
 var wheels: Array[VehicleWheel3D] = []
 var wheel_meshes: Array[MeshInstance3D] = []
@@ -133,6 +151,8 @@ func _ready() -> void:
 	lights = VehicleLights.new()
 	add_child(lights)
 	apply_spec(spec_idx)
+	mud_spray = MudSpray.new()
+	add_child(mud_spray)
 
 
 ## Jeep modeli assets/jeep/ içindədirsə, gövdəni və təkərləri ona bağlayır.
@@ -207,6 +227,7 @@ func apply_spec(idx: int) -> void:
 	var use_car := not car.is_empty()
 	var use_jeep: bool = spec.get("model", false) and _jeep != null
 	var use_model := use_car or use_jeep
+	_col.position = spec.get("collision_offset", Vector3.ZERO)
 	if use_car:
 		r = (car["model"] as CarModel).wheel_radius
 	elif use_jeep:
@@ -220,7 +241,7 @@ func apply_spec(idx: int) -> void:
 	if use_car:
 		var cm: CarModel = car["model"]
 		var box := _col.shape as BoxShape3D
-		box.size = Vector3(cm.width * 0.9, 0.7, cm.length - 0.1)
+		box.size = spec.get("collision_size", Vector3(cm.width * 0.9, 0.7, cm.length - 0.1))
 		var lp: Array = spec["lights"]
 		var half := cm.length * 0.5
 		var oh := float(spec["origin"])
@@ -240,6 +261,10 @@ func apply_spec(idx: int) -> void:
 			1.436 - _jeep.origin.y, 0.2)
 		lights.set_lens_visible(true)
 		lights.set_front_lens_visible(false)
+		if _jeep.head_lamps.size() == 2:
+			var tail: Array[MeshInstance3D] = []
+			var tail_pos: Array[Vector3] = [lights.TAIL_POS[0], lights.TAIL_POS[1]]
+			lights.bind_model_lamps(_jeep.head_lamps, _jeep.head_lamp_pos, tail, tail_pos)
 	else:
 		(_col.shape as BoxShape3D).size = Vector3(1.8, 0.9, 4.2)
 		lights.clear_model_lamps()
@@ -330,6 +355,12 @@ func _unhandled_input(event: InputEvent) -> void:
 			apply_spec(4)
 		KEY_6:
 			apply_spec(5)
+		KEY_7:
+			apply_spec(6)
+		KEY_8:
+			apply_spec(7)
+		KEY_9:
+			apply_spec(8)
 
 
 ## Mühərriki işə sal / söndür (I düyməsi).
@@ -367,7 +398,7 @@ func _torque_at(r: float) -> float:
 	if r >= REDLINE_RPM:
 		return 0.0
 	var x := (r - 1800.0) / 2000.0
-	return float(spec["torque"]) * clampf(1.0 - x * x * 0.75, 0.25, 1.0)
+	return float(spec["torque"]) * 1.35 * clampf(1.0 - x * x * 0.75, 0.25, 1.0)
 
 
 func _physics_process(delta: float) -> void:
@@ -461,10 +492,10 @@ func _physics_process(delta: float) -> void:
 	if not diff_lock:
 		diff_factor = lerpf(1.0, clampf(min_skid, 0.3, 1.0), 0.7)
 
-	var wheel_r := float(spec["radius"])
+	var wheel_r := wheels[0].wheel_radius
 	var total_force := _torque_at(rpm) * _ratio() * FINAL_DRIVE * DRIVETRAIN_EFF / wheel_r * drive
 	if driven.size() > 0:
-		engine_force = total_force * diff_factor / driven.size()
+		engine_force = total_force * diff_factor * clampf(1.0 - mud_level * 0.65, 0.25, 1.0) / driven.size()
 	else:
 		engine_force = 0.0
 	brake = braking * mass * 0.05
@@ -486,25 +517,32 @@ func _physics_process(delta: float) -> void:
 	lights.reversing = gear < 0 and drive > 0.0
 
 	# təkər-yer qarşılıqlı təsiri
+	if terrain != null:
+		terrain.prepare_mud(global_position)
+	if mud_spray != null:
+		mud_spray.stop_all()
 	var tire: Dictionary = TIRES[tire_idx]
 	var total_depth := 0.0
 	var soft_sum := 0.0
 	var contact_count := 0
 	for w in wheels:
+		if terrain != null and (not w.is_in_contact() or _is_soil_support(w)):
+			total_depth += terrain.depth_at(w.global_position)
 		if w.is_in_contact():
 			contact_count += 1
 	var slip_sum := 0.0
 	# Approximate equal static load; dynamic per-wheel load needs custom suspension.
 	var load_per_wheel := mass * 9.81 / maxi(contact_count, 1)
 	var tire_width := float(SUSPENSIONS[spec_idx]["width"])
-	for w in wheels:
+	for wi in wheels.size():
+		var w := wheels[wi]
 		if not w.is_in_contact() or terrain == null:
 			continue
 		var contact := w.get_contact_point()
-		var soft := terrain.softness_at(contact)
-		var depth := terrain.depth_at(contact)
+		var soil_support := _is_soil_support(w)
+		var soft := terrain.softness_at(contact) if soil_support else 0.0
+		var depth := terrain.depth_at(contact) if soil_support else 0.0
 		var asphalt := terrain.road_distance_fast(contact) < MudTerrain.ROAD_HALF
-		total_depth += depth
 		soft_sum += soft
 		w.wheel_friction_slip = OffroadSurface.grip(tire, asphalt, soft, depth)
 		var offset := contact - global_position
@@ -515,14 +553,16 @@ func _physics_process(delta: float) -> void:
 		var ground_speed := point_velocity.dot(rolling_direction)
 		var slip := OffroadSurface.slip_speed(w.get_rpm(), w.wheel_radius, ground_speed)
 		slip_sum += slip
-		if not asphalt:
+		if soil_support and not asphalt:
 			var rate := OffroadSurface.digging_rate(load_per_wheel, tire_width, w.wheel_radius, slip)
-			# Terrain grid is coarse (1.5 m); retain a broad footprint until chunk refinement.
-			terrain.deform(contact, 1.3, delta * rate)
+			# Quarter-metre soil collision follows the real tire footprint.
+			terrain.deform(contact, maxf(tire_width * 0.75, 0.26), delta * rate)
+			if mud_spray != null:
+				mud_spray.contact(wi, contact, point_velocity, rolling_direction, w.get_rpm(), w.wheel_radius, soft, slip)
 			var horizontal := Vector3(point_velocity.x, 0.0, point_velocity.z)
 			var drag := OffroadSurface.resistance(soft, depth, w.wheel_radius)
 			apply_force(-horizontal * mass / maxi(contact_count, 1) * drag, offset)
-	mud_level = total_depth / maxi(contact_count, 1) / MudTerrain.MAX_DEPTH
+	mud_level = total_depth / 4.0 / MudTerrain.MAX_DEPTH
 	wheel_slip = slip_sum / maxi(contact_count, 1)
 
 	# sükan: sürətlə azalır, bərk yerdə kilid sükanı çətinləşdirir
@@ -542,3 +582,8 @@ func hud_text() -> String:
 	return "%s | dişli %s (%s) | %d dövr | yanacaq %d L\nAWD: %s [E] | diff kilid: %s [F] | təkər: %s [T] | diapazon [Q]" % [
 		spec["name"], gear_txt, "aşağı" if low_range else "yuxarı", int(rpm), int(fuel),
 		awd_txt, diff_txt, tire["name"]]
+
+
+func _is_soil_support(wheel: VehicleWheel3D) -> bool:
+	var support := wheel.get_contact_body()
+	return support is MudTerrain or support is MudPatch

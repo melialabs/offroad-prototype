@@ -61,6 +61,19 @@ Modellər `tools/blender_vehicle_prep.py` ilə oyun üçün hazırlanıb (miqyas
 - **LADA 2107** — tiunov.se (https://sketchfab.com/tiunov.se), https://sketchfab.com/3d-models/lada-2107-31201f80892b404a8e49c272490a664c, CC BY 4.0
 - **Lada VAZ 2106 AZELOW Style Classic Soviet Car 3D** — Abram (https://sketchfab.com/AbramBusiness), https://sketchfab.com/3d-models/lada-vaz-2106-azelow-style-classic-soviet-car-3d-7e4171a38afb406681ae5e74db56fa99, CC BY 4.0
 
+## İstifadəçinin təqdim etdiyi UAZ modelləri
+
+- **Uaz 452 "Bukhanka"** — Lisnik234 (https://sketchfab.com/Lisnik234),
+  https://sketchfab.com/3d-models/uaz-452-bukhanka-80dc40288f8b4b59a6b2a7593b8387d2,
+  CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/).
+- **Post Apocalyptic UAZ** və **UAZ 469 Classic (1973)** — istifadəçinin təqdim
+  etdiyi fayllar. Fayllarda müəllif/lisenziya qeydi yoxdur; onlara CC0 və ya CC BY
+  lisenziyası aid edilmir. İlkin metadata saxlanılıb.
+
+Dəyişikliklər: dünya transformları tətbiq edilib, dörd təkər və həqiqi fənər
+üzləri ayrılıb, teksturalar 1K-a kiçildilib, fizika və qaraj önizləmələri hazırlanıb.
+`tools/prepare_uaz_models.py` ilə təkrar hazırlamaq mümkündür.
+
 ## Səslər
 
-Bütün səslər `game_audio.gd` ilə kod daxilində sintez olunur; xarici səs faylı və ya lisenziya yoxdur.
+Mühərrik və avtomobil effektləri `game_audio.gd` ilə sintez olunur. Meşə, quşlar, gecə həşəratları, bayquş və su səsləri real CC0 qeydləridir. Müəlliflər, mənbələr və emal məlumatları: [assets/audio/CREDITS.md](assets/audio/CREDITS.md) və [SOURCES.json](assets/audio/SOURCES.json).

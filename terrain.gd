@@ -5,13 +5,23 @@ extends StaticBody3D
 
 const N := 513             # 512 cells x 4 m = 2048 m on each side
 const CELL := 4.0          # coarse world grid; road has a separate smooth ribbon
-const MAX_DEPTH := 0.7     # yerin ən çox batma dərinliyi
+const DETAIL_UNDERFLOOR := 1.60
+const MAX_DEPTH := 1.15     # yerin ən çox batma dərinliyi
 const REBUILD_INTERVAL := 0.1
 const CHUNK_CELLS := 32
 const ROUTE_BIN := 64.0
+var pre_hill_h := PackedFloat32Array()
+var pre_hill_soft := PackedFloat32Array()
+var hill_zone: HillClimbZone
 var _chunks := {}
 var _road_bins := {}
 var _trail_bins := {}
+const DETAIL_SIZE := 16.0
+var _fine_patches := {}
+var _rut_cache := {}
+var _detail_center := Vector2i(99999, 99999)
+const SWAMPS := [Vector3(-365, -425, 24), Vector3(-318, -230, 30), Vector3(-270, 22, 25)]
+
 
 const ROAD_HALF := 4.0     # yolun yarım eni (metr)
 const ROAD_BLEND := 7.0    # yolun hündürlüyünün relyefə qarışma məsafəsi
@@ -69,14 +79,18 @@ var road_dist := PackedFloat32Array()    # hər təpənin asfalt yol oxuna məsa
 var _road := PackedVector2Array()        # sıxlaşdırılmış yol xətti
 var _road_len := PackedFloat32Array()    # xəttin əvvəlindən yığılmış uzunluq
 var _road_h := PackedFloat32Array()      # yolun hündürlük profili
+var _trail_len := PackedFloat32Array()
 var _trail := PackedVector2Array()
 
 
 func _ready() -> void:
+	if ProjectSettings.get_setting("offroad/hill_climb_enabled", true):
+		hill_zone = HillClimbZone.new()
 	_generate()
 	_build_indices()
 	_material = _make_material()
 	_rebuild_mesh()
+	_build_swamp_water()
 
 
 
@@ -132,11 +146,18 @@ func set_surface_conditions(wet: float, snow: float, ice: float) -> void:
 	_material.set_shader_parameter("wetness", clampf(wet, 0.0, 1.0))
 	_material.set_shader_parameter("snow_amount", clampf(snow, 0.0, 1.0))
 	_material.set_shader_parameter("ice_amount", clampf(ice, 0.0, 1.0))
+	for patch in _fine_patches.values():
+		var mat: ShaderMaterial = patch._mesh.material_override
+		mat.set_shader_parameter("wetness", clampf(wet, 0, 1))
+		mat.set_shader_parameter("snow_amount", clampf(snow, 0, 1))
+		mat.set_shader_parameter("ice_amount", clampf(ice, 0, 1))
 
 
 ## Fəsil üçün ot rəngi (məsələn payızda sarımtıl).
 func set_grass_tint(tint: Color) -> void:
 	_material.set_shader_parameter("grass_tint", Vector3(tint.r, tint.g, tint.b))
+	for patch in _fine_patches.values():
+		patch._mesh.material_override.set_shader_parameter("grass_tint", Vector3(tint.r, tint.g, tint.b))
 
 
 ## Çəki xəritələrini hazır `soft`, yol və səs maskalarından qurur (generasiyadan sonra).
@@ -292,7 +313,8 @@ func _generate() -> void:
 	_road = _spline(ROAD_POINTS, 12)
 	_road_len = _lengths(_road)
 	_trail = _spline(TRAIL_POINTS, 10)
-	var trail_len := _lengths(_trail)
+	_trail_len = _lengths(_trail)
+	var trail_len := _trail_len
 	_road_bins = _route_index(_road, 100.0)
 	_trail_bins = _route_index(_trail, 24.0)
 
@@ -336,6 +358,10 @@ func _generate() -> void:
 			var tr := _near_route(p, _trail, trail_len, _trail_bins)
 			var td: float = tr[0]
 			s = maxf(s, 1.0 - smoothstep(TRAIL_HALF, TRAIL_HALF + 2.5, td))
+			for swamp in SWAMPS:
+				var basin := 1.0 - smoothstep(swamp.z * 0.6, swamp.z, p.distance_to(Vector2(swamp.x, swamp.y)))
+				s = maxf(s, basin)
+				deep_k = maxf(deep_k, basin)
 
 			# asfalt yol
 			var rd := _near_route(p, _road, _road_len, _road_bins)
@@ -347,6 +373,11 @@ func _generate() -> void:
 			var far_k := smoothstep(ROAD_HALF + ROAD_BLEND, ROAD_HALF + ROAD_BLEND + ROAD_CORRIDOR, d)
 			var hh := lerpf(gentle, _strong_height(wx, wz), far_k)
 			var blend := 1.0 - smoothstep(ROAD_HALF + 0.5, ROAD_HALF + ROAD_BLEND, d)
+			# Flat, shallow basins keep swamp water and soft ground at a believable level.
+			for swamp in SWAMPS:
+				var basin := 1.0 - smoothstep(swamp.z * 0.50, swamp.z, p.distance_to(Vector2(swamp.x, swamp.y)))
+				var swamp_h := _raw_height(hills, swamp.x, swamp.y) - 0.45
+				hh = lerpf(hh, swamp_h, basin * (1.0 - blend))
 			hh = lerpf(hh, road_h, blend)
 			# yolda və yaxınlığında palçıq olmasın
 			s *= smoothstep(ROAD_HALF + 0.8, ROAD_HALF + 3.0, d)
@@ -375,6 +406,10 @@ func _generate() -> void:
 			var gz := (h[_idx(x, z + 1)] - h[_idx(x, z - 1)]) / (2.0 * CELL)
 			if Vector2(gx, gz).length() > 0.45 or h[i] > 70.0:
 				soft[i] = 0.0
+	if hill_zone != null:
+		pre_hill_h = h.duplicate()
+		pre_hill_soft = soft.duplicate()
+		hill_zone.sculpt(self)
 	_build_ctrl()
 
 
@@ -451,12 +486,13 @@ func _build_chunk(cx: int, cz: int) -> void:
 	for z in n:
 		for x in n:
 			var i := (cz * CHUNK_CELLS + z) * N + cx * CHUNK_CELLS + x
-			vertices.append(_verts[i])
+			var underfloor := _detail_floor(_uv[i])
+			vertices.append(_verts[i] - Vector3.UP * underfloor)
 			normals.append(_normals[i])
 			tangents.append_array(_tangents.slice(i * 4, i * 4 + 4))
 			uv.append(_uv[i])
 			uv2.append(_uv2[i])
-			heights.append(h[i])
+			heights.append(h[i] - underfloor)
 	var arrays := []
 	arrays.resize(Mesh.ARRAY_MAX)
 	arrays[Mesh.ARRAY_VERTEX] = vertices
@@ -504,6 +540,9 @@ func softness_at(world_pos: Vector3) -> float:
 
 
 func depth_at(world_pos: Vector3) -> float:
+	var patch = _fine_patches.get(_detail_key(world_pos))
+	if patch != null:
+		return patch.depth_at(world_pos) + maxf(0.0, sample_grid(base,world_pos) - base_height_at(world_pos))
 	var g := _to_grid(world_pos)
 	var x := roundi(g.x)
 	var z := roundi(g.y)
@@ -514,8 +553,10 @@ func depth_at(world_pos: Vector3) -> float:
 
 
 func height_at(world_pos: Vector3) -> float:
-	var g := _to_grid(world_pos)
-	return h[_idx(roundi(g.x), roundi(g.y))]
+	var patch = _fine_patches.get(_detail_key(world_pos))
+	if patch != null:
+		return patch.height_at(world_pos)
+	return sample_grid(h, world_pos)
 
 
 ## Yamacın dikliyi (0 = düz, 1 = 45 dərəcə). Ot və ağac yerləşdirmək üçün.
@@ -555,8 +596,14 @@ func road_spawn() -> Dictionary:
 	return {"pos": Vector3(p.x, _road_h[i], p.y), "yaw": atan2(dir.x, dir.y)}
 
 
-## Təkərin basdığı yeri batırır, kənarlarını bir az qaldırır.
+## Təkərin basdığı yeri batırır.
 func deform(world_pos: Vector3, radius: float, amount: float) -> void:
+	if amount <= 0.0 or road_distance_fast(world_pos) < ROAD_HALF + 0.6:
+		return
+	if not _fine_patches.is_empty():
+		for patch in _fine_patches.values():
+			patch.dig(world_pos, radius, amount)
+		return
 	var g := _to_grid(world_pos)
 	radius = maxf(radius, CELL * 0.85)
 	var r := int(ceil(radius / CELL))
@@ -578,3 +625,135 @@ func deform(world_pos: Vector3, radius: float, amount: float) -> void:
 			_dirty = true
 			_dirty_min = Vector2i(mini(_dirty_min.x, x), mini(_dirty_min.y, z))
 			_dirty_max = Vector2i(maxi(_dirty_max.x, x), maxi(_dirty_max.y, z))
+
+
+func sample_grid(values: PackedFloat32Array, p: Vector3) -> float:
+	var g := _to_grid(p)
+	var x := floori(g.x)
+	var z := floori(g.y)
+	return lerpf(lerpf(values[_idx(x, z)], values[_idx(x + 1, z)], g.x - x),
+		lerpf(values[_idx(x, z + 1)], values[_idx(x + 1, z + 1)], g.x - x), g.y - z)
+
+
+func _detail_key(p: Vector3) -> Vector2i:
+	return Vector2i(floori(p.x / DETAIL_SIZE), floori(p.z / DETAIL_SIZE))
+
+
+# A 3 x 3 moving window gives wheel ruts a 25 cm collision grid. Far ruts
+# are retained in a bounded session cache, without tessellating the 2 km world.
+func prepare_mud(p: Vector3) -> void:
+	var center := _detail_key(p)
+	if center == _detail_center:
+		return
+	_detail_center = center
+	var changed: Array[Vector2i] = []
+	for key: Vector2i in _fine_patches.keys():
+		if absi(key.x - center.x) > 1 or absi(key.y - center.y) > 1:
+			_rut_cache[key] = _fine_patches[key].depths.duplicate()
+			_fine_patches[key].free()
+			_fine_patches.erase(key)
+			changed.append(key)
+	while _rut_cache.size() > 256:
+		_rut_cache.erase(_rut_cache.keys()[0])
+	for z in range(center.y - 1, center.y + 2):
+		for x in range(center.x - 1, center.x + 2):
+			var key := Vector2i(x, z)
+			if not _fine_patches.has(key):
+				var patch := MudPatch.new()
+				patch.terrain = self
+				patch.tile = key
+				if _rut_cache.has(key):
+					patch.depths = _rut_cache[key].duplicate()
+				_fine_patches[key] = patch
+				add_child(patch)
+				changed.append(key)
+	# Reconcile shared samples after cache eviction or re-entry beside newer ruts.
+	for key in _fine_patches:
+		var patch: MudPatch = _fine_patches[key]
+		for direction in [Vector2i.RIGHT, Vector2i.DOWN]:
+			var other: MudPatch = _fine_patches.get(key + direction)
+			if other == null:
+				continue
+			for i in MudPatch.SIDE:
+				var a: int = i * MudPatch.SIDE + 64 if direction == Vector2i.RIGHT else 64 * MudPatch.SIDE + i
+				var b: int = i * MudPatch.SIDE if direction == Vector2i.RIGHT else i
+				var shared := maxf(patch.depths[a], other.depths[b])
+				if not is_equal_approx(patch.depths[a], shared) or not is_equal_approx(other.depths[b], shared):
+					patch.depths[a] = shared
+					other.depths[b] = shared
+					patch._dirty = true
+					other._dirty = true
+	# Only coarse chunks overlapped by the old/new window need underfloor updates.
+	var dirty_chunks := {}
+	for key in changed:
+		for dz in [-1, 0, 1]:
+			for dx in [-1, 0, 1]:
+				var world := Vector2(key.x + dx, key.y + dz) * DETAIL_SIZE
+				var grid := (world + Vector2.ONE * 1024.0) / (CELL * CHUNK_CELLS)
+				var ck := Vector2i(floori(grid.x), floori(grid.y))
+				if _chunks.has(ck):
+					dirty_chunks[ck] = true
+	for ck in dirty_chunks:
+		_build_chunk(ck.x, ck.y)
+
+
+func _detail_floor(p: Vector2) -> float:
+	# Keep the outside edge at its original height; the active fine meshes cover
+	# the lowered coarse collider. No invisible hard surface remains in the ruts.
+	var lo := Vector2(_detail_center.x - 1, _detail_center.y - 1) * DETAIL_SIZE
+	var hi := lo + Vector2.ONE * DETAIL_SIZE * 3.0
+	var edge := minf(minf(p.x - lo.x, hi.x - p.x), minf(p.y - lo.y, hi.y - p.y))
+	return DETAIL_UNDERFLOOR * smoothstep(0.0, CELL, edge)
+
+
+func _build_swamp_water() -> void:
+	for swamp in SWAMPS:
+		var p := Vector3(swamp.x, 0, swamp.y)
+		var mi := MeshInstance3D.new()
+		var disk := CylinderMesh.new()
+		disk.top_radius = swamp.z * 0.47
+		disk.bottom_radius = disk.top_radius
+		disk.height = 0.012
+		disk.radial_segments = 48
+		mi.mesh = disk
+		mi.position = Vector3(p.x, sample_grid(base, p) + 0.09, p.z)
+		var mat := StandardMaterial3D.new()
+		mat.albedo_color = Color(0.12, 0.10, 0.045, 0.68)
+		mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		mat.roughness = 0.14
+		mi.material_override = mat
+		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		add_child(mi)
+
+
+func base_height_at(p: Vector3) -> float:
+	var height := sample_grid(base, p)
+	if hill_zone != null and HillClimbCatalog.ZONE.has_point(Vector2(p.x,p.z)):
+		var rut := hill_zone.initial_rut(Vector2(p.x,p.z))
+		if rut < -0.001 and road_distance_fast(p) >= 18.0 and _near_route(Vector2(p.x,p.z), _trail, _trail_len, _trail_bins)[0] >= 6.0:
+			height += rut
+	return height
+
+
+func activity_clearing(p: Vector3) -> bool:
+	return hill_zone != null and hill_zone.clearing(Vector2(p.x,p.z))
+
+
+# Vegetation placement consumes the same original values and random sequence.
+# Local pruning/relocation happens after placement, preserving the outside forest.
+func vegetation_heights() -> PackedFloat32Array:
+	return h if pre_hill_h.is_empty() else pre_hill_h
+
+func vegetation_softness_at(p: Vector3) -> float:
+	if pre_hill_soft.is_empty():
+		return softness_at(p)
+	var g := _to_grid(p)
+	return pre_hill_soft[_idx(roundi(g.x),roundi(g.y))]
+
+func vegetation_slope_at(p: Vector3) -> float:
+	if pre_hill_h.is_empty():
+		return slope_at(p)
+	var g := _to_grid(p)
+	var x := roundi(g.x)
+	var z := roundi(g.y)
+	return Vector2(pre_hill_h[_idx(x+1,z)]-pre_hill_h[_idx(x-1,z)],pre_hill_h[_idx(x,z+1)]-pre_hill_h[_idx(x,z-1)]).length()/(2.0*CELL)

@@ -1,7 +1,9 @@
 extends Node3D
 
+var activities: HillClimbActivity
 var truck: OffroadTruck
 var cam: ChaseCamera
+var world_map: WorldMap
 var hud: Hud
 var menu: MainMenu
 var audio: GameAudio
@@ -87,13 +89,32 @@ func _ready() -> void:
 	layer.add_child(hud)
 	add_child(layer)
 	var map_layer := CanvasLayer.new()
-	var world_map := WorldMap.new()
+	world_map = WorldMap.new()
 	world_map.terrain = terrain
 	world_map.truck = truck
 	map_layer.add_child(world_map)
 	add_child(map_layer)
 	cam.mode_changed.connect(hud.show_toast)
 	truck.message.connect(hud.show_toast)
+
+	if terrain.hill_zone != null:
+		activities = HillClimbActivity.new()
+		activities.terrain = terrain
+		activities.truck = truck
+		activities.main_node = self
+		add_child(activities)
+		var park := HillClimbWorld.new()
+		park.activity = activities
+		park.terrain = terrain
+		add_child(park)
+		var activity_layer := CanvasLayer.new()
+		activity_layer.layer = 5
+		var activity_ui := HillClimbUI.new()
+		activity_ui.activity = activities
+		activity_layer.add_child(activity_ui)
+		add_child(activity_layer)
+		world_map.activities = activities
+		activities.cue.connect(audio.play_activity_cue)
 
 	var menu_layer := CanvasLayer.new()
 	menu_layer.layer = 10
@@ -271,7 +292,10 @@ func _open_menu(game_running: bool) -> void:
 	truck.controls_enabled = false
 	cam.menu_orbit = true
 	hud.visible = false
+	world_map.visible = false
 	menu.open(game_running)
+	if activities != null:
+		activities.set_menu_paused(true)
 
 
 func _close_menu() -> void:
@@ -282,7 +306,10 @@ func _close_menu() -> void:
 	cam.menu_orbit = false
 	cam.snap()
 	hud.visible = true
+	world_map.visible = true
 	menu.close()
+	if activities != null:
+		activities.set_menu_paused(false)
 
 
 func _start_new_game() -> void:
@@ -291,6 +318,8 @@ func _start_new_game() -> void:
 
 
 func _restart_from_menu() -> void:
+	if activities != null:
+		activities.exit_challenge()
 	_place_on_road()
 	truck.stop_engine()
 	_close_menu()
@@ -298,6 +327,8 @@ func _restart_from_menu() -> void:
 
 ## Menyudan texnika seçimi: texnika dəyişir və yolun üstünə qoyulur.
 func select_vehicle(i: int) -> void:
+	if activities != null:
+		activities.exit_challenge()
 	truck.apply_spec(i)
 	_place_on_road()
 
@@ -357,6 +388,8 @@ func _unhandled_input(event: InputEvent) -> void:
 
 
 func _physics_process(_delta: float) -> void:
+	if activities != null and activities.engaged():
+		return
 	# xəritədən düşsə avtomatik sıfırla
 	if (Input.is_physical_key_pressed(KEY_R) and not _menu_open) or truck.global_position.y < -30.0 or absf(truck.global_position.x) > 1010.0 or absf(truck.global_position.z) > 1010.0:
 		_place_on_road()

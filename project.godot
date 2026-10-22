@@ -17,3 +17,7 @@ window/size/viewport_height=720
 renderer/rendering_method="forward_plus"
 renderer/rendering_method.mobile="forward_plus"
 rendering_device/driver.macos="metal"
+
+[offroad]
+
+hill_climb_enabled=true

@@ -17,6 +17,7 @@ uniform sampler2D a_rough : hint_default_white, filter_linear_mipmap_anisotropic
 
 uniform float tile_m[7];            // hər layer üçün bir tekstura təkrarının metrlə ölçüsü
 uniform vec3 layer_tint[7];         // hər layer üçün rəng tonu (istinad palitrasına uyğunlaşdırma)
+uniform bool detail_surface = false;
 uniform float asphalt_tile = 2.9;
 uniform float road_half = 4.0;
 uniform float ctrl_n = 129.0;
@@ -47,6 +48,7 @@ void fragment() {
 	vec2 cuv = (world / cell + vec2((ctrl_n - 1.0) * 0.5)) / ctrl_n + vec2(0.5 / ctrl_n);
 	vec4 ca = texture(ctrl_a, cuv);
 	vec4 cb = texture(ctrl_b, cuv);
+	if (detail_surface) { cb.b = max(cb.b, COLOR.r); }
 
 	float slope = 1.0 - wn.y;
 	float cliff = smoothstep(0.20, 0.40, slope);
@@ -129,7 +131,8 @@ void fragment() {
 	// yağış: ümumi islanma və palçıq çökəkliklərində gölməçə
 	float mud_mask = clamp(ca.g + ca.b + cb.b, 0.0, 1.0);
 	float mud_h = (hgt[1] * w[1] + hgt[2] * w[2]) / max(w[1] + w[2], 0.001);
-	float puddle = wetness * mud_mask * (1.0 - smoothstep(wetness * 0.55 - 0.05, wetness * 0.55 + 0.08, mud_h));
+	float local_wet = max(wetness, clamp(ca.b * 0.8 + cb.b * 0.9, 0.0, 0.9));
+	float puddle = local_wet * mud_mask * (1.0 - smoothstep(local_wet * 0.55 - 0.05, local_wet * 0.55 + 0.08, mud_h));
 	albedo *= 1.0 - 0.30 * wetness;
 	albedo *= mix(1.0, 0.55, puddle);
 	rough = mix(rough, rough * 0.55, wetness * 0.6);

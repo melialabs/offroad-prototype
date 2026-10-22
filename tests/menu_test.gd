@@ -36,6 +36,7 @@ func _physics_process(_delta: float) -> bool:
 		_check(not main.truck.controls_enabled, "menyu açıqkən maşın idarə olunmamalıdır")
 		_check(main.cam.menu_orbit, "menyuda kamera fırlanmalıdır")
 		_check(not main.hud.visible, "menyuda HUD gizli olmalıdır")
+		_check(not main.world_map.visible, "menyuda GPS gizli olmalıdır")
 		pos_before = main.truck.global_position
 	if frames == 100:
 		# qaz basılı olsa da maşın yerindən tərpənməməlidir
@@ -47,6 +48,7 @@ func _physics_process(_delta: float) -> bool:
 		_check(not main.menu.visible, "başladıqdan sonra menyu bağlanmalıdır")
 		_check(main.truck.controls_enabled, "başladıqdan sonra idarə açılmalıdır")
 		_check(main.hud.visible, "başladıqdan sonra HUD görünməlidir")
+		_check(main.world_map.visible, "başladıqdan sonra GPS görünməlidir")
 		_check(not main.cam.menu_orbit, "başladıqdan sonra kamera izləməlidir")
 		_check(main.truck.engine_state == OffroadTruck.EngineState.OFF, "yeni oyunda mühərrik söndürülü olmalıdır")
 		main.truck.toggle_engine()

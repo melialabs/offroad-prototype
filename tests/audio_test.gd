@@ -28,7 +28,7 @@ func _physics_process(_delta: float) -> bool:
 	if frames == 5:
 		_check(a != null, "GameAudio yoxdur")
 		# axınlar boş olmamalıdır
-		for p in [a._engine, a._growl, a._road, a._mud, a._wind, a._bed, a._crickets, a._starter]:
+		for p in [a._engine, a._growl, a._road, a._mud, a._wind, a._starter]:
 			var s := (p as AudioStreamPlayer).stream as AudioStreamWAV
 			_check(s != null and s.data.size() > 4000, "boş axın")
 			if s != null:
@@ -36,6 +36,10 @@ func _physics_process(_delta: float) -> bool:
 				for i in range(0, s.data.size() - 1, 2):
 					peak = maxi(peak, absi(s.data.decode_s16(i)))
 				_check(peak > 500, "axın səssizdir (peak=%d)" % peak)
+		for p in [a._bed, a._crickets, a._bird, a._brook]:
+			_check(p.stream is AudioStreamOggVorbis and p.stream.get_length() > 10.0, "real nature recording loads")
+			_check(p.stream.loop, "nature recording loops")
+		_check(a._animal.stream.get_length() > 5.0, "recorded owl loads")
 		t.stop_engine()
 	if frames == 40:
 		_check(a.last_engine_db < -40.0, "söndürülü mühərrik səssiz olmalıdır: %.1f" % a.last_engine_db)

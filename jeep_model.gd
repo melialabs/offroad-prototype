@@ -10,6 +10,8 @@ const BODY_CENTER_Y := 0.95  # fizika gövdəsinin mərkəzi (metr)
 const MODEL_SCALE := 0.01
 const TIRE_WIDTH := 0.49  # modeldən ölçülüb (metr)
 
+var head_lamps: Array[MeshInstance3D] = []
+var head_lamp_pos: Array[Vector3] = []
 var body: Node3D
 ## Sıra: 0 = arxa (-x), 1 = arxa (+x), 2 = ön (-x), 3 = ön (+x). Model +Z irəlidir.
 var wheel_meshes: Array[ArrayMesh] = []
@@ -61,6 +63,7 @@ func load_model() -> bool:
 		origin.z += c.z / 4.0
 	body.scale = Vector3.ONE * MODEL_SCALE
 	body.position = -origin
+	_extract_head_lamps()
 	return true
 
 
@@ -325,3 +328,69 @@ func _split_wheels(srcs: Array[MeshInstance3D]) -> bool:
 		smi.mesh = sm
 		body.add_child(smi)
 	return true
+
+
+# Isolate only the bright grille lens faces from the atlas. Their actual geometry
+# emits light; a glowing sphere in front of the grille is not needed.
+func _extract_head_lamps() -> void:
+	var meshes: Array[MeshInstance3D] = []
+	var junk: Array[Node] = []
+	_collect(body, meshes, junk)
+	var texture := load("res://assets/jeep/textures/Base_baseColor.png") as Texture2D
+	var image := texture.get_image()
+	if image.is_compressed():
+		image.decompress()
+	for side in 2:
+		var vertices := PackedVector3Array()
+		var normals := PackedVector3Array()
+		var lo := Vector3(INF, INF, INF)
+		var hi := Vector3(-INF, -INF, -INF)
+		for mi in meshes:
+			var xf := _rel_xf(mi)
+			for si in mi.mesh.get_surface_count():
+				var a := mi.mesh.surface_get_arrays(si)
+				var vs: PackedVector3Array = a[Mesh.ARRAY_VERTEX]
+				var ids: PackedInt32Array = a[Mesh.ARRAY_INDEX]
+				var uv: PackedVector2Array = a[Mesh.ARRAY_TEX_UV]
+				if uv.is_empty():
+					continue
+				for t in range(0, ids.size(), 3):
+					var p := (xf * vs[ids[t]] + xf * vs[ids[t + 1]] + xf * vs[ids[t + 2]]) * MODEL_SCALE / 3.0
+					if p.y < 1.35 or p.y > 1.52 or p.z < 2.10 or p.z > 2.28:
+						continue
+					if (p.x > 0.0) != (side == 1):
+						continue
+					if p.x < -0.58 or p.x > 0.70 or (p.x > -0.33 and p.x < 0.45):
+						continue
+					var texuv := (uv[ids[t]] + uv[ids[t + 1]] + uv[ids[t + 2]]) / 3.0
+					var c := image.get_pixel(clampi(int(texuv.x * image.get_width()), 0, image.get_width() - 1), clampi(int(texuv.y * image.get_height()), 0, image.get_height() - 1))
+					if minf(c.r, minf(c.g, c.b)) < 0.48:
+						continue
+					for j in 3:
+						var point := xf * vs[ids[t + j]] * MODEL_SCALE
+						lo = lo.min(point)
+						hi = hi.max(point)
+						vertices.append((point + Vector3(0, 0, 0.002)) / MODEL_SCALE)
+						normals.append(Vector3.FORWARD)
+		if vertices.is_empty():
+			push_warning("Jeep headlight lens extraction failed")
+			continue
+		var arrays := []
+		arrays.resize(Mesh.ARRAY_MAX)
+		arrays[Mesh.ARRAY_VERTEX] = vertices
+		arrays[Mesh.ARRAY_NORMAL] = normals
+		var mesh := ArrayMesh.new()
+		mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
+		var mi := MeshInstance3D.new()
+		mi.name = "GrilleLens_%d" % side
+		mi.mesh = mesh
+		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		var mat := StandardMaterial3D.new()
+		mat.albedo_color = Color(0.2, 0.21, 0.19)
+		mat.cull_mode = BaseMaterial3D.CULL_DISABLED
+		mi.material_override = mat
+		body.add_child(mi)
+		head_lamps.append(mi)
+		var anchor := (lo + hi) * 0.5 - origin
+		anchor.z = hi.z - origin.z + 0.02
+		head_lamp_pos.append(anchor)

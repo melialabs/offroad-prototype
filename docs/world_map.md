@@ -10,7 +10,7 @@ game map or models were downloaded or copied.
 - Three broad mountain masses, wooded hills, a lake basin and outer ridges.
 - Depot shelter, quarry blocks, mountain pass, forest camp and lake stop.
 - Reflective-style roadside marker posts and text signs.
-- M toggles an overview with asphalt, mud trail, landmarks and live position.
+- GPS stays at bottom left with position and heading; M expands the overview.
 - Crossing the 1010 m world boundary returns the vehicle to the starting road.
 
 Terrain uses a 513 x 513 height grid at 4 m spacing. 256 chunks of 128 m
@@ -33,7 +33,9 @@ an isolated headless run on this host. This excludes loading vegetation,
 vehicles and GPU resources and is not a full startup or FPS benchmark.
 The surface-physics, terrain, menu and vehicle regression tests were run.
 
-The coarse 4 m terrain grid widens mud footprints and does not simulate narrow
-tire ruts. Roadside structures are simple prototype geometry. Visual quality,
+A moving 48 m square around the car uses 25 cm soil samples for narrow tire
+ruts. Nine 16 m patches share boundary heights; up to 256 visited patches
+retain their ruts for the current session. Three shallow swamp basins lie along
+the valley shortcut. Roadside structures are simple prototype geometry. Visual quality,
 GPU FPS, distant terrain and every kilometre of driving still require a visible
 playtest on the Mac; headless tests cannot establish those properties.

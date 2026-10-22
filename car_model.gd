@@ -32,6 +32,7 @@ func load_model(path: String, origin_height: float) -> bool:
 	for i in 4:
 		var n := root.find_child(WHEEL_NAMES[i], true, false) as MeshInstance3D
 		if n == null:
+			root.free()
 			return false
 		var aabb := n.get_aabb()
 		var c := n.transform.origin  # mənşə təkər mərkəzindədir (Blender-də origin_set)
@@ -53,9 +54,21 @@ func load_model(path: String, origin_height: float) -> bool:
 		var h := root.find_child("L_HEAD_" + sd, true, false) as MeshInstance3D
 		if h != null:
 			head_lamps.append(h)
-			head_lamp_pos.append(h.position + root.position)
+			head_lamp_pos.append(_lamp_anchor(h, root, true))
 		var t := root.find_child("L_TAIL_" + sd, true, false) as MeshInstance3D
 		if t != null:
 			tail_lamps.append(t)
-			tail_lamp_pos.append(t.position + root.position)
+			tail_lamp_pos.append(_lamp_anchor(t, root, false))
 	return true
+
+
+static func _lamp_anchor(lamp: MeshInstance3D, root: Node3D, front: bool) -> Vector3:
+	var xf := Transform3D.IDENTITY
+	var node: Node = lamp
+	while node != root:
+		xf = (node as Node3D).transform * xf
+		node = node.get_parent()
+	var bounds: AABB = xf * lamp.get_aabb()
+	var point := bounds.get_center()
+	point.z = bounds.end.z + 0.015 if front else bounds.position.z - 0.015
+	return root.transform * point

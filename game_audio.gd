@@ -1,9 +1,7 @@
 class_name GameAudio
 extends Node
-## Proseduraldır: bütün səslər işə düşəndə koddan sintez olunur (fayl və lisenziya yoxdur).
-## Mühərrik (rpm-ə görə ton), starter, təkər/yol küyü (asfalt, torpaq, palçıq), külək,
-## zərbə, qəza işığının tıqqıltısı, gündüz quş cikkiltisi və gecə sirçanaqları.
-## Səslər real səs qeydləri deyil, sintezdir: ton və tənzimləmə qulaqla dəqiqləşdirilməlidir.
+## Engine/vehicle effects are synthesized; nature ambience uses real CC0 field recordings.
+## See assets/audio/CREDITS.md for authors, sources and transformations.
 
 const SR := 22050
 const ENGINE_REF_RPM := 1200.0  # mühərrik döngəsi bu rpm-də yazılıb (4 silindr: 40 Hz atəşləmə)
@@ -26,9 +24,9 @@ var _tick_a: AudioStreamWAV
 var _tick_b: AudioStreamWAV
 var _thud: AudioStreamWAV
 var _click: AudioStreamWAV
-var _birds: Array[AudioStreamWAV] = []
-var _hoot: AudioStreamWAV
-var _bird_t := 2.0
+var _hoot: AudioStream
+var _animal: AudioStreamPlayer3D
+var _brook: AudioStreamPlayer
 var _hoot_t := 12.0
 var _throttle := 0.0
 var _speed := 0.0
@@ -36,37 +34,50 @@ var _prev_v := Vector3.ZERO
 var _prev_engine := -1
 var _rng := RandomNumberGenerator.new()
 var _night_mix := 0.0
+var _ambient_time := 0.0
+var _engine_load := 0.0
 ## test üçün oxunur
 var last_engine_pitch := 0.0
 var last_engine_db := -80.0
+var last_engine_load := 0.0
 var thuds := 0
 
 
 func _ready() -> void:
-	_rng.seed = 4242
+	_rng.randomize()
 	_engine = _player(_engine_loop(false), -80.0)
 	_growl = _player(_engine_loop(true), -80.0)
 	_starter = _player(_starter_sound(), -6.0, false)
 	_road = _player(_noise_loop(1.6, 0.35, 0.02, 0.5), -80.0)
 	_mud = _player(_noise_loop(1.6, 0.04, 0.0, 0.9, true), -80.0)
 	_wind = _player(_noise_loop(2.4, 0.05, 0.002, 1.0), -80.0)
-	_bed = _player(_noise_loop(3.0, 0.03, 0.001, 1.0), -80.0)
-	_crickets = _player(_cricket_loop(), -80.0)
+	_bed = _player(_recording("forest"), -80.0)
+	_crickets = _player(_recording("crickets"), -80.0)
+	_brook = _player(_recording("stream_brook"), -80.0)
 	_sfx = _player(null, -4.0, false)
-	_bird = _player(null, -14.0, false)
+	_bird = _player(_recording("birds_dawn"), -80.0)
 	_tick_a = _tick(1900.0)
 	_tick_b = _tick(1300.0)
 	_thud = _thud_sound()
 	_click = _tick(2600.0, 0.03)
-	for k in 4:
-		_birds.append(_chirp(_rng.randf_range(2400.0, 4200.0), _rng.randf_range(0.18, 0.4), k))
-	_hoot = _hoot_sound()
+	_hoot = load("res://assets/audio/tawny_owl.ogg")
+	_animal = AudioStreamPlayer3D.new()
+	_animal.stream = _hoot
+	_animal.unit_size = 12.0
+	_animal.max_distance = 100.0
+	_animal.volume_db = -9.0
+	add_child(_animal)
 	if truck != null:
 		_prev_v = truck.linear_velocity
 		truck.message.connect(func(_t: String): _play_sfx(_click, -8.0))
 		truck.lights.tick.connect(_on_light_tick)
-	for p in [_engine, _growl, _road, _mud, _wind, _bed, _crickets]:
-		(p as AudioStreamPlayer).play()
+	for p in [_engine, _growl, _road, _mud, _wind, _bed, _crickets, _bird, _brook]:
+		# Long field recordings should not restart with the same bird call on
+		# every visit. Keep their pitch intact, with an independent loop phase.
+		var offset := 0.0
+		if p.stream is AudioStreamOggVorbis:
+			offset = _rng.randf_range(0.0, maxf(0.0, p.stream.get_length() - 2.0))
+		(p as AudioStreamPlayer).play(offset)
 
 
 func set_enabled(on: bool) -> void:
@@ -127,6 +138,22 @@ func _update_engine(delta: float) -> void:
 			var f := clampf(truck.rpm / 500.0, 0.0, 1.0)
 			body_db = lerpf(-60.0, body_db, f)
 			growl_db = lerpf(-80.0, growl_db, f)
+	# Positive grade in the driven direction loads the engine. A descending
+	# vehicle or an airborne wheel must not sound as if it is climbing.
+	var contacts := 0
+	for w in truck.wheels:
+		if w.is_in_contact():
+			contacts += 1
+	var drive_direction := -1.0 if truck.gear < 0 else 1.0
+	var incline := clampf(truck.global_basis.z.y * drive_direction * 2.0, 0.0, 1.0)
+	var bog_load := truck.mud_level * clampf(truck.wheel_slip / 5.0, 0.0, 1.0)
+	var load_target := maxf(incline, bog_load) * _throttle * float(contacts) / 4.0
+	if st != OffroadTruck.EngineState.RUNNING:
+		load_target = 0.0
+	_engine_load = lerpf(_engine_load, load_target, 1.0 - exp(-5.0 * delta))
+	last_engine_load = _engine_load
+	growl_db += _engine_load * 7.0
+	body_db += _engine_load * 2.0
 	last_engine_db = body_db
 	_engine.volume_db = body_db
 	_growl.volume_db = growl_db
@@ -153,37 +180,51 @@ func _update_road(delta: float) -> void:
 	_mud.pitch_scale = clampf(0.7 + _speed / 25.0, 0.7, 1.6)
 	var road_gain := 1.0 - soft
 	_road.volume_db = _db(amt * road_gain * (1.0 if on_road else 0.6)) - 12.0
-	_mud.volume_db = _db(amt * soft + 0.12 * soft * clampf(truck.rpm / 3000.0, 0.0, 1.0) * grounded) - 7.0
+	# A stationary idling engine does not churn mud; spinning wheels do.
+	var churn := clampf(truck.wheel_slip / 8.0, 0.0, 1.0) * grounded
+	_mud.volume_db = _db(amt * soft + 0.3 * soft * churn) - 7.0
 	var wamt := clampf(_speed / 35.0, 0.0, 1.0)
 	_wind.pitch_scale = 0.8 + wamt * 0.7
-	_wind.volume_db = _db(wamt * wamt) - 14.0
+	var summit_wind := smoothstep(70.0, 150.0, truck.global_position.y) * 0.35
+	var gust := 0.68 + 0.20 * sin(_ambient_time * 0.31) + 0.12 * sin(_ambient_time * 0.73 + 1.4)
+	_wind.volume_db = _db(maxf(wamt * wamt, summit_wind * gust)) - 14.0
 
 
 func _update_ambient(delta: float) -> void:
+	_ambient_time += delta
 	var day := 1.0 - _night_mix
-	_bed.volume_db = _db(0.35 + 0.2 * day) - 30.0
-	_bed.pitch_scale = 0.9 + 0.1 * _night_mix
-	_crickets.volume_db = _db(_night_mix) - 22.0
-	_bird_t -= delta
-	if _bird_t <= 0.0:
-		_bird_t = _rng.randf_range(1.5, 6.0)
-		if day > 0.6:
-			_bird.stream = _birds[_rng.randi() % _birds.size()]
-			_bird.pitch_scale = _rng.randf_range(0.85, 1.25)
-			_bird.volume_db = _rng.randf_range(-20.0, -12.0)
-			_bird.play()
+	# Smooth day/night crossfade, subdued at mountain altitude. Brook follows water.
+	var forest := 1.0 - smoothstep(70.0, 130.0, truck.global_position.y)
+	# The forest bed also contains real daytime birds. Fade it out at night
+	# rather than leaving a dawn chorus beneath the owl and crickets.
+	var foliage := 0.93 + 0.07 * sin(_ambient_time * 0.17)
+	_bed.volume_db = _db(day * forest * foliage) - 19.0
+	_bird.volume_db = _db(day * forest) - 22.0
+	_crickets.volume_db = _db(_night_mix * forest) - 22.0
+	var water_distance := Vector2(truck.global_position.x + 150, truck.global_position.z + 120).length()
+	_brook.volume_db = _db((1.0 - smoothstep(90.0, 230.0, water_distance)) * forest) - 24.0
+	if _night_mix < 0.5 or forest < 0.2:
+		_animal.stop()
 	_hoot_t -= delta
 	if _hoot_t <= 0.0:
-		_hoot_t = _rng.randf_range(10.0, 25.0)
-		if _night_mix > 0.8:
-			_play_sfx(_hoot, -22.0)
+		_hoot_t = _rng.randf_range(24.0, 52.0)
+		if _night_mix > 0.8 and forest > 0.5:
+			var angle := _rng.randf_range(0.0, TAU)
+			_animal.global_position = truck.global_position + Vector3(cos(angle) * 32, 7, sin(angle) * 32)
+			_animal.play()
+
+
+func _recording(name: String) -> AudioStreamOggVorbis:
+	var stream := load("res://assets/audio/%s.ogg" % name).duplicate() as AudioStreamOggVorbis
+	stream.loop = true
+	return stream
 
 
 func _on_light_tick(on: bool) -> void:
 	_play_sfx(_tick_a if on else _tick_b, -10.0)
 
 
-func _play_sfx(s: AudioStreamWAV, db: float) -> void:
+func _play_sfx(s: AudioStream, db: float) -> void:
 	# üst-üstə düşən səslər üçün ayrıca tək-atım oyunçusu
 	var p := AudioStreamPlayer.new()
 	p.stream = s
@@ -282,20 +323,6 @@ func _noise_loop(seconds: float, lp: float, hp: float, gain: float, crunchy: boo
 	return _wav(out, true)
 
 
-## Sirçanaq: ~4.3 kHz tonun sürətli partlayışları.
-func _cricket_loop() -> AudioStreamWAV:
-	var n := SR * 2
-	var out := PackedFloat32Array()
-	out.resize(n)
-	for i in n:
-		var t := float(i) / SR
-		var gate := maxf(0.0, sin(TAU * 26.0 * t))  # saniyədə 26 vuruş
-		gate *= smoothstep(0.0, 0.1, fmod(t, 0.5)) * (1.0 - smoothstep(0.35, 0.45, fmod(t, 0.5)))
-		var tone := sin(TAU * 4300.0 * t) + 0.3 * sin(TAU * 8600.0 * t)
-		out[i] = tone * gate * 0.35
-	return _wav(out, true)
-
-
 func _starter_sound() -> AudioStreamWAV:
 	var n := int(0.9 * SR)
 	var out := PackedFloat32Array()
@@ -338,33 +365,10 @@ func _thud_sound() -> AudioStreamWAV:
 	return _wav(out, false)
 
 
-func _chirp(base: float, dur: float, variant: int) -> AudioStreamWAV:
-	var n := int(dur * SR)
-	var out := PackedFloat32Array()
-	out.resize(n)
-	var phase := 0.0
-	for i in n:
-		var t := float(i) / SR
-		var u := t / dur
-		var f := base * (1.0 + 0.25 * sin(TAU * (6.0 + variant * 3.0) * u) + 0.3 * u * (1.0 if variant % 2 == 0 else -1.0))
-		phase += TAU * f / SR
-		var env := sin(PI * u)
-		env *= 0.5 + 0.5 * maxf(0.0, sin(TAU * (3.0 + variant) * u))  # bir neçə notaya bölür
-		out[i] = sin(phase) * env * 0.5
-	return _wav(out, false)
-
-
-func _hoot_sound() -> AudioStreamWAV:
-	var n := int(1.6 * SR)
-	var out := PackedFloat32Array()
-	out.resize(n)
-	for i in n:
-		var t := float(i) / SR
-		var env := 0.0
-		for st in [0.0, 0.55, 1.1]:
-			var u: float = t - st
-			if u >= 0.0 and u < 0.35:
-				env = maxf(env, sin(PI * u / 0.35))
-		var f := 380.0 - 40.0 * fmod(t, 0.55)
-		out[i] = (sin(TAU * f * t) + 0.3 * sin(TAU * f * 2.0 * t)) * env * 0.4
-	return _wav(out, false)
+func play_activity_cue(kind: String) -> void:
+	match kind:
+		"countdown": _play_sfx(_tick(660.0,0.1),-20.0)
+		"start": _play_sfx(_tick(1320.0,0.18),-16.0)
+		"checkpoint": _play_sfx(_tick(980.0,0.08),-22.0)
+		"finish": _play_sfx(_tick(1760.0,0.25),-15.0)
+		"fail": _play_sfx(_tick(330.0,0.18),-22.0)
