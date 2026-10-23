@@ -19,6 +19,10 @@ uniform bool woody = false;
 uniform float wind_clock = 0.0;
 uniform vec3 wind_direction = vec3(0.82,0.0,0.57);
 uniform float wind_strength = 0.2;
+// Təbii yarpaq rəngi: soyuq (mavi-yaşıl) teksturanı xlorofil yaşılına yaxınlaşdırır, hər bitkiyə kiçik ton fərqi verir.
+uniform vec3 foliage_balance = vec3(1.05, 1.0, 0.80);
+uniform float foliage_variation = 0.10;
+varying float v_variant;
 void vertex() {
 	// Use each variant's real LOD0 height, not a common 0.8 m grass height.
 	float h = max(VERTEX.y - root_height, 0.0);
@@ -28,6 +32,7 @@ void vertex() {
 	// when converted back into local space, hiding almost all grass motion.
 	float world_height = h * length(MODEL_MATRIX[1].xyz);
 	vec3 base = MODEL_MATRIX[3].xyz;
+	v_variant = fract(sin(dot(base.xz, vec2(12.9898, 78.233))) * 43758.5453);
 	float phase = dot(base.xz, vec2(0.081, 0.057));
 	float t = wind_clock * sway_speed;
 	float wave = 0.25 + 0.65*sin(t + phase) + 0.25*sin(t*1.73 + phase*1.31);
@@ -52,10 +57,17 @@ void vertex() {
 void fragment() {
 	vec4 tex = texture(albedo_tex,UV)*tint;
 	if (vertex_tint) { tex *= COLOR; }
-	ALBEDO = tex.rgb;
+	vec3 albedo = tex.rgb;
+	if (cutout) {
+		// sarımtıl-yaşıldan tünd yaşıla qədər fərqli bitkilər; mavi kanal azaldılır (göy-yaşıl görünüş getsin)
+		albedo *= foliage_balance;
+		albedo *= mix(vec3(0.88, 0.92, 0.86), vec3(1.10, 1.06, 0.88), v_variant) * (1.0 - foliage_variation * 0.5 + foliage_variation * v_variant);
+	}
+	ALBEDO = albedo;
 	ROUGHNESS = roughness_value;
 	if (use_normal) { NORMAL_MAP = texture(normal_tex,UV).rgb; }
 	if (use_arm) { vec3 arm = texture(arm_tex,UV).rgb; ROUGHNESS = arm.g; AO = arm.r; }
 	if (cutout) { ALPHA = tex.a; ALPHA_SCISSOR_THRESHOLD = alpha_threshold; }
-	BACKLIGHT = cutout ? vec3(0.18,0.22,0.12) : vec3(0.0);
+	// arxadan düşən günəş yarpaqdan sarı-yaşıl keçir
+	BACKLIGHT = cutout ? vec3(0.22,0.24,0.08) * albedo / max(max(albedo.r, albedo.g), 0.05) : vec3(0.0);
 }

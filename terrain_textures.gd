@@ -24,7 +24,7 @@ const TINTS := [
 	Vector3(1.40, 1.00, 0.76),  # 1 palçıq
 	Vector3(1.30, 0.95, 0.74),  # 2 dərin palçıq
 	Vector3(1.05, 1.00, 0.95),  # 3 daş
-	Vector3(1.00, 1.00, 1.00),  # 4 ot
+	Vector3(0.97, 1.04, 0.84),  # 4 ot (canlı, mavisiz yaşıl)
 	Vector3(1.00, 1.00, 1.03),  # 5 qar
 	Vector3(1.00, 0.97, 0.93),  # 6 qaya
 ]

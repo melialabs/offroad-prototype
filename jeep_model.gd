@@ -35,6 +35,7 @@ func load_model() -> bool:
 	body = packed.instantiate() as Node3D
 	if body == null:
 		return false
+	VehicleMaterials.tune(body)
 
 	var meshes: Array[MeshInstance3D] = []
 	var junk: Array[Node] = []

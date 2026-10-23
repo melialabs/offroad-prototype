@@ -173,9 +173,10 @@ const NIGHT_FOG_END := 900.0
 ## Menyudan: LOW / MEDIUM / HIGH / ULTRA
 func set_graphics_quality(lvl: String) -> void:
 	GraphicsQuality.save(lvl)
-	GraphicsQuality.apply(lvl, _env, _sun, get_viewport(), night)
+	GraphicsQuality.apply(lvl, _env, _sun, get_viewport(), night, vegetation)
 	if wheel_fx != null:
 		wheel_fx.dust_scale = 0.5 if lvl == "LOW" else 1.0
+		wheel_fx.set_reflection_probe(GraphicsQuality.vehicle_probe(lvl))
 
 
 func _setup_environment() -> void:
@@ -246,12 +247,7 @@ func _build_scenery(terrain: MudTerrain) -> void:
 	var wm := PlaneMesh.new()
 	wm.size = Vector2(4200, 4200)
 	water.mesh = wm
-	var wmat := StandardMaterial3D.new()
-	wmat.albedo_color = Color(0.12, 0.45, 0.62, 0.78)
-	wmat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	wmat.roughness = 0.05
-	wmat.metallic = 0.3
-	wmat.metallic_specular = 0.9
+	var wmat := WaterMaterial.make()
 	water.material_override = wmat
 	water.position.y = -2.4
 	water.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
@@ -482,7 +478,7 @@ func set_night(on: bool) -> void:
 	night = on
 	get_tree().call_group("street_lamps", "set_lit", on)
 	wind.night = on
-	GraphicsQuality.apply(GraphicsQuality.saved_level(), _env, _sun, get_viewport(), on)
+	GraphicsQuality.apply(GraphicsQuality.saved_level(), _env, _sun, get_viewport(), on, vegetation)
 	_sky_mat.set_shader_parameter("night", 1.0 if on else 0.0)
 	if on:
 		_sky_mat.set_shader_parameter("top_col", Vector3(0.008, 0.015, 0.05))

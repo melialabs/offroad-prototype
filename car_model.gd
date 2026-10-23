@@ -28,6 +28,7 @@ func load_model(path: String, origin_height: float) -> bool:
 	var root := packed.instantiate() as Node3D
 	if root == null:
 		return false
+	VehicleMaterials.tune(root)
 	var radius_sum := 0.0
 	for i in 4:
 		var n := root.find_child(WHEEL_NAMES[i], true, false) as MeshInstance3D

@@ -39,6 +39,8 @@ const SPECIES := {
 const CHUNK_SIZE := {"tree": 40.0, "under": 48.0, "ground": 48.0, "wood": 48.0}
 ## Kölgə yalnız bu məsafəyə qədər (m) və ucuz proxy mesh ilə (növün LOD1-i) salınır.
 const SHADOW_RANGE := 70.0
+## Kölgə proxy-si üçün LOD (1 = orta, 2 = ən sadə). Kölgə uzaqdan baxılır, sadə LOD görünüşü pozmur, kölgə keçidini xeyli ucuzlaşdırır.
+static var shadow_proxy_lod := 2
 const FADE_MARGIN := 6.0
 ## LOD keçidində sönmə (VISIBILITY_RANGE_FADE_SELF) alfa-scissor yarpaqları yox edir (yalnız gövdə qalır),
 ## ona görə default sönməsizdir (sərt keçid, margin yalnız histerezis). Diaqnostika üçün true edilə bilər.
@@ -501,7 +503,8 @@ func _build_nodes() -> void:
 		if int(d["shadow_lods"]) > 0 and lods.size() > 1 and lods[1] != null:
 			var sm := MultiMesh.new()
 			sm.transform_format = MultiMesh.TRANSFORM_3D
-			sm.mesh = lods[1]
+			var proxy_lod := mini(shadow_proxy_lod, lods.size() - 1)
+			sm.mesh = lods[proxy_lod] if lods[proxy_lod] != null else lods[1]
 			sm.instance_count = xforms.size()
 			for i in xforms.size():
 				sm.set_instance_transform(i, xforms[i])
@@ -510,9 +513,16 @@ func _build_nodes() -> void:
 			shadow.multimesh = sm
 			shadow.extra_cull_margin = 2.5
 			shadow.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_SHADOWS_ONLY
-			shadow.visibility_range_end = SHADOW_RANGE
+			shadow.visibility_range_end = GraphicsQuality.veg_shadow(GraphicsQuality.saved_level())
 			shadow.visibility_range_end_margin = FADE_MARGIN
 			add_child(shadow)
+
+
+## Qrafika profili: ağacların kölgə saldığı məsafə.
+func set_shadow_range(r: float) -> void:
+	for n in get_children():
+		if n is MultiMeshInstance3D and str(n.name).ends_with("_shadow"):
+			(n as MultiMeshInstance3D).visibility_range_end = r
 
 
 func winch_anchors(position: Vector3,radius: float = 30.0) -> Array:

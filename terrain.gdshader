@@ -154,7 +154,8 @@ void fragment() {
 	float center = (1.0 - smoothstep(0.08, 0.12, u)) * dash;
 	float paint = max(edge_line, center) * road;
 	vec3 yellow = vec3(0.78, 0.60, 0.07);
-	vec3 asphalt = ad * 1.15;
+	// real asfalt: tünd, bir az isti boz (albedo ~0.12-0.2), mavi çalar yox
+	vec3 asphalt = ad * vec3(0.86, 0.85, 0.82);
 	asphalt = mix(asphalt, yellow * (0.55 + ad.r * 1.4), paint * 0.88);
 	asphalt *= 1.0 - 0.40 * wetness;
 	float asphalt_rough = mix(ar, 0.85, paint);

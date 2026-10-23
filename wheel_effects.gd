@@ -30,6 +30,10 @@ var _track_strength := PackedFloat32Array()
 var _track_cursor := 0
 var _last_mark: Array[Vector3] = []
 var _shadow: Decal
+## HIGH/ULTRA: maşının ətrafını (ağaclar, yer) kuzova əks etdirən probe; yalnız yer dəyişəndə yenilənir
+var _probe: ReflectionProbe
+var _probe_at := Vector3.INF
+var _probe_timer := 0.0
 
 
 static func classify(t: MudTerrain, p: Vector3) -> int:
@@ -62,6 +66,7 @@ func _ready() -> void:
 		_last_mark.append(Vector3.INF)
 	_make_tracks()
 	_make_contact_shadow()
+	set_reflection_probe(GraphicsQuality.vehicle_probe(GraphicsQuality.saved_level()))
 
 
 func _physics_process(_delta: float) -> void:
@@ -113,7 +118,42 @@ func _physics_process(_delta: float) -> void:
 			_last_mark[k] = Vector3.INF
 
 
+func set_reflection_probe(on: bool) -> void:
+	if not on:
+		if _probe != null:
+			_probe.queue_free()
+			_probe = null
+		return
+	if _probe != null:
+		return
+	_probe = ReflectionProbe.new()
+	_probe.update_mode = ReflectionProbe.UPDATE_ONCE
+	_probe.size = Vector3(60, 30, 60)
+	_probe.max_distance = 70.0
+	_probe.intensity = 1.0
+	_probe.enable_shadows = false
+	_probe.ambient_mode = ReflectionProbe.AMBIENT_DISABLED
+	_probe.mesh_lod_threshold = 4.0
+	_probe.top_level = true
+	add_child(_probe)
+	_probe_at = Vector3.INF
+
+
+func _update_probe(delta: float) -> void:
+	if _probe == null or truck == null:
+		return
+	_probe_timer -= delta
+	if _probe_timer > 0.0 or truck.global_position.distance_to(_probe_at) < 8.0:
+		return
+	_probe_timer = 1.5
+	_probe_at = truck.global_position
+	_probe.global_position = truck.global_position + Vector3(0, 1.5, 0)
+	# UPDATE_ONCE yalnız dəyişiklikdə yenidən çəkilir: kiçik dəyişiklik yeniləməni tətikləyir
+	_probe.max_distance = 70.0 if _probe.max_distance != 70.0 else 70.01
+
+
 func _process(delta: float) -> void:
+	_update_probe(delta)
 	# izlər yavaş-yavaş solur
 	if _tracks == null:
 		return

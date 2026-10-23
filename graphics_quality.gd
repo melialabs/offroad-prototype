@@ -5,19 +5,20 @@ extends RefCounted
 ## Əsas görünüş (tonemap, duman, rəng) bütün profillərdə eynidir: Main._setup_environment.
 
 const LEVELS := ["LOW", "MEDIUM", "HIGH", "ULTRA"]
-const DEFAULT := "MEDIUM"  # M4 1600x900: 66-100 FPS (tools/bench_graphics.gd)
+const DEFAULT := "MEDIUM"  # M4 1600x900: meşə 67, yol 108 FPS (tools/bench_graphics.gd)
 const SAVE_PATH := "user://offroad_settings.cfg"
 
 ## shadow_dist: günəş kölgəsinin məsafəsi (m); atlas: kölgə xəritəsi ölçüsü; soft: yumşaq kölgə keyfiyyəti
 ## aa: "fxaa" | "smaa" | "taa"; lod: mesh LOD həddi (böyük = daha sadə uzaq meshlər)
+## veg_shadow: ağacların kölgə saldığı məsafə (m) — meşədə ən bahalı hissə (tools/bench_graphics.gd ölçümləri)
 const PROFILES := {
-	"LOW": {"shadow_dist": 70.0, "splits": 2, "atlas": 2048, "soft": 1, "angular": 0.0,
+	"LOW": {"probe": false, "shadow_dist": 70.0, "splits": 2, "atlas": 2048, "soft": 1, "angular": 0.0, "veg_shadow": 25.0,
 		"ssao": false, "ssil": false, "sdfgi": false, "vol_fog": false, "ssr": false, "glow": false, "aa": "fxaa", "lod": 4.0},
-	"MEDIUM": {"shadow_dist": 120.0, "splits": 4, "atlas": 4096, "soft": 2, "angular": 0.0,
+	"MEDIUM": {"probe": false, "shadow_dist": 120.0, "splits": 2, "atlas": 2048, "soft": 2, "angular": 0.0, "veg_shadow": 40.0,
 		"ssao": true, "ssil": false, "sdfgi": false, "vol_fog": false, "ssr": false, "glow": true, "aa": "smaa", "lod": 2.0},
-	"HIGH": {"shadow_dist": 160.0, "splits": 4, "atlas": 4096, "soft": 2, "angular": 0.0,
+	"HIGH": {"probe": true, "shadow_dist": 160.0, "splits": 4, "atlas": 4096, "soft": 2, "angular": 0.0, "veg_shadow": 60.0,
 		"ssao": true, "ssil": false, "sdfgi": false, "vol_fog": true, "ssr": false, "glow": true, "aa": "taa", "lod": 1.0},
-	"ULTRA": {"shadow_dist": 240.0, "splits": 4, "atlas": 8192, "soft": 3, "angular": 0.35,
+	"ULTRA": {"probe": true, "shadow_dist": 240.0, "splits": 4, "atlas": 8192, "soft": 3, "angular": 0.35, "veg_shadow": 90.0,
 		"ssao": true, "ssil": true, "sdfgi": true, "vol_fog": true, "ssr": true, "glow": true, "aa": "taa", "lod": 0.6},
 }
 
@@ -43,12 +44,20 @@ static func save(lvl: String) -> void:
 	cfg.save(SAVE_PATH)
 
 
+static func vehicle_probe(lvl: String) -> bool:
+	return bool(PROFILES.get(lvl, PROFILES[DEFAULT])["probe"])
+
+
+static func veg_shadow(lvl: String) -> float:
+	return float(PROFILES.get(lvl, PROFILES[DEFAULT])["veg_shadow"])
+
+
 static func next(lvl: String) -> String:
 	return LEVELS[(LEVELS.find(lvl) + 1) % LEVELS.size()]
 
 
 ## Profili mühitə, günəşə və viewport-a tətbiq edir. night: gecə dumanı daha sıx olur.
-static func apply(lvl: String, env: Environment, sun: DirectionalLight3D, vp: Viewport, night := false) -> void:
+static func apply(lvl: String, env: Environment, sun: DirectionalLight3D, vp: Viewport, night := false, vegetation: Node = null) -> void:
 	if lvl not in LEVELS:
 		lvl = DEFAULT
 	level = lvl
@@ -125,6 +134,8 @@ static func apply(lvl: String, env: Environment, sun: DirectionalLight3D, vp: Vi
 	vp.msaa_3d = Viewport.MSAA_DISABLED
 	vp.mesh_lod_threshold = p["lod"]
 	vp.use_debanding = true
+	if vegetation != null and vegetation.has_method("set_shadow_range"):
+		vegetation.set_shadow_range(float(p["veg_shadow"]))
 
 
 static func _smaa_or_fxaa() -> int:

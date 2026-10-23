@@ -732,10 +732,7 @@ func _build_swamp_water() -> void:
 		disk.radial_segments = 48
 		mi.mesh = disk
 		mi.position = Vector3(p.x, sample_grid(base, p) + 0.09, p.z)
-		var mat := StandardMaterial3D.new()
-		mat.albedo_color = Color(0.12, 0.10, 0.045, 0.68)
-		mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-		mat.roughness = 0.14
+		var mat := WaterMaterial.make(true)
 		mi.material_override = mat
 		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		add_child(mi)

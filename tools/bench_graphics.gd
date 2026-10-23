@@ -2,6 +2,8 @@ extends SceneTree
 ## Qrafika benchmark: 3 sabit kamera mövqeyində FPS, CPU/GPU kadr vaxtı, draw call və ekran şəkli.
 ## godot --path . --resolution 1600x900 -s res://tools/bench_graphics.gd -- TAG [LOW|MEDIUM|HIGH|ULTRA]
 ## Nəticə: /tmp/bench_TAG_*.png və konsolda BENCH sətirləri.
+## 3-cü arqument (istəyə görə) — ölçmə üçün ayrı-ayrı söndürmələr, vergüllə:
+## nossao, splits2, sdist=N, noshadow, vegshadow=N, nofade, noglow, novol, noaa, lod=N, only=VIEW
 const VIEWS := [
 	["road", Vector3(-690, 0, -650), Vector3(-760, 0, -700)],
 	["forest", Vector3(-740, 0, 120), Vector3(-756, 0, 84)],
@@ -13,6 +15,7 @@ var main: Node
 var cam: Camera3D
 var tag := "run"
 var level := ""
+var overrides: PackedStringArray = []
 var frames := 0
 var view := 0
 var t0 := 0
@@ -27,6 +30,8 @@ func _initialize() -> void:
 	root.add_child(main)
 	if a.size() > 1:
 		level = a[1]
+	if a.size() > 2:
+		overrides = a[2].split(",")
 	cam = Camera3D.new()
 	main.add_child(cam)
 	RenderingServer.viewport_set_measure_render_time(root.get_viewport_rid(), true)
@@ -36,6 +41,7 @@ func _process(_d: float) -> bool:
 		# yalnız tətbiq et, oyunçunun ayarına yazma
 		if level != "" and ClassDB.class_exists("Node") and main.get("_env") != null and ResourceLoader.exists("res://graphics_quality.gd"):
 			load("res://graphics_quality.gd").apply(level, main._env, main._sun, root.get_viewport(), false)
+		_apply_overrides()
 		main.hud.visible = false
 		main.world_map.visible = false
 		main.truck.freeze = true
@@ -65,3 +71,31 @@ func _process(_d: float) -> bool:
 			if view >= VIEWS.size():
 				quit(0)
 	return false
+
+
+func _apply_overrides() -> void:
+	var env: Environment = main._env
+	var sun: DirectionalLight3D = main._sun
+	for o in overrides:
+		var kv := o.split("=")
+		match kv[0]:
+			"nossao": env.ssao_enabled = false
+			"ssaolow": RenderingServer.environment_set_ssao_quality(RenderingServer.ENV_SSAO_QUALITY_VERY_LOW, true, 0.5, 2, 50.0, 300.0)
+			"splits2": sun.directional_shadow_mode = DirectionalLight3D.SHADOW_PARALLEL_2_SPLITS
+			"sdist": sun.directional_shadow_max_distance = float(kv[1])
+			"noshadow": sun.shadow_enabled = false
+			"noglow": env.glow_enabled = false
+			"atlas": RenderingServer.directional_shadow_atlas_set_size(int(kv[1]), true)
+			"novol": env.volumetric_fog_enabled = false
+			"noaa":
+				root.get_viewport().screen_space_aa = Viewport.SCREEN_SPACE_AA_DISABLED
+				root.get_viewport().use_taa = false
+			"lod": root.get_viewport().mesh_lod_threshold = float(kv[1])
+			"vegshadow", "nofade":
+				for n in main.vegetation.get_children():
+					if n is MultiMeshInstance3D:
+						var m := n as MultiMeshInstance3D
+						if kv[0] == "nofade":
+							m.visibility_range_fade_mode = GeometryInstance3D.VISIBILITY_RANGE_FADE_DISABLED
+						elif str(m.name).ends_with("_shadow"):
+							m.visibility_range_end = float(kv[1])
