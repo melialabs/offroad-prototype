@@ -7,13 +7,18 @@ extends Node3D
 signal discovered(spec: int)
 
 const MODEL := "res://assets/barn/old_garage.glb"
-const SCALE := 0.42
+## Qarajın ölçüsü: 0.6 -> təxminən 6.0 x 7.3 m, hündürlük ~4.2 m. Aşağıdakı ölçülər buna görə hesablanır.
+const SCALE := 0.6
 const MODEL_GROUND := Vector3(1.66, 1.107, -0.22)  # modeldə döşəmənin mərkəzi
 ## Skan modeldə ~23° fırlanıb: döndərib mərkəzləyirik ki, qapılar düz +Z-ə baxsın.
 const MODEL_YAW := 0.398
-const MODEL_CENTER := Vector3(-0.03, 0.0, -0.15)  # miqyaslı modeldə divarların mərkəzi (döndərmədən əvvəl)
-const PIVOT_OFFSET := Vector3(-0.1, 0.0, -0.05)
-const HALF := Vector3(2.1, 1.5, 2.55)  # oyunda yarım ölçülər (m)
+# Model vahidlərində (miqyasdan əvvəl) ölçülüb; oyunda SCALE ilə vurulur.
+const CENTER_UNITS := Vector3(-0.071, 0.0, -0.357)  # divarların mərkəzi (döndərmədən əvvəl)
+const PIVOT_UNITS := Vector3(-0.238, 0.0, -0.119)
+const HALF_UNITS := Vector3(5.0, 3.57, 6.07)
+const MODEL_CENTER := CENTER_UNITS * SCALE
+const PIVOT_OFFSET := PIVOT_UNITS * SCALE
+const HALF := HALF_UNITS * SCALE  # oyunda yarım ölçülər (m)
 ## Fotoskanda qapının sağ küncündə (+X, +Z) deşik var: sağlam sol küncün güzgülənmiş həndəsəsi ilə
 ## bağlanır (tools/make_barn_corner.gd ilə hazırlanıb).
 const CORNER_FILL := "res://assets/barn/corner_fill.res"
@@ -22,8 +27,8 @@ const SITES := [
 	{"id": "barn_east", "p": Vector2(828, -228), "vehicle": 5},
 	{"id": "barn_south", "p": Vector2(204, 804), "vehicle": 4},
 ]
-const CLEAR_RADIUS := 13.0
-const DISCOVER_RANGE := 16.0
+const CLEAR_RADIUS := 15.0
+const DISCOVER_RANGE := 18.0
 const TAKE_RANGE := 10.0
 ## GPS-də "şayiə" dairəsi: tapılmamış qaraj təxmini sahədə göstərilir
 const RUMOR_RADIUS := 70.0
@@ -52,13 +57,20 @@ func build(terrain: MudTerrain) -> void:
 		var dir := _road_dir(terrain, c2)
 		var yaw := atan2(dir.x, dir.y)
 		var basis := Basis(Vector3.UP, yaw)
-		var ground := INF
-		for corner in [Vector3(-HALF.x, 0, -HALF.z), Vector3(HALF.x, 0, -HALF.z), Vector3(-HALF.x, 0, HALF.z), Vector3(HALF.x, 0, HALF.z), Vector3.ZERO]:
+		# yamacda: orta hündürlüyə qoyulur, aşağı tərəfdəki boşluğu beton özül doldurur
+		var low := INF
+		var sum := 0.0
+		var pts := [Vector3(-HALF.x, 0, -HALF.z), Vector3(HALF.x, 0, -HALF.z), Vector3(-HALF.x, 0, HALF.z), Vector3(HALF.x, 0, HALF.z), Vector3.ZERO]
+		for corner in pts:
 			var w: Vector3 = Vector3(c2.x, 0, c2.y) + basis * corner
-			ground = minf(ground, terrain.height_at(w))
+			var hh := terrain.height_at(w)
+			low = minf(low, hh)
+			sum += hh
+		var ground := sum / pts.size() - 0.08
 		var root := Node3D.new()
-		root.transform = Transform3D(basis, Vector3(c2.x, ground - 0.12, c2.y))
+		root.transform = Transform3D(basis, Vector3(c2.x, ground, c2.y))
 		add_child(root)
+		_foundation(root, ground - low + 0.4)
 		if scene != null:
 			var model := scene.instantiate() as Node3D
 			model.scale = Vector3.ONE * SCALE
@@ -148,6 +160,19 @@ func take(s: Dictionary) -> void:
 	truck.angular_velocity = Vector3.ZERO
 	truck.global_transform = Transform3D(xf.basis, xf.origin + Vector3(0, 1.4, 0))
 	truck.message.emit(I18n.t("barn_taken") % I18n.vehicle(str(OffroadTruck.SPECS[s["spec"]]["name"])))
+
+
+func _foundation(root: Node3D, depth: float) -> void:
+	var slab := MeshInstance3D.new()
+	var box := BoxMesh.new()
+	box.size = Vector3(HALF.x * 2.0 + 0.25, depth, HALF.z * 2.0 + 0.25)
+	slab.mesh = box
+	slab.position = Vector3(0, 0.04 - depth * 0.5, 0)
+	var mat := StandardMaterial3D.new()
+	mat.albedo_color = Color(0.36, 0.34, 0.31)
+	mat.roughness = 1.0
+	slab.material_override = mat
+	root.add_child(slab)
 
 
 func _make_lit(node: Node) -> void:

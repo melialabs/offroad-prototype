@@ -2,8 +2,11 @@ extends SceneTree
 ## Köhnə qaraj skanında sağ ön künc (+X, +Z) deşikdir. Sağlam sol ön küncün (-X, +Z) üçbucaqlarını
 ## götürür, X üzrə güzgüləyir və assets/barn/corner_fill.res kimi saxlayır (BarnFinds kökünün koordinatında).
 ## godot --headless --path . -s res://tools/make_barn_corner.gd
-const REGION_MIN := Vector3(-2.45, -0.2, 2.15)
-const REGION_MAX := Vector3(-1.55, 2.45, 2.95)
+# model vahidlərində (miqyasdan əvvəl); BarnFinds.SCALE ilə vurulur
+const REGION_MIN_UNITS := Vector3(-5.83, -0.48, 5.12)
+const REGION_MAX_UNITS := Vector3(-3.69, 5.83, 7.02)
+var REGION_MIN := REGION_MIN_UNITS * BarnFinds.SCALE
+var REGION_MAX := REGION_MAX_UNITS * BarnFinds.SCALE
 
 func _initialize() -> void:
 	run.call_deferred()
