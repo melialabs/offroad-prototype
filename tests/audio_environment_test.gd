@@ -80,6 +80,8 @@ func run() -> void:
 	check(a._bird.volume_db < -70.0, "summit does not sound like the forest floor")
 	a._update_road(0.1)
 	var first_wind := a._wind.volume_db
+	# Ambient gusts now read the shared wind clock.
+	main.wind.advance(7.0)
 	a._update_ambient(7.0)
 	a._update_road(0.1)
 	check(a._wind.volume_db > -40.0 and absf(a._wind.volume_db - first_wind) > 0.1, "summit wind gusts while parked")
