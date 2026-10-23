@@ -3,7 +3,6 @@ extends Node3D
 ## Original roadside landmarks built from simple meshes and existing materials.
 
 const PLACES := [
-	["Başlanğıc bazası", Vector2(-755, -695)],
 	["Daş karxanası", Vector2(540, -555)],
 	["Dağ keçidi", Vector2(815, 270)],
 	["Meşə düşərgəsi", Vector2(-715, 565)],
@@ -26,26 +25,10 @@ func build(terrain: MudTerrain) -> void:
 		label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 		label.no_depth_test = false
 		add_child(label)
-	# Depot storage shed, open on the side facing the road.
-	var hub := Vector3(-745, 0, -680)
-	hub.y = terrain.height_at(hub)
-	_box(hub + Vector3(0, 3.8, 0), Vector3(12, 0.35, 8), Color(0.23, 0.27, 0.29), true)
-	for x in [-5.5, 5.5]:
-		for z in [-3.5, 3.5]:
-			_box(hub + Vector3(x, 1.8, z), Vector3(0.3, 3.6, 0.3), Color(0.4, 0.43, 0.43), true)
 	for i in 5:
 		var p := Vector3(550 + i * 9, 0, -570)
 		p.y = terrain.height_at(p)
 		_box(p + Vector3(0, 1.5, 0), Vector3(5, 3, 5), Color(0.47, 0.43, 0.35), true)
-	# Route edge markers near curves, with small reflective caps.
-	for i in range(0, terrain._road.size() - 1, 3):
-		var p := terrain._road[i]
-		var dir := (terrain._road[i + 1] - p).normalized()
-		for side in [-1.0, 1.0]:
-			var pos2: Vector2 = p + Vector2(-dir.y, dir.x) * (MudTerrain.ROAD_HALF + 1.3) * side
-			var pos := Vector3(pos2.x, terrain.height_at(Vector3(pos2.x, 0, pos2.y)), pos2.y)
-			_box(pos + Vector3(0, 0.55, 0), Vector3(0.12, 1.1, 0.12), Color(0.8, 0.81, 0.75), false)
-
 
 func _box(pos: Vector3, size: Vector3, color: Color, solid: bool) -> void:
 	var mesh := MeshInstance3D.new()
