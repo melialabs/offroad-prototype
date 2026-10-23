@@ -44,7 +44,8 @@ func _physics_process(_d: float) -> bool:
 	var t: MudTerrain = main._terrain
 	var sp: Dictionary = t.road_spawn()
 	check(WheelEffects.classify(t, sp["pos"]) == WheelEffects.Surface.ASPHALT, "asphalt classified on the road")
-	check(WheelEffects.classify(t, Vector3(0, -3.0, 0)) == WheelEffects.Surface.WATER, "below lake level is water")
+	var lc := MapLayout.LAKE_CENTER
+	check(WheelEffects.classify(t, Vector3(lc.x, MapLayout.LAKE_LEVEL - 1.0, lc.y)) == WheelEffects.Surface.WATER, "below lake level is water")
 	var sw: Vector3 = MudTerrain.SWAMPS[0]
 	check(WheelEffects.classify(t, Vector3(sw.x, 0, sw.y)) == WheelEffects.Surface.WATER, "swamp pond is water")
 	var fx: WheelEffects = main.wheel_fx
@@ -52,9 +53,9 @@ func _physics_process(_d: float) -> bool:
 	check(fx._tracks.visible_instance_count >= 1, "tyre track recorded")
 	# su: Fresnel/dalğa shader-i, metal deyil
 	var water_ok := false
-	for n in main.get_children():
-		if n is MeshInstance3D and (n as MeshInstance3D).material_override is ShaderMaterial:
-			water_ok = water_ok or ((n as MeshInstance3D).material_override as ShaderMaterial).shader.resource_path.ends_with("water.gdshader")
+	var lake := main._terrain.get_node_or_null("Lake") as MeshInstance3D
+	if lake != null and lake.material_override is ShaderMaterial:
+		water_ok = (lake.material_override as ShaderMaterial).shader.resource_path.ends_with("water.gdshader")
 	check(water_ok, "lake uses the water shader")
 	# maşın boyası dielektrik (metal teksturası olmayan glTF materialları metallic=1 gəlirdi)
 	main.truck.apply_spec(6)

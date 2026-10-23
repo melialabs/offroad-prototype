@@ -143,7 +143,7 @@ func _height(x: float, z: float) -> float:
 
 
 func _forest(x: float, z: float) -> float:
-	return clampf((_n_forest.get_noise_2d(x, z) * 0.5 + 0.5 - 0.32) * 2.4, 0.0, 1.0)
+	return clampf((_n_forest.get_noise_2d(x, z) * 0.5 + 0.5 - 0.32) * 2.4 * MapLayout.forest_factor(x, z), 0.0, 1.0)
 
 
 ## Rütubət: su səviyyəsinə yaxın hündürlük və ayrıca noise.
@@ -166,6 +166,8 @@ func _tree_ok(x: float, z: float, h: float) -> bool:
 		return false
 	var p := Vector3(x, h, z)
 	if terrain.road_distance_fast(p) < MudTerrain.ROAD_HALF + 5.0:
+		return false
+	if terrain.water_level_at(p) > h - 1.0:
 		return false
 	if terrain.vegetation_softness_at(p) > 0.2:
 		return false
@@ -230,6 +232,8 @@ func _place_trees() -> void:
 		var z := _rng.randf_range(-ext, ext)
 		if _rng.randf() < 0.65:
 			var ri := _rng.randi_range(0, terrain._road.size() - 2)
+			if terrain._road_gap[ri] == 1:
+				continue
 			var rp := terrain._road[ri]
 			var dir := (terrain._road[ri + 1] - rp).normalized()
 			var side := Vector2(-dir.y, dir.x) * _rng.randf_range(20.0, 95.0)

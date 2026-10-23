@@ -47,7 +47,7 @@ func run() -> void:
 	a._update_engine(10.0)
 	check(a.last_engine_load > 0.7, "bogged spinning wheels load the engine")
 	Input.action_release(&"ui_up")
-	t.global_position = Vector3(-365, 0, -425)
+	t.global_position = Vector3(MudTerrain.SWAMPS[0].x, 0, MudTerrain.SWAMPS[0].y)
 	t.linear_velocity = Vector3.ZERO
 	a._speed = 0.0
 	t.wheel_slip = 0.0
@@ -69,10 +69,10 @@ func run() -> void:
 	a._night_mix = 0.0
 	a._update_ambient(0.1)
 	check(not a._animal.playing, "owl stops when returning to daytime")
-	t.global_position = Vector3(-150, 10, -120)
+	t.global_position = Vector3(MapLayout.LAKE_CENTER.x, 12, MapLayout.LAKE_CENTER.y + MapLayout.LAKE_RADII.y + 15)
 	a._update_ambient(0.1)
 	var near_water := a._brook.volume_db
-	t.global_position = Vector3(600, 10, 600)
+	t.global_position = Vector3(-200, 10, 560)
 	a._update_ambient(0.1)
 	check(a._brook.volume_db < near_water - 30.0, "water recording fades with distance from the lake")
 	# Vehicle speed must not introduce wind; the natural forest bed stays intact.

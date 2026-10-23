@@ -52,14 +52,16 @@ func _draw() -> void:
 	for swamp in MudTerrain.SWAMPS:
 		var mark := origin + (Vector2(swamp.x, swamp.y) + Vector2.ONE * 1024) / 2048.0 * side
 		draw_circle(mark, maxf(3.0, swamp.z / 2048.0 * side), Color(0.26, 0.14, 0.05, 0.8))
-	var road := PackedVector2Array()
-	for p in terrain._road:
-		road.append(origin + (p + Vector2.ONE * 1024) / 2048.0 * side)
-	draw_polyline(road, Color(0.9, 0.86, 0.69), 3.0, true)
-	var trail := PackedVector2Array()
-	for p in terrain._trail:
-		trail.append(origin + (p + Vector2.ONE * 1024) / 2048.0 * side)
-	draw_polyline(trail, Color(0.67, 0.38, 0.18), 3.0, true)
+	# su: göl və çaylar
+	var lake_pts := PackedVector2Array()
+	for k in 40:
+		var a := TAU * k / 40.0
+		var lp := MapLayout.LAKE_CENTER + Vector2(cos(a) * MapLayout.LAKE_RADII.x, sin(a) * MapLayout.LAKE_RADII.y)
+		lake_pts.append(origin + (lp + Vector2.ONE * 1024) / 2048.0 * side)
+	draw_colored_polygon(lake_pts, Color(0.16, 0.45, 0.66))
+	_draw_lines(terrain._river, terrain._river_gap, origin, side, Color(0.2, 0.55, 0.78), 3.0)
+	_draw_lines(terrain._road, terrain._road_gap, origin, side, Color(0.9, 0.86, 0.69), 3.0)
+	_draw_lines(terrain._trail, terrain._trail_gap, origin, side, Color(0.67, 0.38, 0.18), 2.5)
 	var row := 0
 	for place in WorldLandmarks.PLACES:
 		var point: Vector2 = place[1]
@@ -104,6 +106,17 @@ func _draw_barns(origin: Vector2, side: float) -> void:
 			var at2 := origin + (Vector2(p.x, p.z) + Vector2.ONE * 1024) / 2048.0 * side
 			var col := Color(0.55, 0.9, 0.5) if s["taken"] else Color(1.0, 0.6, 0.2)
 			draw_colored_polygon(PackedVector2Array([at2 + Vector2(-5, 4), at2 + Vector2(5, 4), at2 + Vector2(5, -2), at2 + Vector2(0, -7), at2 + Vector2(-5, -2)]), col)
+
+
+## Kəsiklərlə ayrılmış xətləri ayrı-ayrı çəkir.
+func _draw_lines(line: PackedVector2Array, gaps: PackedByteArray, origin: Vector2, side: float, color: Color, width: float) -> void:
+	var cur := PackedVector2Array()
+	for i in line.size():
+		cur.append(origin + (line[i] + Vector2.ONE * 1024) / 2048.0 * side)
+		if i < gaps.size() and gaps[i] == 1 or i == line.size() - 1:
+			if cur.size() > 1:
+				draw_polyline(cur, color, width, true)
+			cur = PackedVector2Array()
 
 
 func _draw_activities(origin: Vector2, side: float) -> void:

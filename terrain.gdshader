@@ -27,6 +27,8 @@ uniform float wetness : hint_range(0.0, 1.0) = 0.0;       // yağış
 uniform float snow_amount : hint_range(0.0, 1.0) = 0.0;   // qar örtüyü
 uniform float ice_amount : hint_range(0.0, 1.0) = 0.0;    // buz
 uniform vec3 grass_tint = vec3(1.0);                      // fəsil rəngi
+uniform float snow_line = 125.0;                          // bu hündürlükdən yuxarı zirvələrdə daimi qar
+uniform vec4 canyon_rect = vec4(540.0, -720.0, 1030.0, -40.0); // qaya kanyonu (min x, min z, max x, max z)
 
 varying vec3 wn;
 varying vec3 wpos;
@@ -55,6 +57,9 @@ void fragment() {
 	float up = smoothstep(0.55, 0.85, wn.y);
 	float mn = texture(macro_noise, world * 0.03).r;
 	float snow = snow_amount * up * smoothstep(0.25, 0.6, mn + snow_amount * 0.5);
+	// zirvə qarı: hündürlüyə görə, makro səs-küylə nizamsız sərhəd, dik qayada az
+	float peak = smoothstep(snow_line - 12.0, snow_line + 18.0, wpos.y + (mn - 0.5) * 30.0) * smoothstep(0.35, 0.7, wn.y + 0.25);
+	snow = max(snow, peak);
 
 	// çəkilər
 	float ground_k = (1.0 - cliff) * (1.0 - snow);
@@ -176,6 +181,11 @@ void fragment() {
 	col = mix(col, vec3(0.38, 0.54, 0.70), ice * 0.8);
 	r_out = mix(r_out, 0.06, ice);
 	n_out *= 1.0 - ice * 0.85;
+
+	// qaya kanyonu: torpaq və qaya dəmir oksidli narıncı-qırmızı tonda
+	vec2 ck = smoothstep(canyon_rect.xy, canyon_rect.xy + vec2(60.0), world) * (1.0 - smoothstep(canyon_rect.zw - vec2(60.0), canyon_rect.zw, world));
+	float canyon = ck.x * ck.y * (1.0 - road) * (1.0 - snow);
+	col = mix(col, col * vec3(1.45, 0.92, 0.62) + vec3(0.06, 0.02, 0.0), canyon);
 
 	float nz = sqrt(max(1.0 - dot(n_out, n_out), 0.0));
 	ALBEDO = col;

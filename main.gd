@@ -6,6 +6,7 @@ var cam: ChaseCamera
 var world_map: WorldMap
 var barns: BarnFinds
 var props: WorldProps
+var features: MapFeatures
 var wheel_fx: WheelEffects
 var hud: Hud
 var menu: MainMenu
@@ -123,6 +124,9 @@ func _ready() -> void:
 	props = WorldProps.new()
 	add_child(props)
 	props.build(terrain)
+	features = MapFeatures.new()
+	add_child(features)
+	features.build(terrain)
 	map_layer.add_child(world_map)
 	add_child(map_layer)
 	cam.mode_changed.connect(hud.show_toast)
@@ -240,18 +244,10 @@ func _build_scenery(terrain: MudTerrain) -> void:
 	gm.albedo_color = Color(0.36, 0.55, 0.25)
 	gm.roughness = 1.0
 	far_ground.material_override = gm
-	far_ground.position.y = -4.0
+	far_ground.position.y = -80.0  # mədən çuxurunun (-24 m) altında qalsın
 	add_child(far_ground)
 
-	var water := MeshInstance3D.new()
-	var wm := PlaneMesh.new()
-	wm.size = Vector2(4200, 4200)
-	water.mesh = wm
-	var wmat := WaterMaterial.make()
-	water.material_override = wmat
-	water.position.y = -2.4
-	water.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	add_child(water)
+	# su: göl, çay və gölməçələr MudTerrain-də (MapLayout); qlobal su müstəvisi yoxdur
 
 	_build_mountains()
 	var landmarks := WorldLandmarks.new()

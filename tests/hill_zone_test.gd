@@ -29,6 +29,7 @@ func run() -> void:
 				damage += 1
 			if old_road[i] < 18.0:
 				road_damage += 1
+	print("SCULPTED ", changed)
 	check(changed > 100 and changed < 7000,"only a small local zone is sculpted")
 	check(damage == 0,"all terrain outside the park is preserved")
 	check(road_damage == 0,"all asphalt and protected roadside heights preserved")

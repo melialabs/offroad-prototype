@@ -6,10 +6,25 @@ extends Node3D
 ## sink: model dibinin yerə nə qədər basdırılacağı (m); slab: yamacda beton özül;
 ## hide: adında bu sözlər olan hissələr çıxarılır (məs. havada bitən elektrik kabelləri)
 const PROPS := [
-	{"model": "res://assets/props/utility_building.glb", "p": Vector2(-715, -645), "scale": 1.0, "clear": 26.0, "slab": true, "sink": 0.0, "hide": ["Wire"]},
-	{"model": "res://assets/props/storage_building.glb", "p": Vector2(-520, -130), "scale": 1.0, "clear": 13.0, "slab": true, "sink": 0.0},
-	{"model": "res://assets/props/dirt_mound.glb", "p": Vector2(560, -465), "scale": 0.4, "clear": 9.0, "slab": false, "sink": 0.6},
-	{"model": "res://assets/props/cobble_pile.glb", "p": Vector2(520, -495), "scale": 0.32, "clear": 5.0, "slab": false, "sink": 0.1, "mean": true},
+	# başlanğıc qarajı: həyəti olan sənaye binası
+	{"model": "res://assets/props/utility_building.glb", "p": Vector2(-265, 615), "scale": 1.0, "clear": 26.0, "slab": true, "sink": 0.0, "hide": ["Wire"]},
+	# mədən: köhnə anbar, torpaq və daş yığınları
+	{"model": "res://assets/props/storage_building.glb", "p": Vector2(520, 250), "scale": 1.0, "clear": 13.0, "slab": true, "sink": 0.0},
+	{"model": "res://assets/props/dirt_mound.glb", "p": Vector2(880, 20), "scale": 0.4, "clear": 9.0, "slab": false, "sink": 0.6},
+	{"model": "res://assets/props/cobble_pile.glb", "p": Vector2(860, 240), "scale": 0.32, "clear": 5.0, "slab": false, "sink": 0.1, "mean": true},
+	# meşə və bataqlıqda xaraba evlər, daş ocaqlar
+	{"model": "res://assets/props/new/house_ruin.glb", "p": Vector2(-620, -60), "scale": 0.42, "clear": 10.0, "slab": false, "sink": 0.3, "mean": true},
+	{"model": "res://assets/props/new/house_ruin.glb", "p": Vector2(-280, 330), "scale": 0.42, "clear": 10.0, "slab": false, "sink": 0.3, "mean": true},
+	{"model": "res://assets/props/new/house_ruin.glb", "p": Vector2(-200, -560), "scale": 0.42, "clear": 10.0, "slab": false, "sink": 0.3, "mean": true},
+	{"model": "res://assets/props/new/fireplace.glb", "p": Vector2(-560, -130), "scale": 0.25, "clear": 5.0, "slab": false, "sink": 0.2, "mean": true},
+	{"model": "res://assets/props/new/fireplace.glb", "p": Vector2(-150, -515), "scale": 0.25, "clear": 5.0, "slab": false, "sink": 0.2, "mean": true},
+]
+## Təsadüfi səpələnən obyektlər: [model, say, miqyas aralığı, bölgə, toqquşma radiusu (0 = yox)]
+const SCATTER := [
+	["res://assets/props/new/rock_small.glb", 140, Vector2(1.0, 3.0), "wild", 0.0],
+	["res://assets/props/new/rock_part.glb", 30, Vector2(0.12, 0.28), "rocky", 2.0],
+	["res://assets/props/new/fallen_tree.glb", 45, Vector2(3.5, 5.0), "forest", 0.4],
+	["res://assets/props/new/river_log.glb", 20, Vector2(1.6, 2.4), "river", 0.4],
 ]
 const LAMP_SPACING := 110.0
 const LAMP_OFFSET := MudTerrain.ROAD_HALF + 2.3
@@ -47,6 +62,7 @@ func build(terrain: MudTerrain) -> void:
 	for s in PROPS:
 		_place(terrain, s)
 	_place_road_lamps(terrain)
+	_scatter(terrain)
 
 
 func _place(terrain: MudTerrain, s: Dictionary) -> void:
@@ -112,6 +128,95 @@ func _place(terrain: MudTerrain, s: Dictionary) -> void:
 		root.add_child(slab)
 
 
+## Daşlar, qayalar, yıxılmış ağaclar və kötüklər: bölgəyə uyğun təsadüfi (sabit toxumlu) yerləşdirmə,
+## MultiMesh ilə (hər növ bir çəkiliş); böyüklər üçün sadə toqquşma.
+func _scatter(terrain: MudTerrain) -> void:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 9137
+	for row in SCATTER:
+		var path: String = row[0]
+		if not ResourceLoader.exists(path):
+			continue
+		var inst := (load(path) as PackedScene).instantiate() as Node3D
+		var mis := inst.find_children("*", "MeshInstance3D", true, false)
+		if mis.is_empty():
+			inst.free()
+			continue
+		var src := mis[0] as MeshInstance3D
+		var mesh := src.mesh.duplicate() as Mesh
+		var base_xf := _local_xf(src, inst)
+		inst.free()
+		for s in mesh.get_surface_count():
+			var mat := mesh.surface_get_material(s) as BaseMaterial3D
+			if mat != null and mat.shading_mode == BaseMaterial3D.SHADING_MODE_UNSHADED:
+				var lit := mat.duplicate() as BaseMaterial3D
+				lit.shading_mode = BaseMaterial3D.SHADING_MODE_PER_PIXEL
+				lit.roughness = 1.0
+				lit.metallic = 0.0
+				mesh.surface_set_material(s, lit)
+		var bottom: float = (base_xf * mesh.get_aabb()).position.y
+		var xforms: Array[Transform3D] = []
+		var count: int = row[1]
+		var tries := 0
+		while xforms.size() < count and tries < count * 40:
+			tries += 1
+			var q := Vector2(rng.randf_range(-930, 930), rng.randf_range(-930, 930))
+			var p := Vector3(q.x, 0, q.y)
+			if not _scatter_ok(terrain, p, str(row[3])):
+				continue
+			var sc := rng.randf_range(row[2].x, row[2].y)
+			p.y = terrain.height_at(p) - bottom * sc - 0.08 * sc
+			var basis := Basis(Vector3.UP, rng.randf_range(0, TAU)).scaled(Vector3.ONE * sc)
+			xforms.append(Transform3D(basis, p) * base_xf)
+		if xforms.is_empty():
+			continue
+		var mm := MultiMesh.new()
+		mm.transform_format = MultiMesh.TRANSFORM_3D
+		mm.mesh = mesh
+		mm.instance_count = xforms.size()
+		for i in xforms.size():
+			mm.set_instance_transform(i, xforms[i])
+		var mmi := MultiMeshInstance3D.new()
+		mmi.multimesh = mm
+		mmi.visibility_range_end = 260.0 if float(row[4]) > 0.0 else 140.0
+		mmi.name = "Scatter_" + path.get_file().get_basename()
+		add_child(mmi)
+		var radius: float = row[4]
+		if radius > 0.0:
+			var body := StaticBody3D.new()
+			for xf in xforms:
+				var col := CollisionShape3D.new()
+				var aabb: AABB = xf * mesh.get_aabb()
+				var shape := BoxShape3D.new()
+				shape.size = aabb.size * Vector3(0.8, 0.85, 0.8)
+				col.shape = shape
+				col.position = aabb.get_center()
+				body.add_child(col)
+			add_child(body)
+
+
+func _scatter_ok(terrain: MudTerrain, p: Vector3, region: String) -> bool:
+	if HillClimbCatalog.ZONE.grow(15.0).has_point(Vector2(p.x, p.z)) or clearing(p) or BarnFinds.clearing(p):
+		return false
+	if terrain.road_distance_fast(p) < MudTerrain.ROAD_HALF + 4.0:
+		return false
+	var h := terrain.height_at(p)
+	if terrain.water_level_at(p) > h - 0.6:
+		return false
+	var ff := MapLayout.forest_factor(p.x, p.z)
+	var river_d: float = terrain._near_route(Vector2(p.x, p.z), terrain._river, terrain._river_len, terrain._river_bins)[0]
+	match region:
+		"wild":
+			return ff > 0.0 and terrain.slope_at(p) < 0.6
+		"rocky":
+			return (MapLayout.CANYON.has_point(Vector2(p.x, p.z)) or h > 45.0 or (river_d > 12.0 and river_d < 40.0)) and terrain.slope_at(p) < 0.8
+		"forest":
+			return ff >= 1.0 and MapLayout.FOREST.has_point(Vector2(p.x, p.z)) and terrain.slope_at(p) < 0.4
+		"river":
+			return (river_d > 10.0 and river_d < 26.0) or MapLayout._ellipse(Vector2(p.x, p.z), MapLayout.SWAMP, MapLayout.SWAMP_RADII) < 0.9
+	return false
+
+
 func _local_xf(n: Node3D, root: Node3D) -> Transform3D:
 	var xf := Transform3D.IDENTITY
 	var node: Node = n
@@ -128,6 +233,10 @@ func _place_road_lamps(terrain: MudTerrain) -> void:
 	var travelled := 0.0
 	var side := 1.0
 	for i in road.size() - 1:
+		if terrain._road_gap[i] == 1:
+			travelled = 0.0
+			next = LAMP_SPACING * 0.5
+			continue
 		var a := road[i]
 		var b := road[i + 1]
 		var seg := a.distance_to(b)
@@ -137,7 +246,9 @@ func _place_road_lamps(terrain: MudTerrain) -> void:
 			var d := (b - a).normalized()
 			var nrm := Vector2(-d.y, d.x) * side
 			var at := p + nrm * LAMP_OFFSET
-			add_lamp(terrain, Vector3(at.x, 0, at.y), -nrm)
+			# kəsişmədə başqa yolun üstünə düşən lampa qoyulmur
+			if terrain.road_distance_at(Vector3(at.x, 0, at.y)) > MudTerrain.ROAD_HALF + 1.5 and terrain.water_level_at(Vector3(at.x, 0, at.y)) == -INF:
+				add_lamp(terrain, Vector3(at.x, 0, at.y), -nrm)
 			side = -side
 			next += LAMP_SPACING
 		travelled += seg

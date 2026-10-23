@@ -221,7 +221,11 @@ func _update_ambient(delta: float) -> void:
 	_bed.volume_db = _db(day * forest * foliage) - 19.0
 	_bird.volume_db = _db(day * forest) - 22.0
 	_crickets.volume_db = _db(_night_mix * forest) - 22.0
-	var water_distance := Vector2(truck.global_position.x + 150, truck.global_position.z + 120).length()
+	# ən yaxın su: göl (ellips kənarı) və ya çay
+	var tp := Vector2(truck.global_position.x, truck.global_position.z)
+	var water_distance := maxf(0.0, (MapLayout._ellipse(tp, MapLayout.LAKE_CENTER, MapLayout.LAKE_RADII) - 1.0) * MapLayout.LAKE_RADII.y)
+	if truck.terrain != null and not truck.terrain._river.is_empty():
+		water_distance = minf(water_distance, truck.terrain._near_route(tp, truck.terrain._river, truck.terrain._river_len, truck.terrain._river_bins)[0])
 	_brook.volume_db = _db((1.0 - smoothstep(90.0, 230.0, water_distance)) * forest) - 24.0
 	if _night_mix < 0.5 or forest < 0.2:
 		_animal.stop()

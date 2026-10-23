@@ -52,8 +52,8 @@ func _ready() -> void:
 	var heading: float = terrain.road_spawn()["yaw"]
 	var shoulder := Vector3(cos(heading), 0, -sin(heading)) * 7.0
 	markers.append({"p": ground(Vector2(depot.x + shoulder.x, depot.z + shoulder.z)), "route": 0, "hub": true})
-	_add_hub(Vector2(524,-548),3)
-	_add_hub(Vector2(-715,565),6)
+	_add_hub(Vector2(-110,-300),3)
+	_add_hub(Vector2(-150,520),6)
 	_previous_position = truck.global_position
 
 func ground(p: Vector2) -> Vector3:

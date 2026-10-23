@@ -23,10 +23,12 @@ const HALF := HALF_UNITS * SCALE  # oyunda yarım ölçülər (m)
 ## bağlanır (tools/make_barn_corner.gd ilə hazırlanıb).
 const CORNER_FILL := "res://assets/barn/corner_fill.res"
 const SITES := [
-	{"id": "barn_west", "p": Vector2(-756, 84), "vehicle": 6},
-	{"id": "barn_east", "p": Vector2(828, -228), "vehicle": 5},
-	{"id": "barn_south", "p": Vector2(204, 804), "vehicle": 4},
+	{"id": "barn_west", "p": Vector2(-720, 340), "vehicle": 6},   # bataqlığın qərbi
+	{"id": "barn_east", "p": Vector2(870, -270), "vehicle": 5},   # qaya kanyonu
+	{"id": "barn_south", "p": Vector2(850, 650), "vehicle": 4},   # cənub-şərq meşəsi
 ]
+## Növbəti mərhələ (Equus, buggy, GAZ-69) üçün yoxlanmış boş yerlər
+const RESERVED_SITES := [Vector2(-340, -580), Vector2(-540, 630), Vector2(830, 400)]
 const CLEAR_RADIUS := 17.0
 const DISCOVER_RANGE := 18.0
 const TAKE_RANGE := 10.0

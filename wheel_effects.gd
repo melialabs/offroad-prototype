@@ -13,7 +13,6 @@ const SURFACE_DUST := {
 	Surface.GRASS: Color(0.5, 0.46, 0.34, 0.25),
 	Surface.MUD: Color(0.25, 0.18, 0.11, 0.45),
 }
-const LAKE_LEVEL := -2.4
 const TRACK_CAPACITY := 900
 const TRACK_STEP := 0.45  # m: iz parçaları arası
 const TRACK_LIFE := 45.0  # s
@@ -37,11 +36,8 @@ var _probe_timer := 0.0
 
 
 static func classify(t: MudTerrain, p: Vector3) -> int:
-	if p.y < LAKE_LEVEL + 0.15:
+	if p.y < t.water_level_at(p) + 0.15:
 		return Surface.WATER
-	for sw in MudTerrain.SWAMPS:
-		if Vector2(p.x, p.z).distance_to(Vector2(sw.x, sw.y)) < sw.z * 0.47:
-			return Surface.WATER
 	var rd := t.road_distance_fast(p)
 	if rd < MudTerrain.ROAD_HALF:
 		return Surface.ASPHALT

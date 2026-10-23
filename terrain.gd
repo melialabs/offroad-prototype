@@ -21,32 +21,20 @@ var _fine_patches := {}
 var _rut_cache := {}
 var _compaction_cache := {}
 var _detail_center := Vector2i(99999, 99999)
-const SWAMPS := [Vector3(-365, -425, 24), Vector3(-318, -230, 30), Vector3(-270, 22, 25)]
+const SWAMPS := MapLayout.PONDS
 
 
 const ROAD_HALF := 4.0     # yolun yarım eni (metr)
 const ROAD_BLEND := 7.0    # yolun hündürlüyünün relyefə qarışma məsafəsi
 const TRAIL_HALF := 3.0    # palçıq cığırının yarım eni
-# dünya koordinatında (x, z) nəzarət nöqtələri
-const ROAD_POINTS := [
-	Vector2(-780, -720), Vector2(-450, -760), Vector2(-100, -700),
-	Vector2(120, -460), Vector2(500, -520), Vector2(780, -250),
-	Vector2(650, 0), Vector2(770, 140), Vector2(650, 210),
-	Vector2(800, 290), Vector2(680, 360), Vector2(740, 450), Vector2(550, 600),
-	Vector2(180, 760), Vector2(-80, 580), Vector2(-350, 780),
-	Vector2(-700, 600), Vector2(-780, 200), Vector2(-580, -80),
-	Vector2(-780, -360), Vector2(-780, -720),
-]
-const TRAIL_POINTS := [
-	Vector2(-450, -760), Vector2(-380, -500), Vector2(-330, -300),
-	Vector2(-330, -160), Vector2(-290, 30), Vector2(140, 80), Vector2(300, 300), Vector2(550, 600),
-]
+# yollar, cığırlar, çaylar: MapLayout (bir neçə ayrı xətt, aralarında kəsik)
 
 # relyef: yolun yanında hamar, uzaqda təpələr, xəritənin kənarında dağ silsiləsi
 const ROAD_CORRIDOR := 40.0   # yol yamacından təpələrin tam başladığı məsafə
 const MOUNTAIN_START := 850.0  # dağ silsiləsinin başladığı məsafə (mərkəzdən, max(|x|,|z|))
 const MOUNTAIN_FULL := 1024.0
 const MIN_ROAD_HEIGHT := -1.0 # yol su səviyyəsindən yuxarıda qalsın
+const RIVER_SOFT_CLEAR := 12.0  # çay sahili palçıq deyil (çınqıl/torpaq)
 
 var h := PackedFloat32Array()     # cari hündürlük
 var base := PackedFloat32Array()  # ilkin hündürlük
@@ -82,6 +70,14 @@ var _road_len := PackedFloat32Array()    # xəttin əvvəlindən yığılmış u
 var _road_h := PackedFloat32Array()      # yolun hündürlük profili
 var _trail_len := PackedFloat32Array()
 var _trail := PackedVector2Array()
+## seqment i kəsikdirsə 1 (ayrı xətlərin birləşdiyi yer): yaxınlıq axtarışı və yol lenti onu ötür
+var _road_gap := PackedByteArray()
+var _trail_gap := PackedByteArray()
+var _river := PackedVector2Array()
+var _river_len := PackedFloat32Array()
+var _river_level := PackedFloat32Array()
+var _river_gap := PackedByteArray()
+var _river_bins := {}
 
 
 func _ready() -> void:
@@ -182,6 +178,80 @@ func _build_ctrl() -> void:
 
 # --- yol xətti -------------------------------------------------------------
 
+## Bir neçə xətti bir massivdə birləşdirir: [nöqtələr, kəsiklər]. Kəsik seqment xətlər arasındakı keçiddir.
+static func _multi_spline(lines: Array, per_seg: int) -> Array:
+	var pts := PackedVector2Array()
+	var gaps := PackedByteArray()
+	for li in lines.size():
+		var s := _spline(lines[li], per_seg)
+		if li > 0:
+			gaps.append(1)  # əvvəlki xəttin sonundan bu xəttin başına
+		for k in s.size():
+			pts.append(s[k])
+			if k < s.size() - 1:
+				gaps.append(0)
+	gaps.append(0)
+	return [pts, gaps]
+
+
+static func _same_line(gaps: PackedByteArray, a: int, b: int) -> bool:
+	for k in range(mini(a, b), maxi(a, b)):
+		if gaps[k] == 1:
+			return false
+	return true
+
+
+## Çay və kanyon çayı: sıx xətt, hər nöqtədə su səviyyəsi.
+func _build_rivers() -> void:
+	_river = PackedVector2Array()
+	_river_level = PackedFloat32Array()
+	_river_gap = PackedByteArray()
+	for spec in [[MapLayout.RIVER, MapLayout.RIVER_LEVEL], [MapLayout.CREEK, MapLayout.CREEK_LEVEL]]:
+		var ctrl: Array = spec[0]
+		var lv: Array = spec[1]
+		if not _river.is_empty():
+			_river_gap[_river_gap.size() - 1] = 1
+		for i in ctrl.size() - 1:
+			var a: Vector2 = ctrl[i]
+			var b: Vector2 = ctrl[i + 1]
+			var steps := maxi(2, int(a.distance_to(b) / 8.0))
+			for s in steps:
+				var t := float(s) / steps
+				_river.append(a.lerp(b, t))
+				# şəlalə: səviyyə seqmentin sonunda kəskin düşür
+				var la: float = lv[i]
+				var lb: float = lv[i + 1]
+				_river_level.append(lerpf(la, lb, smoothstep(0.82, 0.92, t)) if la - lb > 2.0 else lerpf(la, lb, t))
+				_river_gap.append(0)
+		_river.append(ctrl[ctrl.size() - 1])
+		_river_level.append(lv[lv.size() - 1])
+		_river_gap.append(0)
+	_river_len = _lengths(_river)
+
+
+## Su səthinin hündürlüyü (göl, çay, bataqlıq gölməçəsi); su yoxdursa -INF.
+func water_level_at(world_pos: Vector3) -> float:
+	var p := Vector2(world_pos.x, world_pos.z)
+	if MapLayout._ellipse(p, MapLayout.LAKE_CENTER, MapLayout.LAKE_RADII) < 1.0:
+		return MapLayout.LAKE_LEVEL
+	if not _river.is_empty():
+		var rv := _near_route(p, _river, _river_len, _river_bins) if not _river_bins.is_empty() else _nearest(p, _river, _river_len, _river_gap)
+		var half := MapLayout.RIVER_HALF if rv[3] < _river_index_split() else MapLayout.CREEK_HALF
+		if rv[0] < half:
+			return lerpf(_river_level[rv[3]], _river_level[mini(rv[3] + 1, _river_level.size() - 1)], rv[4])
+	for sw in SWAMPS:
+		if p.distance_to(Vector2(sw.x, sw.y)) < sw.z * 0.47 and not base.is_empty():
+			return sample_grid(base, Vector3(sw.x, 0, sw.y)) + 0.09
+	return -INF
+
+
+func _river_index_split() -> int:
+	for i in _river_gap.size():
+		if _river_gap[i] == 1:
+			return i
+	return _river.size()
+
+
 ## Catmull-Rom əyrisi ilə nəzarət nöqtələrindən hamar xətt qurur.
 static func _spline(pts: Array, per_seg: int) -> PackedVector2Array:
 	var out := PackedVector2Array()
@@ -201,13 +271,15 @@ static func _spline(pts: Array, per_seg: int) -> PackedVector2Array:
 
 
 ## Nöqtəyə ən yaxın xətt nöqtəsi: (məsafə, işarəli məsafə, yol boyu uzunluq, seqment indeksi, t)
-static func _nearest(p: Vector2, line: PackedVector2Array, lens: PackedFloat32Array) -> Array:
+static func _nearest(p: Vector2, line: PackedVector2Array, lens: PackedFloat32Array, gaps := PackedByteArray()) -> Array:
 	var best_d := INF
 	var best_signed := 0.0
 	var best_along := 0.0
 	var best_i := 0
 	var best_t := 0.0
 	for i in line.size() - 1:
+		if not gaps.is_empty() and gaps[i] == 1:
+			continue
 		var a := line[i]
 		var ab := line[i + 1] - a
 		var l2 := ab.length_squared()
@@ -246,18 +318,15 @@ func _hill_noise() -> FastNoiseLite:
 
 
 func _raw_height(hills: FastNoiseLite, wx: float, wz: float) -> float:
-	var p := Vector2(wx, wz)
-	var mountain := exp(-p.distance_squared_to(Vector2(540, 420)) / 120000.0) * 155.0
-	mountain += exp(-p.distance_squared_to(Vector2(-650, 530)) / 100000.0) * 100.0
-	mountain += exp(-p.distance_squared_to(Vector2(650, -540)) / 75000.0) * 72.0
-	var lake := exp(-p.distance_squared_to(Vector2(-150, -120)) / 24000.0) * 26.0
-	return 7.0 + mountain - lake + hills.get_noise_2d(wx, wz) * 3.5
+	return MapLayout.base_height(hills, _big, _ridge, wx, wz)
 
 
 ## Index only nearby route segments; far-away terrain does not need exact road UVs.
-func _route_index(line: PackedVector2Array, reach: float) -> Dictionary:
+func _route_index(line: PackedVector2Array, reach: float, gaps := PackedByteArray()) -> Dictionary:
 	var bins := {}
 	for i in line.size() - 1:
+		if not gaps.is_empty() and gaps[i] == 1:
+			continue
 		var lo := line[i].min(line[i + 1]) - Vector2.ONE * reach
 		var hi := line[i].max(line[i + 1]) + Vector2.ONE * reach
 		for z in range(floori(lo.y / ROUTE_BIN), floori(hi.y / ROUTE_BIN) + 1):
@@ -311,15 +380,21 @@ func _generate() -> void:
 	_aux_deepk.resize(N * N)
 	road_dist.resize(N * N)
 
-	_road = _spline(ROAD_POINTS, 12)
+	var routes := _multi_spline(MapLayout.ROADS, 12)
+	_road = routes[0]
+	_road_gap = routes[1]
 	_road_len = _lengths(_road)
-	_trail = _spline(TRAIL_POINTS, 10)
+	var trails := _multi_spline(MapLayout.TRAILS, 10)
+	_trail = trails[0]
+	_trail_gap = trails[1]
 	_trail_len = _lengths(_trail)
+	_build_rivers()
 	var trail_len := _trail_len
-	_road_bins = _route_index(_road, 100.0)
-	_trail_bins = _route_index(_trail, 24.0)
+	_road_bins = _route_index(_road, 100.0, _road_gap)
+	_trail_bins = _route_index(_trail, 24.0, _trail_gap)
+	_river_bins = _route_index(_river, 60.0, _river_gap)
 
-	# yolun hündürlük profili: xətt boyu relyef orta qiymətlə hamarlanır
+	# yolun hündürlük profili: hər xətt öz daxilində hamarlanır və 10% mailliklə məhdudlaşır
 	var raw := PackedFloat32Array()
 	for p in _road:
 		raw.append(_raw_height(hills, p.x, p.y))
@@ -328,20 +403,28 @@ func _generate() -> void:
 		var s := 0.0
 		var c := 0
 		for k in range(maxi(i - 2, 0), mini(i + 3, _road.size())):
-			s += raw[k]
-			c += 1
+			if _same_line(_road_gap, i, k):
+				s += raw[k]
+				c += 1
 		_road_h[i] = maxf(s / c, MIN_ROAD_HEIGHT)
-
-	# Limit the paved route to a driveable 10 percent grade in both directions.
 	for pass_index in 4:
 		for i in range(1, _road.size()):
+			if _road_gap[i - 1] == 1:
+				continue
 			var rise := _road[i].distance_to(_road[i - 1]) * 0.10
 			_road_h[i] = clampf(_road_h[i], _road_h[i - 1] - rise, _road_h[i - 1] + rise)
 		for i in range(_road.size() - 2, -1, -1):
+			if _road_gap[i] == 1:
+				continue
 			var rise := _road[i].distance_to(_road[i + 1]) * 0.10
 			_road_h[i] = clampf(_road_h[i], _road_h[i + 1] - rise, _road_h[i + 1] + rise)
-	_road_h[_road_h.size() - 1] = _road_h[0]
+	# körpülər: çayın üstündə yol su səviyyəsindən ən azı 3 m yuxarıda
+	for i in _road.size():
+		var wl := water_level_at(Vector3(_road[i].x, 0, _road[i].y))
+		if wl > -INF:
+			_road_h[i] = maxf(_road_h[i], wl + 3.0)
 	var half := (N - 1) * 0.5
+	var river_split := _river_index_split()
 	for z in N:
 		for x in N:
 			var wx := (x - half) * CELL
@@ -371,8 +454,7 @@ func _generate() -> void:
 			var t: float = rd[4]
 			var road_h := lerpf(_road_h[seg], _road_h[seg + 1], t)
 			# yolun yanında hamar relyef, uzaqda təpələr və dağlar
-			var far_k := smoothstep(ROAD_HALF + ROAD_BLEND, ROAD_HALF + ROAD_BLEND + ROAD_CORRIDOR, d)
-			var hh := lerpf(gentle, _strong_height(wx, wz), far_k)
+			var hh := gentle
 			var blend := 1.0 - smoothstep(ROAD_HALF + 0.5, ROAD_HALF + ROAD_BLEND, d)
 			# Flat, shallow basins keep swamp water and soft ground at a believable level.
 			for swamp in SWAMPS:
@@ -380,8 +462,17 @@ func _generate() -> void:
 				var swamp_h := _raw_height(hills, swamp.x, swamp.y) - 0.45
 				hh = lerpf(hh, swamp_h, basin * (1.0 - blend))
 			hh = lerpf(hh, road_h, blend)
+			# çay və kanyon yatağı yolun altından da keçir (körpü yeri)
+			var rv := _near_route(p, _river, _river_len, _river_bins)
+			if rv[0] < 100.0:
+				var lvl := lerpf(_river_level[rv[3]], _river_level[mini(rv[3] + 1, _river_level.size() - 1)], rv[4])
+				if rv[3] < river_split:
+					hh = MapLayout.carve(hh, rv[0], lvl, 10000.0, 0.0)
+				else:
+					hh = MapLayout.carve(hh, 10000.0, 0.0, rv[0], lvl)
 			# yolda və yaxınlığında palçıq olmasın
 			s *= smoothstep(ROAD_HALF + 0.8, ROAD_HALF + 3.0, d)
+			s *= smoothstep(RIVER_SOFT_CLEAR, RIVER_SOFT_CLEAR + 6.0, rv[0])
 
 			# səth qarışığı üçün köməkçi maskalar: yol kənarı torpağı, torpaq və daş sahələri
 			var shoulder_w := smoothstep(ROAD_HALF + 0.3, ROAD_HALF + 0.9, d) \
@@ -390,6 +481,9 @@ func _generate() -> void:
 			var cn := cobble_noise.get_noise_2d(wx, wz) * 0.5 + 0.5
 			_aux_dirt[i] = clampf(maxf(shoulder_w, smoothstep(0.58, 0.78, dn) * 0.85), 0.0, 1.0)
 			_aux_cobble[i] = smoothstep(0.64, 0.80, cn) * 0.9
+			var bare := MapLayout.bare_ground(wx, wz)
+			_aux_dirt[i] = maxf(_aux_dirt[i], bare.x)
+			_aux_cobble[i] = maxf(_aux_cobble[i], bare.y)
 			_aux_deepk[i] = deep_k
 			road_dist[i] = d
 
@@ -588,7 +682,7 @@ func road_distance_fast(world_pos: Vector3) -> float:
 
 ## Nöqtənin asfalt yolun oxundan məsafəsi (metr), dəqiq amma yavaş (hər seqmentə baxır).
 func road_distance_at(world_pos: Vector3) -> float:
-	var r := _nearest(Vector2(world_pos.x, world_pos.z), _road, _road_len)
+	var r := _nearest(Vector2(world_pos.x, world_pos.z), _road, _road_len, _road_gap)
 	return r[0]
 
 
@@ -732,10 +826,56 @@ func _build_swamp_water() -> void:
 		disk.radial_segments = 48
 		mi.mesh = disk
 		mi.position = Vector3(p.x, sample_grid(base, p) + 0.09, p.z)
-		var mat := WaterMaterial.make(true)
-		mi.material_override = mat
+		mi.material_override = WaterMaterial.make(true)
 		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		add_child(mi)
+	_build_lake_and_river()
+
+
+## Göl (ellips) və çay/kanyon çayı (su səviyyəsini izləyən lent, şəlalələrdə pillə).
+func _build_lake_and_river() -> void:
+	var lake := MeshInstance3D.new()
+	var disk := CylinderMesh.new()
+	disk.top_radius = 1.0
+	disk.bottom_radius = 1.0
+	disk.height = 0.02
+	disk.radial_segments = 96
+	lake.mesh = disk
+	lake.scale = Vector3(MapLayout.LAKE_RADII.x * 1.08, 1.0, MapLayout.LAKE_RADII.y * 1.08)
+	lake.position = Vector3(MapLayout.LAKE_CENTER.x, MapLayout.LAKE_LEVEL, MapLayout.LAKE_CENTER.y)
+	lake.material_override = WaterMaterial.make()
+	lake.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	lake.name = "Lake"
+	add_child(lake)
+	var split := _river_index_split()
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	for i in _river.size() - 1:
+		if _river_gap[i] == 1:
+			continue
+		var half := (MapLayout.RIVER_HALF if i < split else MapLayout.CREEK_HALF) + 1.5
+		var a := _river[i]
+		var b := _river[i + 1]
+		var d := (b - a).normalized()
+		var side := Vector2(-d.y, d.x) * half
+		var la := _river_level[i] + 0.05
+		var lb := _river_level[i + 1] + 0.05
+		var q := [Vector3(a.x + side.x, la, a.y + side.y), Vector3(a.x - side.x, la, a.y - side.y),
+			Vector3(b.x + side.x, lb, b.y + side.y), Vector3(b.x - side.x, lb, b.y - side.y)]
+		for k in [0, 1, 2, 1, 3, 2]:
+			st.set_normal(Vector3.UP)
+			st.set_uv(Vector2(1.0 if k % 2 == 0 else 0.0, _river_len[i if k < 2 else i + 1] * 0.05))
+			st.add_vertex(q[k])
+	var river := MeshInstance3D.new()
+	river.name = "River"
+	river.mesh = st.commit()
+	var mat := WaterMaterial.make()
+	mat.set_shader_parameter("wave_speed", 0.12)
+	mat.set_shader_parameter("wave_strength", 0.5)
+	mat.set_shader_parameter("shallow_color", Color(0.22, 0.32, 0.30))
+	river.material_override = mat
+	river.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	add_child(river)
 
 
 func base_height_at(p: Vector3) -> float:

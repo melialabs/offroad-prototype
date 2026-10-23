@@ -58,17 +58,27 @@ func clearing(p: Vector2) -> bool:
 func _bump(p: Vector2) -> float:
 	var edge := HillClimbCatalog.ZONE
 	var fade := smoothstep(0, 18, minf(minf(p.x - edge.position.x, edge.end.x - p.x), minf(p.y - edge.position.y, edge.end.y - p.y)))
-	return fade * (18.0 * exp(-p.distance_squared_to(Vector2(492,370)) / 1700.0) + 8.0 * exp(-p.distance_squared_to(Vector2(510,320)) / 650.0) + 11.0 * exp(-p.distance_squared_to(Vector2(510,310)) / 200.0) + 12.0 * exp(-p.distance_squared_to(Vector2(540,345)) / 160.0) + 12.0 * exp(-p.distance_squared_to(Vector2(492,382)) / 500.0))
+	return fade * (18.0 * exp(-p.distance_squared_to((Vector2(492,370) + HillClimbCatalog.OFFSET)) / 1700.0) + 8.0 * exp(-p.distance_squared_to((Vector2(510,320) + HillClimbCatalog.OFFSET)) / 650.0) + 11.0 * exp(-p.distance_squared_to((Vector2(510,310) + HillClimbCatalog.OFFSET)) / 200.0) + 12.0 * exp(-p.distance_squared_to((Vector2(540,345) + HillClimbCatalog.OFFSET)) / 160.0) + 12.0 * exp(-p.distance_squared_to((Vector2(492,382) + HillClimbCatalog.OFFSET)) / 500.0))
+
+func _grid_lo() -> Vector2i:
+	var r := HillClimbCatalog.ZONE
+	return Vector2i(floori(r.position.x / MudTerrain.CELL) + 256 - 1, floori(r.position.y / MudTerrain.CELL) + 256 - 1)
+
+
+func _grid_hi() -> Vector2i:
+	var r := HillClimbCatalog.ZONE
+	return Vector2i(ceili(r.end.x / MudTerrain.CELL) + 256 + 2, ceili(r.end.y / MudTerrain.CELL) + 256 + 2)
+
 
 func sculpt(terrain: MudTerrain) -> void:
 	for trench in trenches:
 		var p: Vector2 = trench["p"]
 		trench["floor"] = terrain.sample_grid(terrain.base, Vector3(p.x,0,p.y)) + _bump(p) - 0.85
-	var summit := Vector2(492,382)
+	var summit := (Vector2(492,382) + HillClimbCatalog.OFFSET)
 	var summit_height := terrain.sample_grid(terrain.base,Vector3(summit.x,0,summit.y))+_bump(summit)
 	var trail_len := MudTerrain._lengths(terrain._trail)
-	for z in range(294, 368): # world z 152..444; bounded below by ZONE check
-		for x in range(315, 409):
+	for z in range(_grid_lo().y, _grid_hi().y): # park sahəsinin şəbəkə hüdudları; ZONE yoxlaması dəqiqləşdirir
+		for x in range(_grid_lo().x, _grid_hi().x):
 			var i := z * MudTerrain.N + x
 			var p := Vector2((x - 256) * MudTerrain.CELL, (z - 256) * MudTerrain.CELL)
 			if not HillClimbCatalog.ZONE.has_point(p) or terrain.road_dist[i] < 18:
@@ -105,8 +115,8 @@ func sculpt(terrain: MudTerrain) -> void:
 			y = lerpf(y,summit_height,1.0-smoothstep(5.0,10.0,p.distance_to(summit)))
 			terrain.h[i] = y
 			# Preserve immutable input until all bays have sampled the old terrain.
-	for z in range(294, 368):
-		for x in range(315, 409):
+	for z in range(_grid_lo().y, _grid_hi().y):
+		for x in range(_grid_lo().x, _grid_hi().x):
 			var i := z * MudTerrain.N + x
 			terrain.base[i] = terrain.h[i]
 

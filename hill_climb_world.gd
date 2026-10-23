@@ -148,7 +148,7 @@ func _build_course_details() -> void:
 	# Rim boulders frame the summit without blocking its finish lines.
 	for i in 14:
 		var angle := i * TAU / 14.0
-		var p := Vector2(492,382) + Vector2(cos(angle),sin(angle)) * 18
+		var p := Vector2(492,382) + HillClimbCatalog.OFFSET + Vector2(cos(angle),sin(angle)) * 18
 		if not terrain.hill_zone.clearing(p):
 			_rock(activity.ground(p),Vector3(1.5,0.9,1.1),angle)
 

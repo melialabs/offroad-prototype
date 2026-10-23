@@ -1,7 +1,9 @@
 class_name HillClimbCatalog
 extends RefCounted
 ## Original authored courses on the western face of the existing eastern mountain.
-const ZONE := Rect2(240, 155, 365, 285)
+## Park yeni xəritədə meşə zonasındadır: bütün marşrut koordinatları ilkin müəllif yerindən bu qədər sürüşdürülür.
+const OFFSET := Vector2(-880, -620)
+const ZONE := Rect2(Vector2(240, 155) + OFFSET, Vector2(365, 285))
 const DIFFICULTIES := ["Easy", "Medium", "Hard", "Extreme"]
 const COLORS := [Color(0.3, 0.88, 0.64), Color(0.98, 0.78, 0.26), Color(1, 0.48, 0.20), Color(0.98, 0.25, 0.29)]
 const DEFINITIONS := [
@@ -22,11 +24,11 @@ const DEFINITIONS := [
 static func courses() -> Array[Dictionary]:
 	var result: Array[Dictionary] = []
 	for row in DEFINITIONS:
-		result.append({"id": row[0], "name": row[1], "difficulty": row[2], "half_width": row[3], "mud": row[4], "gold": row[5], "points": PackedVector2Array(row[6]), "enabled": true})
+		result.append({"id": row[0], "name": row[1], "difficulty": row[2], "half_width": row[3], "mud": row[4], "gold": row[5], "points": _shift(PackedVector2Array(row[6])), "enabled": true})
 	# Optional bypasses reunite before the next ordered checkpoint. They exchange
 	# distance for a gentler turn or a way around the largest boulder.
-	result[3]["alternative"] = PackedVector2Array([Vector2(370,258),Vector2(381,255),Vector2(391,263),Vector2(390,275)])
-	result[8]["alternative"] = PackedVector2Array([Vector2(548,270),Vector2(551,283),Vector2(558,296),Vector2(565,295)])
+	result[3]["alternative"] = _shift(PackedVector2Array([Vector2(370,258),Vector2(381,255),Vector2(391,263),Vector2(390,275)]))
+	result[8]["alternative"] = _shift(PackedVector2Array([Vector2(548,270),Vector2(551,283),Vector2(558,296),Vector2(565,295)]))
 	return result
 
 static func checkpoint_path(points: PackedVector2Array) -> PackedVector2Array:
@@ -35,4 +37,11 @@ static func checkpoint_path(points: PackedVector2Array) -> PackedVector2Array:
 		var count := maxi(1, ceili(points[i].distance_to(points[i + 1]) / 18.0))
 		for k in range(1, count + 1):
 			out.append(points[i].lerp(points[i + 1], float(k) / count))
+	return out
+
+
+static func _shift(pts: PackedVector2Array) -> PackedVector2Array:
+	var out := PackedVector2Array()
+	for p in pts:
+		out.append(p + OFFSET)
 	return out

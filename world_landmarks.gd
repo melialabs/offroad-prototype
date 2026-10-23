@@ -2,12 +2,7 @@ class_name WorldLandmarks
 extends Node3D
 ## Original roadside landmarks built from simple meshes and existing materials.
 
-const PLACES := [
-	["Daş karxanası", Vector2(540, -555)],
-	["Dağ keçidi", Vector2(815, 270)],
-	["Meşə düşərgəsi", Vector2(-715, 565)],
-	["Göl dayanacağı", Vector2(-260, -220)],
-]
+const PLACES := MapLayout.PLACES
 
 func build(terrain: MudTerrain) -> void:
 	_build_road(terrain)
@@ -25,10 +20,6 @@ func build(terrain: MudTerrain) -> void:
 		label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 		label.no_depth_test = false
 		add_child(label)
-	for i in 5:
-		var p := Vector3(550 + i * 9, 0, -570)
-		p.y = terrain.height_at(p)
-		_box(p + Vector3(0, 1.5, 0), Vector3(5, 3, 5), Color(0.47, 0.43, 0.35), true)
 
 func _box(pos: Vector3, size: Vector3, color: Color, solid: bool) -> void:
 	var mesh := MeshInstance3D.new()
@@ -58,10 +49,12 @@ func _build_road(terrain: MudTerrain) -> void:
 	var st := SurfaceTool.new()
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)
 	for i in terrain._road.size() - 1:
+		if terrain._road_gap[i] == 1:
+			continue
 		var a := terrain._road[i]
 		var b := terrain._road[i + 1]
-		var da := _road_tangent(terrain._road, i)
-		var db := _road_tangent(terrain._road, i + 1)
+		var da := _road_tangent(terrain, i)
+		var db := _road_tangent(terrain, i + 1)
 		var sa := Vector2(-da.y, da.x) * MudTerrain.ROAD_HALF
 		var sb := Vector2(-db.y, db.x) * MudTerrain.ROAD_HALF
 		var points := [a + sa, a - sa, b + sb, b - sb]
@@ -74,15 +67,19 @@ func _build_road(terrain: MudTerrain) -> void:
 			st.set_uv2(Vector2(MudTerrain.ROAD_HALF * (1.0 if k % 2 == 0 else -1.0), terrain._road_len[ri]))
 			st.add_vertex(Vector3(p.x, terrain._road_h[ri] + 0.08, p.y))
 	var road := MeshInstance3D.new()
-	road.name = "AsphaltLoop"
+	road.name = "AsphaltRoads"
 	road.mesh = st.commit()
 	road.material_override = terrain._material
 	add_child(road)
 	road.create_trimesh_collision()
 
 
-func _road_tangent(line: PackedVector2Array, index: int) -> Vector2:
-	var count := line.size() - 1
-	var previous := posmod(index - 1, count)
-	var following := posmod(index + 1, count)
+func _road_tangent(terrain: MudTerrain, index: int) -> Vector2:
+	# eyni xətt daxilində qonşular (xətlər arasındakı kəsikdən keçmir)
+	var line := terrain._road
+	var gaps := terrain._road_gap
+	var previous := index - 1 if index > 0 and gaps[index - 1] == 0 else index
+	var following := index + 1 if index < line.size() - 1 and gaps[index] == 0 else index
+	if previous == following:
+		return Vector2.RIGHT
 	return (line[following] - line[previous]).normalized()

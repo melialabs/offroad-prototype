@@ -13,7 +13,7 @@ func _initialize() -> void:
 func run() -> void:
 	terrain = MudTerrain.new()
 	root.add_child(terrain)
-	var p := Vector3(-365, 0, -425)
+	var p := Vector3(MudTerrain.SWAMPS[0].x, 0, MudTerrain.SWAMPS[0].y)
 	var started := Time.get_ticks_msec()
 	terrain.prepare_mud(p)
 	print("DETAIL initial window ms=", Time.get_ticks_msec() - started)
@@ -32,11 +32,13 @@ func run() -> void:
 	check(absf(patch._shape.map_data[z * MudPatch.SIDE + x] - terrain.height_at(p)) < 0.001, "collision follows visible rut")
 	check(terrain.height_at(p) < before - 0.8, "actual support height sinks")
 	# A stamp across a tile boundary must write the shared height identically.
-	var edge := Vector3(-368, 0, -425)
+	var edge := Vector3(floorf(p.x / MudTerrain.DETAIL_SIZE) * MudTerrain.DETAIL_SIZE, 0, p.z)  # iki detal yamasının sərhədi
 	for i in 10:
 		terrain.deform(edge, 0.3, 0.04)
-	var left: MudPatch = terrain._fine_patches[Vector2i(-24, -27)]
-	var right: MudPatch = terrain._fine_patches[Vector2i(-23, -27)]
+	var kl: Vector2i = terrain._detail_key(edge - Vector3(1, 0, 0))
+	var kr: Vector2i = terrain._detail_key(edge + Vector3(1, 0, 0))
+	var left: MudPatch = terrain._fine_patches[kl]
+	var right: MudPatch = terrain._fine_patches[kr]
 	var row := roundi((edge.z - left.position.z) / MudPatch.STEP)
 	check(absf(left._height(64, row) - right._height(0, row)) < 0.0001, "rut collision seamless across tiles")
 	var road: Vector3 = terrain.road_spawn()["pos"]
@@ -49,10 +51,10 @@ func run() -> void:
 	check(absf(terrain.depth_at(p) - cached) < 0.001, "ruts retained on return")
 	# Evict one side of a boundary: restoring the neighbour must close the seam.
 	terrain.prepare_mud(p + Vector3(100, 0, 0))
-	terrain._rut_cache.erase(Vector2i(-24, -27))
+	terrain._rut_cache.erase(kl)
 	terrain.prepare_mud(p)
-	left = terrain._fine_patches[Vector2i(-24, -27)]
-	right = terrain._fine_patches[Vector2i(-23, -27)]
+	left = terrain._fine_patches[kl]
+	right = terrain._fine_patches[kr]
 	check(absf(left._height(64, row) - right._height(0, row)) < 0.0001, "shared edge survives one-sided cache eviction")
 	terrain.set_surface_conditions(0.8, 0.0, 0.0)
 	check(is_equal_approx(terrain._fine_patches.values()[0]._mesh.material_override.get_shader_parameter("wetness"), 0.8), "weather reaches fine soil")
