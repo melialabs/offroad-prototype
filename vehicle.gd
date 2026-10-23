@@ -377,7 +377,7 @@ func toggle_engine() -> void:
 			message.emit("Yanacaq yoxdur, mühərrik işə düşmür")
 			return
 		engine_state = EngineState.CRANKING
-		_crank_t = CRANK_TIME
+		_crank_t = float(EngineStartCatalog.profile(spec_idx)["seconds"])
 		message.emit("Mühərrik işə düşür...")
 	else:
 		engine_state = EngineState.OFF

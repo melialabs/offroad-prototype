@@ -57,6 +57,7 @@ var _n_forest := FastNoiseLite.new()
 var _n_species := FastNoiseLite.new()
 var _n_floor := FastNoiseLite.new()
 var _n_moist := FastNoiseLite.new()
+var _winch_cells: Dictionary = {}
 var _big_trees: Array = []  # [pos, növ, miqyas]
 
 
@@ -84,7 +85,9 @@ func build(t: MudTerrain, seed_value: int) -> void:
 ## Fəsil rəngi: bütün foliage (alfa kart) materiallarına vurulur. Qış qar örtüyü üçün ayrıca shader parametri əlavə olunacaq.
 func apply_season_tint(tint: Color) -> void:
 	for m in VegetationAssets.cached_materials():
-		if m.transparency == BaseMaterial3D.TRANSPARENCY_ALPHA_SCISSOR:
+		if m is ShaderMaterial:
+			m.set_shader_parameter("tint",tint)
+		elif m.transparency == BaseMaterial3D.TRANSPARENCY_ALPHA_SCISSOR:
 			m.albedo_color = tint
 
 
@@ -453,6 +456,13 @@ func _add_tree_collider(pos: Vector3, radius: float) -> void:
 	col.shape = cs
 	col.position = pos + Vector3(0, 2.5, 0)
 	_colliders.add_child(col)
+	# Only standing collision trunks with meaningful diameter are anchors.
+	if radius >= 0.18:
+		var cell := Vector2i(floori(pos.x/32.0),floori(pos.z/32.0))
+		if not _winch_cells.has(cell):
+			_winch_cells[cell] = []
+		_winch_cells[cell].append({"point":pos+Vector3.UP*0.7,"collider":col})
+
 
 
 # --- render -------------------------------------------------------------------------
@@ -500,3 +510,16 @@ func _build_nodes() -> void:
 			shadow.visibility_range_end = SHADOW_RANGE
 			shadow.visibility_range_end_margin = FADE_MARGIN
 			add_child(shadow)
+
+
+func winch_anchors(position: Vector3,radius: float = 30.0) -> Array:
+	var found: Array = []
+	var center := Vector2i(floori(position.x/32.0),floori(position.z/32.0))
+	var cells := int(ceil(radius/32.0))
+	for x in range(center.x-cells,center.x+cells+1):
+		for z in range(center.y-cells,center.y+cells+1):
+			for anchor in _winch_cells.get(Vector2i(x,z),[]):
+				if position.distance_to(anchor["point"]) <= radius:
+					found.append(anchor)
+	found.sort_custom(func(a,b): return position.distance_squared_to(a["point"]) < position.distance_squared_to(b["point"]))
+	return found

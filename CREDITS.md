@@ -101,3 +101,20 @@ they are generic substitute effects for the other vehicles. Missing: authentic
 six-vehicle recording sets and measured RPM/load sweeps. Tire hiss, wind,
 collision thuds and mechanical transients are synthesized. No engine oscillator
 is used. Details: `docs/vehicle_audio.md`.
+
+
+### Recorded ignition and tree wind
+
+Nine starter edits use six source recordings, all disclosed substitutes; authentic
+Lada, Jeep and UAZ ignition recordings remain missing. Wind uses a stereo field
+recording. Sources below are Joseph Sardin / BigSoundBank (CC0):
+
+- Wind in the Trees: https://bigsoundbank.com/forest-wind-in-the-trees-s0904.html
+- Kia Carnival 2.9 diesel: https://bigsoundbank.com/big-diesel-engine-s0967.html
+- Unidentified car interior: https://bigsoundbank.com/cars-interior-off-s0557.html
+- Peugeot 106: https://bigsoundbank.com/car-difficult-start-s0872.html
+- Ford Courier: https://bigsoundbank.com/ford-courier-engine-s0896.html
+- AC Cobra 427: https://bigsoundbank.com/ac-cobra-engine-s0534.html
+- Peugeot 107: https://bigsoundbank.com/small-gasoline-engine-s0966.html
+
+Edit cuts and file hashes: `assets/audio/engines/RECOVERY_SOURCES.json`.

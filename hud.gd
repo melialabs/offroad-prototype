@@ -107,7 +107,7 @@ func _draw() -> void:
 	# düymə göstərişi: ilk 16 saniyə, sonra H ilə
 	var hint_a := 0.5 if _hints_forced else clampf((16.0 - _t) / 3.0, 0.0, 1.0) * 0.5
 	if hint_a > 0.01:
-		_text_c("W/S qaz  ·  A/D sükan  ·  Space əl əyləci  ·  Siçan kamera  ·  V rejim  ·  I mühərrik  ·  L fənər  ·  Z qəza  ·  N gecə  ·  Q diapazon  ·  E AWD  ·  F diferensial  ·  T təkər  ·  R bərpa  ·  M xəritə  ·  Esc menyu  ·  H göstəriş",
+		_text_c("W/S qaz  ·  A/D sükan  ·  Space əl əyləci  ·  Siçan kamera  ·  V rejim  ·  I mühərrik  ·  L fənər  ·  Z qəza  ·  N gecə  ·  Q diapazon  ·  E AWD  ·  F diferensial  ·  T təkər  ·  R bərpa  ·  M xəritə  ·  Esc menyu  ·  G tros  ·  Y ağac  ·  B çək  ·  H göstəriş",
 			Vector2(sz.x * 0.5, sz.y - 7.0 * s), int(11 * s), Color(1, 1, 1, hint_a))
 
 	if _toast_t > 0.0:

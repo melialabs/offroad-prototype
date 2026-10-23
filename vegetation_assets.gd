@@ -8,6 +8,8 @@ extends RefCounted
 const ROOT := "res://assets/vegetation/"
 
 static var _mat_cache := {}
+static var _wind_materials: Array[ShaderMaterial] = []
+static var _wind_shader: Shader
 
 
 ## Yüklənmiş bütün materiallar (fəsil rəngi üçün).
@@ -95,6 +97,29 @@ static func material_for(id: String, mat_name: String, foliage_texture: String, 
 			m.backlight = Color(0.25, 0.3, 0.15)
 		else:
 			m.cull_mode = BaseMaterial3D.CULL_BACK
+	# GPU wind on living plants; dead wood retains its original material.
+	if id not in ["dead_tree_trunk","tree_stump_01"] and m.albedo_texture != null:
+		if _wind_shader == null:
+			_wind_shader = load("res://vegetation_wind.gdshader")
+		var animated := ShaderMaterial.new()
+		animated.shader = _wind_shader
+		animated.resource_name = mat_name
+		animated.set_shader_parameter("albedo_tex",m.albedo_texture)
+		animated.set_shader_parameter("use_normal",m.normal_enabled)
+		animated.set_shader_parameter("use_arm",m.ao_enabled)
+		if m.normal_texture != null:
+			animated.set_shader_parameter("normal_tex",m.normal_texture)
+		if m.ao_texture != null:
+			animated.set_shader_parameter("arm_tex",m.ao_texture)
+		animated.set_shader_parameter("alpha_threshold",threshold)
+		animated.set_shader_parameter("cutout",m.transparency == BaseMaterial3D.TRANSPARENCY_ALPHA_SCISSOR)
+		animated.set_shader_parameter("vertex_tint",m.vertex_color_use_as_albedo)
+		var tree := id in ["pine_tree_01","fir_tree_01","pine_sapling_medium","pine_sapling_small","tree_small_02"]
+		animated.set_shader_parameter("height_scale",6.0 if tree else 0.8)
+		animated.set_shader_parameter("bend",0.025 if tree else 0.20)
+		_mat_cache[key] = animated
+		_wind_materials.append(animated)
+		return animated
 	_mat_cache[key] = m
 	return m
 
@@ -109,3 +134,10 @@ static func _material_files(id: String, mat_name: String) -> Dictionary:
 		return {}
 	var d: Dictionary = j.data
 	return d.get(mat_name, {})
+
+
+static func update_wind(clock: float,direction: Vector3,strength: float) -> void:
+	for material in _wind_materials:
+		material.set_shader_parameter("wind_clock",clock)
+		material.set_shader_parameter("wind_direction",direction)
+		material.set_shader_parameter("wind_strength",strength)

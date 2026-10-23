@@ -193,6 +193,7 @@ func _build_controls() -> VBoxContainer:
 		["A / D", "sükan"],
 		["Space", "əl əyləci"],
 		["R", "yola qaytar / aktiv yarışda Retry"],
+		["G / Y / B", "tros bağla-ayır / ağacı seç / basılı saxla və çək"],
 		["I", "mühərriki işə sal / söndür"],
 		["L", "fənərlər: söndür / yaxın / uzaq"],
 		["Z", "qəza işıqları"],

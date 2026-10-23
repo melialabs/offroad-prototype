@@ -174,6 +174,8 @@ func start_challenge(index: int) -> bool:
 	return true
 
 func _setup_run() -> void:
+	if main_node != null and main_node.winch != null:
+		main_node.winch.detach()
 	checkpoints.clear()
 	for p in HillClimbCatalog.checkpoint_path(routes[active_index]["points"]):
 		checkpoints.append(ground(p))

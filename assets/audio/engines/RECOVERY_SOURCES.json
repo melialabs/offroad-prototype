@@ -1,0 +1,174 @@
+{
+  "notice": "All starter assignments are explicitly disclosed substitutes. Nine vehicle-specific edits use six different source recordings. No authentic Lada/Jeep/UAZ start is claimed.",
+  "sources": {
+    "0904": {
+      "url": "https://bigsoundbank.com/forest-wind-in-the-trees-s0904.html",
+      "download": "https://bigsoundbank.com/UPLOAD/bwf-en/0904.wav",
+      "identity": "Wind in the Trees",
+      "author": "Joseph Sardin",
+      "license": "CC0"
+    },
+    "0967": {
+      "url": "https://bigsoundbank.com/big-diesel-engine-s0967.html",
+      "download": "https://bigsoundbank.com/UPLOAD/bwf-en/0967.wav",
+      "identity": "Kia Carnival 2.9 diesel",
+      "author": "Joseph Sardin",
+      "license": "CC0"
+    },
+    "0557": {
+      "url": "https://bigsoundbank.com/cars-interior-off-s0557.html",
+      "download": "https://bigsoundbank.com/UPLOAD/bwf-en/0557.wav",
+      "identity": "Unidentified car interior",
+      "author": "Joseph Sardin",
+      "license": "CC0"
+    },
+    "0872": {
+      "url": "https://bigsoundbank.com/car-difficult-start-s0872.html",
+      "download": "https://bigsoundbank.com/UPLOAD/bwf-en/0872.wav",
+      "identity": "Peugeot 106",
+      "author": "Joseph Sardin",
+      "license": "CC0"
+    },
+    "0896": {
+      "url": "https://bigsoundbank.com/ford-courier-engine-s0896.html",
+      "download": "https://bigsoundbank.com/UPLOAD/bwf-en/0896.wav",
+      "identity": "Ford Courier",
+      "author": "Joseph Sardin",
+      "license": "CC0"
+    },
+    "0534": {
+      "url": "https://bigsoundbank.com/ac-cobra-engine-s0534.html",
+      "download": "https://bigsoundbank.com/UPLOAD/bwf-en/0534.wav",
+      "identity": "AC Cobra 427",
+      "author": "Joseph Sardin",
+      "license": "CC0"
+    },
+    "0966": {
+      "url": "https://bigsoundbank.com/small-gasoline-engine-s0966.html",
+      "download": "https://bigsoundbank.com/UPLOAD/bwf-en/0966.wav",
+      "identity": "Peugeot 107",
+      "author": "Joseph Sardin",
+      "license": "CC0"
+    }
+  },
+  "files": [
+    {
+      "file": "start_scout.wav",
+      "seconds": 1.5,
+      "sha256": "f0c48cba54de0896cff63efe612543a0f73e01fcfbc690d745bd58499b194900",
+      "loop": false,
+      "vehicle": "scout",
+      "source": "0534",
+      "cut": [
+        0,
+        1.5
+      ]
+    },
+    {
+      "file": "start_cargo.wav",
+      "seconds": 1.5,
+      "sha256": "9842e40bc7c9ae4b61ac1dd1692db8869a5c994775127cb85fda9b0249e456a9",
+      "loop": false,
+      "vehicle": "cargo",
+      "source": "0967",
+      "cut": [
+        0,
+        1.5
+      ]
+    },
+    {
+      "file": "start_heavy.wav",
+      "seconds": 2.2,
+      "sha256": "47d771dc41401c0e90cc9f4ded71af45478fadc0aef5ff5e8e0734f0574be2f3",
+      "loop": false,
+      "vehicle": "heavy",
+      "source": "0896",
+      "cut": [
+        0,
+        2.2
+      ]
+    },
+    {
+      "file": "start_niva.wav",
+      "seconds": 1.7,
+      "sha256": "a793052d0b64836710f6145ca05f77afd357c7c6ab4d681fce0f1528826b6cc7",
+      "loop": false,
+      "vehicle": "niva",
+      "source": "0557",
+      "cut": [
+        3.1,
+        4.8
+      ]
+    },
+    {
+      "file": "start_lada2107.wav",
+      "seconds": 1.5,
+      "sha256": "ee6e4e4f3c97ab7a87b3bc97213166060ca7340896c5456b12cbbfc29530d1ae",
+      "loop": false,
+      "vehicle": "lada2107",
+      "source": "0966",
+      "cut": [
+        2,
+        3.5
+      ]
+    },
+    {
+      "file": "start_lada2106.wav",
+      "seconds": 2.0,
+      "sha256": "68dca318ece763fabd889789392f95a488ff74b264129e616fa06248244e32ee",
+      "loop": false,
+      "vehicle": "lada2106",
+      "source": "0872",
+      "cut": [
+        8,
+        10
+      ]
+    },
+    {
+      "file": "start_uaz_expedition.wav",
+      "seconds": 1.7,
+      "sha256": "7dc2b19ec005a7b001b5d929cafb707c6ac7bce417fbccc9a547af3dc23f459c",
+      "loop": false,
+      "vehicle": "uaz_expedition",
+      "source": "0557",
+      "cut": [
+        3.0,
+        4.7
+      ]
+    },
+    {
+      "file": "start_uaz452.wav",
+      "seconds": 1.95,
+      "sha256": "d5a9c691fa36463819b6ce11a9a9c870c86c2ef8a8f75badae949ad41ab12787",
+      "loop": false,
+      "vehicle": "uaz452",
+      "source": "0872",
+      "cut": [
+        8.2,
+        10.15
+      ]
+    },
+    {
+      "file": "start_uaz469.wav",
+      "seconds": 1.6,
+      "sha256": "e5546d5971ed4f3e87aefef15c70fd95ad4ff41dfae40e723376286dab7cf066",
+      "loop": false,
+      "vehicle": "uaz469",
+      "source": "0966",
+      "cut": [
+        1.9,
+        3.5
+      ]
+    },
+    {
+      "file": "../wind_trees.ogg",
+      "source": "0904",
+      "cut": [
+        12,
+        67
+      ],
+      "processing": "0.8s circular crossfade, DC removal, stereo level match, Vorbis",
+      "sha256": "8e6339c7c3a07ee30871238ec11c2e0e91f7a295eb6f55bb6fa98b1c6d1e97ed"
+    }
+  ]
+}

@@ -7,6 +7,8 @@ const SR := 22050
 
 var truck: OffroadTruck
 var main_node: Node
+var wind: WindField
+var _wind_trees: AudioStreamPlayer
 var enabled := true
 
 var engine_bank: VehicleEngineAudio
@@ -55,11 +57,12 @@ func _ready() -> void:
 	_engine = engine_bank.idle
 	_growl = engine_bank.rev
 	_load = engine_bank.load_layer
-	_starter = _player(load("res://assets/audio/engines/starter_v8.wav"), -13.0, false)
+	_starter = _player(load(EngineStartCatalog.path(truck.spec_idx if truck != null else 0)), -13.0, false)
 	_stopper = _player(load("res://assets/audio/engines/stop_v8.wav"), -16.0, false)
 	_road = _player(_noise_loop(1.6, 0.35, 0.02, 0.5), -80.0)
 	_mud = _player(_effect_loop("mud_foley"), -80.0)
 	_gravel = _player(_effect_loop("gravel_roll"), -80.0)
+	_wind_trees = _player(_recording("wind_trees"),-80.0)
 	_wind = _player(_noise_loop(2.4, 0.05, 0.002, 1.0), -80.0)
 	_bed = _player(_recording("forest"), -80.0)
 	_crickets = _player(_recording("crickets"), -80.0)
@@ -86,7 +89,7 @@ func _ready() -> void:
 			_play_sfx(_click,-23.0)
 		)
 		truck.vehicle_changed.connect(_on_vehicle_changed)
-	for p in [_road, _mud, _gravel, _wind, _bed, _crickets, _bird, _brook]:
+	for p in [_road, _mud, _gravel, _wind_trees, _wind, _bed, _crickets, _bird, _brook]:
 		# Long field recordings should not restart with the same bird call on
 		# every visit. Keep their pitch intact, with an independent loop phase.
 		var offset := 0.0
@@ -200,7 +203,9 @@ func _update_road(delta: float) -> void:
 
 
 func _update_ambient(delta: float) -> void:
-	_ambient_time += delta
+	_ambient_time = wind.clock if wind != null else _ambient_time+delta
+	var tree_wind := wind.strength if wind != null else (0.35 if _night_mix > 0.5 else 0.12)
+	_wind_trees.volume_db = _db(tree_wind*(0.75+0.25*_night_mix))-12.0
 	var day := 1.0 - _night_mix
 	# Smooth day/night crossfade, subdued at mountain altitude. Brook follows water.
 	var forest := 1.0 - smoothstep(70.0, 130.0, truck.global_position.y)
@@ -351,5 +356,5 @@ func _on_vehicle_changed(index: int) -> void:
 	_starter.stop()
 	_stopper.stop()
 	var identity := "v8" if index == 0 else "petrol"
-	_starter.stream = load("res://assets/audio/engines/starter_%s.wav" % identity)
+	_starter.stream = load(EngineStartCatalog.path(index))
 	_stopper.stream = load("res://assets/audio/engines/stop_%s.wav" % identity)

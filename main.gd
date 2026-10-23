@@ -7,6 +7,10 @@ var world_map: WorldMap
 var hud: Hud
 var menu: MainMenu
 var audio: GameAudio
+var wind: WindField
+var vegetation: Vegetation
+var winch: WinchRecovery
+var exhaust: ExhaustSmoke
 var _menu_open := false
 var _sun: DirectionalLight3D
 var _terrain: MudTerrain
@@ -62,6 +66,8 @@ void sky() {
 
 func _ready() -> void:
 	_setup_environment()
+	wind = WindField.new()
+	add_child(wind)
 
 	var terrain := MudTerrain.new()
 	add_child(terrain)
@@ -72,6 +78,14 @@ func _ready() -> void:
 	truck.terrain = terrain
 	add_child(truck)
 	_place_on_road()
+	winch = WinchRecovery.new()
+	winch.truck = truck
+	winch.forest = vegetation
+	add_child(winch)
+	exhaust = ExhaustSmoke.new()
+	exhaust.truck = truck
+	exhaust.wind = wind
+	add_child(exhaust)
 
 	cam = ChaseCamera.new()
 	cam.target = truck
@@ -81,6 +95,7 @@ func _ready() -> void:
 	audio = GameAudio.new()
 	audio.truck = truck
 	audio.main_node = self
+	audio.wind = wind
 	add_child(audio)
 
 	var layer := CanvasLayer.new()
@@ -206,7 +221,7 @@ func _build_scenery(terrain: MudTerrain) -> void:
 	var landmarks := WorldLandmarks.new()
 	add_child(landmarks)
 	landmarks.build(terrain)
-	var vegetation := Vegetation.new()
+	vegetation = Vegetation.new()
 	vegetation.name = "Vegetation"
 	add_child(vegetation)
 	vegetation.use_fade = OS.get_cmdline_user_args().has("fade")
@@ -267,6 +282,10 @@ func _tri(st: SurfaceTool, a: Vector3, b: Vector3, c: Vector3) -> void:
 
 ## Maşını asfalt yolun üzərinə, yolun istiqamətində qoyur.
 func _place_on_road() -> void:
+	if winch != null:
+		winch.detach()
+	if exhaust != null:
+		exhaust.reset()
 	var sp := _terrain.road_spawn()
 	truck.linear_velocity = Vector3.ZERO
 	truck.angular_velocity = Vector3.ZERO
@@ -336,6 +355,7 @@ func select_vehicle(i: int) -> void:
 ## Gündüz / gecə rejimi. Gecə: ulduzlu səma, zəif ay işığı, qaranlıq duman; fənərlər avtomatik yanır.
 func set_night(on: bool) -> void:
 	night = on
+	wind.night = on
 	_sky_mat.set_shader_parameter("night", 1.0 if on else 0.0)
 	if on:
 		_sky_mat.set_shader_parameter("top_col", Vector3(0.008, 0.015, 0.05))
