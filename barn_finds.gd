@@ -32,6 +32,8 @@ const RUMOR_OFFSET := [Vector2(28, -22), Vector2(-25, 30), Vector2(20, 26)]
 var truck: OffroadTruck
 var main: Node
 var sites: Array[Dictionary] = []
+## Skan materialları işıqsız (unlit) gəlir və gecə parlayır; işıq qəbul edən surətləri bütün qarajlar bölüşür.
+var _lit_cache: Dictionary = {}
 
 
 ## Bitki örtüyü qarajların ətrafında yer saxlayır (MudTerrain.activity_clearing).
@@ -67,6 +69,7 @@ func build(terrain: MudTerrain) -> void:
 			pivot.add_child(model)
 			root.add_child(pivot)
 			_corner_patch(root)
+			_make_lit(root)
 		_static_box(root, Vector3(0, HALF.y, 0), HALF * 2.0)
 		# gizli maşın qapının qarşısında, burnu yola baxır, örtük altında
 		var spec: int = s["vehicle"]
@@ -145,6 +148,23 @@ func take(s: Dictionary) -> void:
 	truck.angular_velocity = Vector3.ZERO
 	truck.global_transform = Transform3D(xf.basis, xf.origin + Vector3(0, 1.4, 0))
 	truck.message.emit(I18n.t("barn_taken") % I18n.vehicle(str(OffroadTruck.SPECS[s["spec"]]["name"])))
+
+
+func _make_lit(node: Node) -> void:
+	for n in node.find_children("*", "MeshInstance3D", true, false):
+		var mi := n as MeshInstance3D
+		for s in mi.mesh.get_surface_count():
+			var mat := mi.get_active_material(s) as BaseMaterial3D
+			if mat == null or mat.shading_mode != BaseMaterial3D.SHADING_MODE_UNSHADED:
+				continue
+			if not _lit_cache.has(mat):
+				var lit := mat.duplicate() as BaseMaterial3D
+				lit.shading_mode = BaseMaterial3D.SHADING_MODE_PER_PIXEL
+				lit.roughness = 1.0
+				lit.metallic = 0.0
+				lit.metallic_specular = 0.15
+				_lit_cache[mat] = lit
+			mi.set_surface_override_material(s, _lit_cache[mat])
 
 
 func _corner_patch(root: Node3D) -> void:
