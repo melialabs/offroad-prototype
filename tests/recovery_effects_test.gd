@@ -82,7 +82,7 @@ func run() -> void:
 		check(is_zero_approx(smoke.emission_rate),"stopping stops new smoke: %d" % i)
 		check(smoke.outlet == ExhaustSmoke.OUTLETS[i],"vehicle-specific exhaust outlet: %d" % i)
 		check(audio._starter.stream.resource_path.ends_with("start_%s.wav" % EngineStartCatalog.profile(i)["id"]),"selected vehicle has its own start sample: %d" % i)
-	check(smoke._multimesh.instance_count == 96,"exhaust pool stays bounded")
+	check(smoke._multimesh.instance_count == ExhaustSmoke.CAPACITY,"exhaust pool stays bounded")
 	main.set_night(false)
 	# Opening pause/failed challenge must never apply a winch force.
 	main._open_menu(true)
