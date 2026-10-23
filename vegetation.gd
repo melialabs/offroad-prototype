@@ -487,6 +487,8 @@ func _build_nodes() -> void:
 			var mmi := MultiMeshInstance3D.new()
 			mmi.name = "%s_%s_c%s_lod%d" % [sp, variant, (parts[2] + "_" + parts[3]).replace("-", "m"), l]
 			mmi.multimesh = mm
+			# Vertex wind can extend beyond the static imported mesh bounds.
+			mmi.extra_cull_margin = 2.5 if d["kind"] == "tree" else 0.8
 			var rng: Array = (d["lod"] as Array)[mini(l, (d["lod"] as Array).size() - 1)]
 			mmi.visibility_range_begin = float(rng[0])
 			mmi.visibility_range_end = float(rng[1])
@@ -506,6 +508,7 @@ func _build_nodes() -> void:
 			var shadow := MultiMeshInstance3D.new()
 			shadow.name = "%s_%s_c%s_shadow" % [sp, variant, (parts[2] + "_" + parts[3]).replace("-", "m")]
 			shadow.multimesh = sm
+			shadow.extra_cull_margin = 2.5
 			shadow.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_SHADOWS_ONLY
 			shadow.visibility_range_end = SHADOW_RANGE
 			shadow.visibility_range_end_margin = FADE_MARGIN

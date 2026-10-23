@@ -10,24 +10,45 @@ uniform float alpha_threshold = 0.5;
 uniform bool cutout = true;
 uniform bool vertex_tint = false;
 uniform float roughness_value = 0.85;
-uniform float bend = 0.018;
+uniform float bend = 0.1;
 uniform float height_scale = 1.0;
+uniform float root_height = 0.0;
+uniform float flutter = 0.15;
+uniform float sway_speed = 1.0;
+uniform bool woody = false;
 uniform float wind_clock = 0.0;
 uniform vec3 wind_direction = vec3(0.82,0.0,0.57);
 uniform float wind_strength = 0.2;
 void vertex() {
-	// MODEL_MATRIX includes the MultiMesh instance transform: phases remain
-	// coherent across chunks and LODs. Trunk bases/roots stay pinned.
-	vec3 world = (MODEL_MATRIX*vec4(VERTEX,1.0)).xyz;
-	float height = max(VERTEX.y,0.0);
-	float weight = clamp(height/max(height_scale,0.1),0.0,1.0);
-	float phase = dot(world.xz,vec2(0.075,0.053));
-	float sway = sin(wind_clock*1.25+phase)*0.7+sin(wind_clock*2.17+phase*1.8)*0.3;
-	vec3 offset = wind_direction * sway * wind_strength * bend * height * weight;
-	// Convert the world wind back into local coordinates; rotated/scaled
-	// instances still sway in the same direction. No per-instance CPU update.
-	VERTEX += inverse(mat3(MODEL_MATRIX))*offset;
+	// Use each variant's real LOD0 height, not a common 0.8 m grass height.
+	float h = max(VERTEX.y - root_height, 0.0);
+	float tip = clamp(h / max(height_scale, 0.03), 0.0, 1.0);
+	float weight = pow(tip, woody ? 1.65 : 1.1);
+	// World height includes instance scale. The old offset lost this scale
+	// when converted back into local space, hiding almost all grass motion.
+	float world_height = h * length(MODEL_MATRIX[1].xyz);
+	vec3 base = MODEL_MATRIX[3].xyz;
+	float phase = dot(base.xz, vec2(0.081, 0.057));
+	float t = wind_clock * sway_speed;
+	float wave = 0.25 + 0.65*sin(t + phase) + 0.25*sin(t*1.73 + phase*1.31);
+	vec3 direction = normalize(vec3(wind_direction.x, 0.0, wind_direction.z));
+	vec3 side = vec3(-direction.z, 0.0, direction.x);
+	vec3 offset = direction * wave * wind_strength * bend * world_height * weight;
+	// Leaf/blade flutter is separate from the coherent whole-plant bend.
+	float leaf_phase = phase + dot(VERTEX, vec3(2.1, 1.3, 0.7));
+	float ripple = sin(t*3.7 + leaf_phase) * 0.7 + sin(t*5.3 + leaf_phase*1.7)*0.3;
+	float detail = flutter * wind_strength * min(world_height, 2.0) * weight;
+	offset += side * ripple * detail;
+	offset.y += sin(t*4.1 + leaf_phase) * detail * 0.18;
+	// Forest instance bases are orthogonal rotation/scale. This conversion
+	// supports their nonuniform scales without a per-vertex matrix inverse.
+	vec3 bx = MODEL_MATRIX[0].xyz;
+	vec3 by = MODEL_MATRIX[1].xyz;
+	vec3 bz = MODEL_MATRIX[2].xyz;
+	VERTEX += vec3(dot(offset,bx),dot(offset,by),dot(offset,bz)) /
+		max(vec3(dot(bx,bx),dot(by,by),dot(bz,bz)),vec3(0.0001));
 }
+
 void fragment() {
 	vec4 tex = texture(albedo_tex,UV)*tint;
 	if (vertex_tint) { tex *= COLOR; }

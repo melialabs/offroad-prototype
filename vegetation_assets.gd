@@ -20,6 +20,7 @@ static func cached_materials() -> Array:
 ## {variant_name: [lod0_mesh, lod1_mesh, ...]}. glb tapılmasa boş lüğət.
 static func load_species(id: String, foliage_texture: String) -> Dictionary:
 	var result := {}
+	var wind_bounds := {}
 	var lod := 0
 	while ResourceLoader.exists(ROOT + "%s/%s_lod%d.glb" % [id, id, lod]):
 		var scene := load(ROOT + "%s/%s_lod%d.glb" % [id, id, lod]) as PackedScene
@@ -28,10 +29,17 @@ static func load_species(id: String, foliage_texture: String) -> Dictionary:
 			var node := mi as MeshInstance3D
 			var variant := _variant_of(node.name, id)
 			var mesh := node.mesh
+			# LODs of a variant share the same root/canopy scale. Small grass
+			# meshes are only 6–20 cm high before the forest instance scale.
+			if not wind_bounds.has(variant):
+				wind_bounds[variant] = mesh.get_aabb()
+			var bounds: AABB = wind_bounds[variant]
+			var root_height := maxf(0.0,bounds.position.y)
+			var plant_height := maxf(0.03,bounds.end.y-root_height)
 			for s in mesh.get_surface_count():
 				var m := mesh.surface_get_material(s)
 				var mname: String = m.resource_name if m != null else ""
-				mesh.surface_set_material(s, material_for(id, mname, foliage_texture, lod))
+				mesh.surface_set_material(s, material_for(id, mname, foliage_texture, lod,variant,plant_height,root_height))
 			if not result.has(variant):
 				result[variant] = []
 			(result[variant] as Array).resize(lod + 1)
@@ -53,8 +61,8 @@ static func _variant_of(node_name: String, id: String) -> String:
 const ALPHA_THRESHOLD := [0.5, 0.38, 0.26]
 
 
-static func material_for(id: String, mat_name: String, foliage_texture: String, lod: int = 0) -> Material:
-	var key := "%s|%s|%d" % [id, mat_name, lod]
+static func material_for(id: String, mat_name: String, foliage_texture: String, lod: int = 0,variant: String = "",plant_height: float = 1.0,root_height: float = 0.0) -> Material:
+	var key := "%s|%s|%d|%s" % [id, mat_name, lod,variant]
 	var threshold: float = ALPHA_THRESHOLD[mini(lod, ALPHA_THRESHOLD.size() - 1)]
 	if _mat_cache.has(key):
 		return _mat_cache[key]
@@ -114,14 +122,30 @@ static func material_for(id: String, mat_name: String, foliage_texture: String, 
 		animated.set_shader_parameter("alpha_threshold",threshold)
 		animated.set_shader_parameter("cutout",m.transparency == BaseMaterial3D.TRANSPARENCY_ALPHA_SCISSOR)
 		animated.set_shader_parameter("vertex_tint",m.vertex_color_use_as_albedo)
-		var tree := id in ["pine_tree_01","fir_tree_01","pine_sapling_medium","pine_sapling_small","tree_small_02"]
-		animated.set_shader_parameter("height_scale",6.0 if tree else 0.8)
-		animated.set_shader_parameter("bend",0.025 if tree else 0.20)
+		var profile := wind_profile(id)
+		animated.set_shader_parameter("height_scale",plant_height)
+		animated.set_shader_parameter("root_height",root_height)
+		animated.set_shader_parameter("bend",profile["bend"])
+		animated.set_shader_parameter("flutter",profile["flutter"])
+		animated.set_shader_parameter("sway_speed",profile["speed"])
+		animated.set_shader_parameter("woody",profile["woody"])
 		_mat_cache[key] = animated
 		_wind_materials.append(animated)
 		return animated
 	_mat_cache[key] = m
 	return m
+
+
+static func wind_profile(id: String) -> Dictionary:
+	if id in ["pine_tree_01","fir_tree_01"]:
+		return {"bend":.10,"flutter":.15,"speed":.85,"woody":true}
+	if id in ["pine_sapling_medium","tree_small_02"]:
+		return {"bend":.16,"flutter":.14,"speed":1.05,"woody":true}
+	if id == "pine_sapling_small":
+		return {"bend":.30,"flutter":.12,"speed":1.45,"woody":true}
+	if id.begins_with("grass_"):
+		return {"bend":.72,"flutter":.15,"speed":2.2,"woody":false}
+	return {"bend":.45,"flutter":.16,"speed":1.7,"woody":false}
 
 
 ## assets/vegetation/<id>/materials.json: material adı -> {diff, nor, arm} fayl adları (optimizator yazır).
