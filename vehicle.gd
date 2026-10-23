@@ -86,6 +86,16 @@ var fuel := 100.0
 var rpm := IDLE_RPM
 var mud_level := 0.0  # HUD üçün: orta batma dərəcəsi
 var wheel_slip := 0.0  # excess tread speed in m/s, averaged over contacting wheels
+## Estimated load per wheel (N) from suspension compression; 0 for wheels in the air.
+var wheel_load_n := PackedFloat32Array()
+## 0..1: how much of the weight the chassis belly carries after bottoming out on soil.
+var belly_support := 0.0
+var _mount_y := PackedFloat32Array()
+var _w_grip := PackedFloat32Array()
+var _w_soft := PackedFloat32Array()
+var _w_depth := PackedFloat32Array()
+var _w_asphalt := PackedByteArray()
+var _w_soil := PackedByteArray()
 
 ## HUD-a bildiriş göndərir (məs. mühərrik, işıq).
 signal message(text: String)
@@ -311,7 +321,9 @@ func _rebuild_wheels(r: float, positions: Array, meshes: Array) -> void:
 		w.queue_free()
 	wheels.clear()
 	wheel_meshes.clear()
+	_mount_y.clear()
 	for k in 4:
+		_mount_y.append((positions[k] as Vector3).y)
 		_add_wheel(positions[k], k >= 2)  # sıra: 0,1 arxa (-x,+x), 2,3 ön
 		var w := wheels[k]
 		w.wheel_radius = r
@@ -463,14 +475,10 @@ func _physics_process(delta: float) -> void:
 	# mühərrik dövrü təkərlərin fırlanmasından hesablanır
 	var rpm_sum := 0.0
 	var contact_n := 0
-	var min_skid := 1.0
 	for w in driven:
 		if w.is_in_contact():
 			rpm_sum += absf(w.get_rpm())
 			contact_n += 1
-			min_skid = minf(min_skid, w.get_skidinfo())
-		else:
-			min_skid = 0.0
 	var ratio := absf(_ratio()) * float(powertrain["final"])
 	var idle := float(powertrain["idle"])
 	var redline := float(powertrain["redline"])
@@ -501,10 +509,7 @@ func _physics_process(delta: float) -> void:
 			shift_remaining = float(powertrain["shift"])
 			gear_changed.emit(previous_gear, gear)
 
-	# açıq diferensial: sürüşən təkər gücü aparır, kilid bunu aradan qaldırır
-	var diff_factor := 1.0
-	if not diff_lock:
-		diff_factor = lerpf(1.0, clampf(min_skid, 0.3, 1.0), 0.7)
+	_update_wheel_state()
 
 	var wheel_r := wheels[0].wheel_radius
 	var total_force := _torque_at(rpm) * _ratio() * float(powertrain["final"]) * DRIVETRAIN_EFF / wheel_r * throttle
@@ -517,10 +522,13 @@ func _physics_process(delta: float) -> void:
 		total_force *= 0.12
 	if not running:
 		total_force = 0.0
-	if driven.size() > 0:
-		engine_force = total_force * diff_factor * clampf(1.0 - mud_level * 0.65, 0.25, 1.0) / driven.size()
-	else:
-		engine_force = 0.0
+	# Godot gives every driven wheel the same engine_force (an open differential equal
+	# torque split). The limit comes from per-wheel traction: open = weakest wheel, locked = mean.
+	var capacity := PackedFloat32Array()
+	for wi in wheels.size():
+		if wheels[wi].use_as_traction:
+			capacity.append(OffroadSurface.traction_capacity(_w_grip[wi], wheel_load_n[wi]))
+	engine_force = OffroadSurface.deliverable_force(total_force, capacity, diff_lock)
 	brake = braking * mass * 0.05
 
 	# hava müqaviməti
@@ -544,30 +552,28 @@ func _physics_process(delta: float) -> void:
 		terrain.prepare_mud(global_position)
 	if mud_spray != null:
 		mud_spray.stop_all()
-	var tire: Dictionary = TIRES[tire_idx]
 	var total_depth := 0.0
 	var soft_sum := 0.0
 	var contact_count := 0
 	for w in wheels:
 		if terrain != null and (not w.is_in_contact() or _is_soil_support(w)):
-			total_depth += terrain.depth_at(w.global_position)
+			total_depth += maxf(terrain.depth_at(w.global_position), 0.0)
 		if w.is_in_contact():
 			contact_count += 1
 	var slip_sum := 0.0
-	# Approximate equal static load; dynamic per-wheel load needs custom suspension.
-	var load_per_wheel := mass * 9.81 / maxi(contact_count, 1)
 	var tire_width := float(SUSPENSIONS[spec_idx]["width"])
 	for wi in wheels.size():
 		var w := wheels[wi]
 		if not w.is_in_contact() or terrain == null:
 			continue
 		var contact := w.get_contact_point()
-		var soil_support := _is_soil_support(w)
-		var soft := terrain.softness_at(contact) if soil_support else 0.0
-		var depth := terrain.depth_at(contact) if soil_support else 0.0
-		var asphalt := terrain.road_distance_fast(contact) < MudTerrain.ROAD_HALF
+		var soil_support := _w_soil[wi] != 0
+		var asphalt := _w_asphalt[wi] != 0
+		var soft := _w_soft[wi]
+		var depth := _w_depth[wi]
+		var load_n := wheel_load_n[wi]
 		soft_sum += soft
-		w.wheel_friction_slip = OffroadSurface.grip(tire, asphalt, soft, depth)
+		w.wheel_friction_slip = _w_grip[wi]
 		var offset := contact - global_position
 		var point_velocity := linear_velocity + angular_velocity.cross(offset)
 		var rolling_direction := global_basis.z
@@ -577,14 +583,28 @@ func _physics_process(delta: float) -> void:
 		var slip := OffroadSurface.slip_speed(w.get_rpm(), w.wheel_radius, ground_speed)
 		slip_sum += slip
 		if soil_support and not asphalt:
-			var rate := OffroadSurface.digging_rate(load_per_wheel, tire_width, w.wheel_radius, slip)
+			var rate := OffroadSurface.digging_rate(load_n, tire_width, w.wheel_radius, slip)
 			# Quarter-metre soil collision follows the real tire footprint.
-			terrain.deform(contact, maxf(tire_width * 0.75, 0.26), delta * rate)
+			var footprint := maxf(tire_width * 0.75, 0.26)
+			terrain.deform(contact, footprint, delta * rate)
+			terrain.compact(contact, footprint, delta * OffroadSurface.compaction_gain(load_n, tire_width, w.wheel_radius, slip))
 			if mud_spray != null:
 				mud_spray.contact(wi, contact, point_velocity, rolling_direction, w.get_rpm(), w.wheel_radius, soft, slip)
 			var horizontal := Vector3(point_velocity.x, 0.0, point_velocity.z)
 			var drag := OffroadSurface.resistance(soft, depth, w.wheel_radius)
 			apply_force(-horizontal * mass / maxi(contact_count, 1) * drag, offset)
+			# Sinkage resistance does not vanish at low speed: a sunk wheel must climb out.
+			var speed := horizontal.length()
+			if speed > 0.02:
+				var sink := OffroadSurface.sinkage_resistance(load_n, soft, depth, w.wheel_radius)
+				apply_force(-horizontal / speed * sink * clampf(speed / 0.5, 0.0, 1.0), offset)
+	# Chassis belly on soil: drags, and wheel_loads() already moved weight off the wheels.
+	if belly_support > 0.0 and terrain != null:
+		var belly_v := Vector3(linear_velocity.x, 0.0, linear_velocity.z)
+		var belly_speed := belly_v.length()
+		if belly_speed > 0.02:
+			var belly_drag := OffroadSurface.belly_drag_force(mass * 9.81, terrain.softness_at(global_position), belly_support)
+			apply_central_force(-belly_v / belly_speed * belly_drag * clampf(belly_speed / 0.5, 0.0, 1.0))
 	mud_level = total_depth / 4.0 / MudTerrain.MAX_DEPTH
 	wheel_slip = slip_sum / maxi(contact_count, 1)
 
@@ -605,6 +625,68 @@ func hud_text() -> String:
 	return "%s | dişli %s (%s) | %d dövr | yanacaq %d L\nAWD: %s [E] | diff kilid: %s [F] | təkər: %s [T] | diapazon [Q]" % [
 		spec["name"], gear_txt, "aşağı" if low_range else "yuxarı", int(rpm), int(fuel),
 		awd_txt, diff_txt, tire["name"]]
+
+
+## Suspension compression (m) from the wheel node displacement against its mount.
+## If Godot does not move the node, every wheel reports the same value (equal loads).
+func _wheel_compression(k: int) -> float:
+	if k >= _mount_y.size():
+		return 0.0
+	var w := wheels[k]
+	return w.wheel_rest_length - (_mount_y[k] - w.position.y)
+
+
+## Lowest clearance (m) between the chassis collider underside and the soil.
+func _belly_clearance() -> float:
+	if terrain == null or _col == null:
+		return 1.0
+	var box := _col.shape as BoxShape3D
+	var bottom := _col.position.y - box.size.y * 0.5
+	var zs: Array[float] = [-box.size.z * 0.35, 0.0, box.size.z * 0.35]
+	var lowest := 1.0
+	for z: float in zs:
+		var p := to_global(Vector3(_col.position.x, bottom, _col.position.z + z))
+		lowest = minf(lowest, p.y - terrain.height_at(p))
+	return lowest
+
+
+## Per-wheel load, surface sample and grip, computed once per physics step.
+func _update_wheel_state() -> void:
+	var n := wheels.size()
+	var compression := PackedFloat32Array()
+	compression.resize(n)
+	var touching := PackedByteArray()
+	touching.resize(n)
+	_w_grip.resize(n)
+	_w_soft.resize(n)
+	_w_depth.resize(n)
+	_w_asphalt.resize(n)
+	_w_soil.resize(n)
+	belly_support = OffroadSurface.belly_support(_belly_clearance())
+	for k in n:
+		touching[k] = 1 if wheels[k].is_in_contact() else 0
+		compression[k] = _wheel_compression(k)
+	wheel_load_n = OffroadSurface.wheel_loads(compression, touching, OffroadSurface.wheel_weight(mass * 9.81, belly_support))
+	var tire: Dictionary = TIRES[tire_idx]
+	for k in n:
+		_w_soft[k] = 0.0
+		_w_depth[k] = 0.0
+		_w_asphalt[k] = 0
+		_w_soil[k] = 0
+		_w_grip[k] = float(tire["hard"])
+		if touching[k] == 0 or terrain == null:
+			continue
+		var w := wheels[k]
+		var contact := w.get_contact_point()
+		var soil := _is_soil_support(w)
+		var asphalt := terrain.road_distance_fast(contact) < MudTerrain.ROAD_HALF
+		var soft := terrain.softness_at(contact) if soil else 0.0
+		var depth := maxf(terrain.depth_at(contact), 0.0) if soil else 0.0
+		_w_soil[k] = 1 if soil else 0
+		_w_asphalt[k] = 1 if asphalt else 0
+		_w_soft[k] = soft
+		_w_depth[k] = depth
+		_w_grip[k] = OffroadSurface.grip(tire, asphalt, soft, depth)
 
 
 func _is_soil_support(wheel: VehicleWheel3D) -> bool:

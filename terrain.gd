@@ -19,6 +19,7 @@ var _trail_bins := {}
 const DETAIL_SIZE := 16.0
 var _fine_patches := {}
 var _rut_cache := {}
+var _compaction_cache := {}
 var _detail_center := Vector2i(99999, 99999)
 const SWAMPS := [Vector3(-365, -425, 24), Vector3(-318, -230, 30), Vector3(-270, 22, 25)]
 
@@ -531,6 +532,9 @@ func _to_grid(world_pos: Vector3) -> Vector2:
 
 
 func softness_at(world_pos: Vector3) -> float:
+	var patch = _fine_patches.get(_detail_key(world_pos))
+	if patch != null:
+		return patch.soft_at(world_pos)
 	var g := _to_grid(world_pos)
 	var x := roundi(g.x)
 	var z := roundi(g.y)
@@ -596,6 +600,14 @@ func road_spawn() -> Dictionary:
 	return {"pos": Vector3(p.x, _road_h[i], p.y), "yaw": atan2(dir.x, dir.y)}
 
 
+## Fırlanmadan yuvarlanan təkərin altındakı torpağı sıxlaşdırır.
+func compact(world_pos: Vector3, radius: float, amount: float) -> void:
+	if amount <= 0.0 or road_distance_fast(world_pos) < ROAD_HALF + 0.6:
+		return
+	for patch in _fine_patches.values():
+		patch.compact(world_pos, radius, amount)
+
+
 ## Təkərin basdığı yeri batırır.
 func deform(world_pos: Vector3, radius: float, amount: float) -> void:
 	if amount <= 0.0 or road_distance_fast(world_pos) < ROAD_HALF + 0.6:
@@ -650,11 +662,14 @@ func prepare_mud(p: Vector3) -> void:
 	for key: Vector2i in _fine_patches.keys():
 		if absi(key.x - center.x) > 1 or absi(key.y - center.y) > 1:
 			_rut_cache[key] = _fine_patches[key].depths.duplicate()
+			_compaction_cache[key] = _fine_patches[key].compaction.duplicate()
 			_fine_patches[key].free()
 			_fine_patches.erase(key)
 			changed.append(key)
 	while _rut_cache.size() > 256:
-		_rut_cache.erase(_rut_cache.keys()[0])
+		var oldest = _rut_cache.keys()[0]
+		_rut_cache.erase(oldest)
+		_compaction_cache.erase(oldest)
 	for z in range(center.y - 1, center.y + 2):
 		for x in range(center.x - 1, center.x + 2):
 			var key := Vector2i(x, z)

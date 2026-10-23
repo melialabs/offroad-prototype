@@ -6,6 +6,11 @@ const SIDE := 65
 var terrain: MudTerrain
 var tile: Vector2i
 var depths := PackedFloat32Array()
+## 0..1 per cell: soil firmed by passing wheels (reduces later digging, raises grip).
+var compaction := PackedFloat32Array()
+## Largest height a pushed-aside rim may rise above the original ground (m).
+const BERM_MAX := 0.12
+const BERM_SHARE := 0.22
 var _base := PackedFloat32Array()
 var _soft := PackedFloat32Array()
 var _uv := PackedVector2Array()
@@ -20,6 +25,8 @@ func _ready() -> void:
 	position = Vector3(tile.x * 16.0, 0, tile.y * 16.0)
 	if depths.is_empty():
 		depths.resize(SIDE * SIDE)
+	if compaction.is_empty():
+		compaction.resize(SIDE * SIDE)
 	for z in SIDE:
 		for x in SIDE:
 			var p := position + Vector3(x * STEP, 0, z * STEP)
@@ -74,7 +81,7 @@ func _rebuild() -> void:
 			normals.append(Vector3(-dx, 2.0 * STEP, -dz).normalized())
 			var t := Vector3(2.0 * STEP, dx, 0).normalized()
 			tangents.append_array([t.x, t.y, t.z, 1.0])
-			colors.append(Color(depths[i] / MudTerrain.MAX_DEPTH, _soft[i], 0, 1))
+			colors.append(Color(maxf(depths[i], 0.0) / MudTerrain.MAX_DEPTH, _soft[i], 0, 1))
 			heights.append(y)
 	var arrays := []
 	arrays.resize(Mesh.ARRAY_MAX)
@@ -104,6 +111,35 @@ func dig(p: Vector3, radius: float, amount: float) -> void:
 	var gx := (p.x - position.x) / STEP
 	var gz := (p.z - position.z) / STEP
 	var reach := maxf(radius, STEP)
+	# Displaced soil piles up in a ring just outside the contact, so ruts get raised edges.
+	var outer := reach * 1.5
+	if gx < -outer / STEP or gz < -outer / STEP or gx > 64 + outer / STEP or gz > 64 + outer / STEP:
+		return
+	for z in range(maxi(ceili(gz - outer / STEP), 0), mini(floori(gz + outer / STEP), 64) + 1):
+		for x in range(maxi(ceili(gx - outer / STEP), 0), mini(floori(gx + outer / STEP), 64) + 1):
+			var d := Vector2(x - gx, z - gz).length() * STEP
+			if d > outer:
+				continue
+			var i := z * SIDE + x
+			var world := position + Vector3(x * STEP, 0, z * STEP)
+			if terrain.road_distance_fast(world) < MudTerrain.ROAD_HALF + 0.6:
+				continue
+			var soft := OffroadSurface.effective_softness(_soft[i], compaction[i])
+			if d <= reach:
+				var rim := terrain._detail_floor(Vector2(world.x, world.z)) / MudTerrain.DETAIL_UNDERFLOOR
+				var profile := 1.0 - smoothstep(reach * 0.3, reach, d)
+				depths[i] = minf(depths[i] + amount * profile * soft * rim, MudTerrain.MAX_DEPTH * _soft[i])
+			else:
+				var ring := 1.0 - (d - reach) / (outer - reach)
+				depths[i] = maxf(depths[i] - amount * BERM_SHARE * ring * soft, -BERM_MAX * _soft[i])
+			_dirty = true
+
+
+## Firms the soil under a wheel that rolls without digging (rate already includes load).
+func compact(p: Vector3, radius: float, amount: float) -> void:
+	var gx := (p.x - position.x) / STEP
+	var gz := (p.z - position.z) / STEP
+	var reach := maxf(radius, STEP)
 	if gx < -reach / STEP or gz < -reach / STEP or gx > 64 + reach / STEP or gz > 64 + reach / STEP:
 		return
 	for z in range(maxi(ceili(gz - reach / STEP), 0), mini(floori(gz + reach / STEP), 64) + 1):
@@ -112,10 +148,12 @@ func dig(p: Vector3, radius: float, amount: float) -> void:
 			if d > reach:
 				continue
 			var i := z * SIDE + x
-			var world := position + Vector3(x * STEP, 0, z * STEP)
-			if terrain.road_distance_fast(world) < MudTerrain.ROAD_HALF + 0.6:
-				continue
-			var rim := terrain._detail_floor(Vector2(world.x, world.z)) / MudTerrain.DETAIL_UNDERFLOOR
-			var profile := 1.0 - smoothstep(reach * 0.3, reach, d)
-			depths[i] = minf(depths[i] + amount * profile * _soft[i] * rim, MudTerrain.MAX_DEPTH * _soft[i])
-			_dirty = true
+			compaction[i] = minf(compaction[i] + amount * (1.0 - d / reach), 1.0)
+
+
+## Softness seen by tires: the base value reduced by compaction (nearest cell).
+func soft_at(p: Vector3) -> float:
+	var x := clampi(roundi((p.x - position.x) / STEP), 0, SIDE - 1)
+	var z := clampi(roundi((p.z - position.z) / STEP), 0, SIDE - 1)
+	var i := z * SIDE + x
+	return OffroadSurface.effective_softness(_soft[i], compaction[i])
