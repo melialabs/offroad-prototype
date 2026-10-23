@@ -5,7 +5,7 @@ extends Node3D
 const CAPACITY := 144
 # +Z is forward. Rear tips measured outside imported body bounds (including
 # bumpers/accessories); trucks use upright stacks outside the procedural cab.
-const OUTLETS := [Vector3(.68,-.48,-2.16),Vector3(.92,1.3,-.35),Vector3(.92,1.5,-.45),Vector3(-.55,-.48,-1.93),Vector3(-.52,-.47,-2.13),Vector3(-.57,-.48,-2.15),Vector3(.82,-.58,-2.62),Vector3(.46,-.60,-2.45),Vector3(.32,-.48,-2.36)]
+const OUTLETS := [Vector3(.42,-.48,-2.16),Vector3(.92,1.3,-.35),Vector3(.92,1.5,-.45),Vector3(-.55,-.48,-1.93),Vector3(-.52,-.47,-2.13),Vector3(-.57,-.48,-2.15),Vector3(.82,-.58,-2.62),Vector3(.46,-.60,-2.45),Vector3(.32,-.48,-2.36)]
 const CYLINDERS := [6,6,8,4,4,4,4,4,4]
 var truck: OffroadTruck
 var wind: WindField
@@ -155,7 +155,8 @@ func _process(delta: float) -> void:
 	var world_direction := (truck.global_basis*direction).normalized()
 	_pipe.global_transform = Transform3D(Basis.looking_at(-world_direction,truck.global_basis.z if diesel else truck.global_basis.y),mouth)
 	# Trucks have a long stack behind the cab; passenger cars a short tailpipe.
-	_pipe.scale = Vector3(1.25,1.25,4.8) if diesel else Vector3.ONE
+	# The Jeep's tailpipe runs forward under the frame (clear of the rear tyre) instead of hanging off the bumper.
+	_pipe.scale = Vector3(1.25,1.25,4.8) if diesel else (Vector3(1.4,1.4,3.8) if truck.spec_idx == 0 else Vector3.ONE)
 	var state := truck.engine_state
 	if state == OffroadTruck.EngineState.RUNNING and _previous_state == OffroadTruck.EngineState.CRANKING:
 		startup = 1.8

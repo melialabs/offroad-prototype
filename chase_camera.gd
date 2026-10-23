@@ -15,7 +15,7 @@ const MODE_NAMES := ["Yaxın kamera", "Uzaq kamera", "Kapot kamerası"]
 # dist: maşından geriyə məsafə, height: yerdən yuxarı, look_h: baxış nöqtəsinin hündürlüyü,
 # drop: baxış nöqtəsi aşağı salınır (maşın kadrda yuxarı qalxır, aşağı HUD-a düşmür), ahead: baxış nöqtəsi irəlidə, fov: bazis görmə bucağı, yaw_rate: dönmə gecikməsi, pos_rate: mövqe gecikməsi
 const PARAMS := [
-	{"dist": 4.5, "height": 1.65, "look_h": 1.2, "drop": 1.4, "ahead": 4.5, "fov": 68.0, "yaw_rate": 4.2, "pos_rate": 14.0},
+	{"dist": 5.3, "height": 2.35, "look_h": 1.3, "drop": 1.0, "ahead": 6.0, "fov": 68.0, "yaw_rate": 5.0, "pos_rate": 26.0},
 	{"dist": 9.5, "height": 4.2, "look_h": 1.0, "drop": 0.9, "ahead": 0.0, "fov": 70.0, "yaw_rate": 3.0, "pos_rate": 8.0},
 ]
 ## Kapot kamerası: sürücü gözü, maşının lokal koordinatında (irəli +Z, sol +X)
@@ -161,7 +161,7 @@ func _update_chase(delta: float) -> void:
 	_relax_mouse(delta)
 	var yaw := _yaw + mouse_yaw
 	var dir := Vector3(sin(yaw), 0.0, cos(yaw))
-	var dist: float = float(p["dist"]) + clampf(speed / 18.0, 0.0, 1.0) * 1.1
+	var dist: float = float(p["dist"]) + clampf(speed / 18.0, 0.0, 1.0) * 0.5
 	var anchor := target.global_position + Vector3.UP * float(p["look_h"])
 	# pitch: kamera maşının ətrafında şaquli qövs üzrə qalxır/enir (0 = hazır kadr)
 	var rise := float(p["height"]) + sin(mouse_pitch) * dist
@@ -176,6 +176,8 @@ func _update_chase(delta: float) -> void:
 	if terrain != null:
 		desired.y = maxf(desired.y, terrain.height_at(desired) + 0.9)
 
+	# Lead the smoothing target by the truck's velocity so the camera does not trail behind at speed.
+	desired += target.linear_velocity * (0.85 / float(p["pos_rate"]))
 	if _snap or global_position.distance_to(desired) > 40.0:
 		global_position = desired
 	else:

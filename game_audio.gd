@@ -189,7 +189,8 @@ func _update_road(delta: float) -> void:
 	_road.pitch_scale = pitch
 	_mud.pitch_scale = clampf(0.7 + _speed / 25.0, 0.7, 1.6)
 	var road_gain := 1.0 - soft
-	_road.volume_db = _db(amt * road_gain * (1.0 if on_road else 0.18)) - 15.0
+	# The synthetic low-passed noise "road" layer (pitch rising with speed) sounded like a wind drone; kept silent.
+	_road.volume_db = -80.0
 	_gravel.volume_db = _db(amt * road_gain * (0.0 if on_road else 0.8)) - 17.0
 	_gravel.pitch_scale = clampf(0.8+_speed/30.0,0.8,1.5)
 	# A stationary idling engine does not churn mud; spinning wheels do.
