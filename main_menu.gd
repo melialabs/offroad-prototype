@@ -44,6 +44,8 @@ var _panel: PanelContainer
 var _holder: VBoxContainer
 var _lang_buttons := {}
 var _footer: Label
+var _logo: TextureRect
+var _tagline: Label
 
 
 func _ready() -> void:
@@ -55,7 +57,7 @@ func _ready() -> void:
 
 func open(game_running: bool) -> void:
 	in_game = game_running
-	_bg.visible = not in_game
+	_bg.visible = not in_game and _page != "vehicle"
 	_fog.visible = true
 	_fog.anchor_left = 0.4 if in_game else 0.66
 	_fog.modulate.a = 1.0 if in_game else 0.7
@@ -175,7 +177,8 @@ func _build() -> void:
 	col.add_theme_constant_override("separation", 8)
 	_panel.add_child(col)
 
-	var logo := TextureRect.new()
+	_logo = TextureRect.new()
+	var logo := _logo
 	if ResourceLoader.exists(LOGO_PATH):
 		logo.texture = load(LOGO_PATH)
 	logo.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
@@ -184,6 +187,7 @@ func _build() -> void:
 	logo.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	col.add_child(logo)
 	var sub := Label.new()
+	_tagline = sub
 	sub.name = "Tagline"
 	sub.add_theme_font_size_override("font_size", 16)
 	sub.add_theme_color_override("font_color", Color(INK, 0.75))
@@ -284,11 +288,11 @@ func _build_vehicle() -> VBoxContainer:
 	hint.add_theme_color_override("font_color", Color(INK, 0.75))
 	v.add_child(hint)
 	var grid := GridContainer.new()
-	grid.columns = 2
+	grid.columns = 1
 	grid.add_theme_constant_override("h_separation", 10)
 	grid.add_theme_constant_override("v_separation", 10)
 	var scroll := ScrollContainer.new()
-	scroll.custom_minimum_size = Vector2(BTN_W * 2.0 + 40.0, clampf(get_viewport_rect().size.y - 380, 220, 380))
+	scroll.custom_minimum_size = Vector2(BTN_W + 20.0, clampf(get_viewport_rect().size.y - 230, 260, 560))
 	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	grid.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	scroll.add_child(grid)
@@ -429,12 +433,22 @@ func _cycle_language() -> void:
 
 
 func _show_page(p: String) -> void:
+	var was_garage := _page == "vehicle"
 	_page = p
+	if main != null and main.has_method("enter_garage"):
+		if p == "vehicle":
+			main.enter_garage()
+		elif was_garage:
+			main.leave_garage()
+	_bg.visible = not in_game and p != "vehicle"
+	_fog.visible = p != "vehicle"
+	_logo.visible = p != "vehicle"
+	_tagline.visible = p != "vehicle"
 	for k in _pages:
 		(_pages[k] as Control).visible = (k == p)
 	# ana səhifədə panel şəffaf, alt səhifələrdə sis fonlu kart
 	var sb := StyleBoxFlat.new()
-	sb.bg_color = Color(FOG, 0.0 if p == "main" else 0.93)
+	sb.bg_color = Color(FOG, 0.0 if p == "main" else (0.82 if p == "vehicle" else 0.93))
 	sb.set_corner_radius_all(6)
 	sb.set_content_margin_all(0 if p == "main" else 22)
 	_panel.add_theme_stylebox_override("panel", sb)

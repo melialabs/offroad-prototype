@@ -27,6 +27,9 @@ var mode: int = Mode.CLOSE
 
 ## Menyu açıq olanda maşının ətrafında yavaş fırlanır, maşın ekranın sağında qalır.
 var menu_orbit := false
+## Qaraj səhifəsi: kamera qarajın içində maşının ətrafında yavaş ellips üzrə dolanır.
+var garage_mode := false
+var garage_center := Vector3.ZERO
 
 ## Siçanla verilmiş əlavə bucaqlar (radian): yaw sağa-sola, pitch yuxarı-aşağı (müsbət = kamera yuxarıdan baxır)
 var mouse_yaw := 0.0
@@ -109,6 +112,16 @@ func _physics_process(delta: float) -> void:
 
 
 func _update_orbit(delta: float) -> void:
+	if garage_mode:
+		# otağın uzun divarı boyunca yavaş gediş-gəliş: maşın bütöv görünür
+		_orbit_angle += delta * 0.16
+		var gc := garage_center
+		var gpos := gc + Vector3(sin(_orbit_angle) * 3.4, 1.3 + 0.15 * sin(_orbit_angle * 1.7), -4.0)
+		look_at_from_position(gpos, gc + Vector3(-1.9, 0.7, 0), Vector3.UP)
+		fov = 62.0
+		_fov = 62.0
+		_snap = true
+		return
 	_orbit_angle += delta * 0.22
 	var c := target.global_position
 	var pos := c + Vector3(cos(_orbit_angle) * 7.2, 2.3, sin(_orbit_angle) * 7.2)

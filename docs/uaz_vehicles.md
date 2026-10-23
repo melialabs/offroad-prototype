@@ -44,9 +44,3 @@ checks passed; Metal rendering and listening/audio balance need a normal game
 session on the Mac.
 
 Attribution and supplied metadata limitations are in `CREDITS.md`.
-
-## Heavy truck (Kenworth-style)
-Vehicle 3 (Heavy truck) uses the supplied Kenwood model (`assets/cars/truck_kenworth.glb`, prepared with
-`tools/prepare_kenworth_model.py`). Physics keeps four wheels: the steering front axle and one rear anchor per
-side at the tandem midpoint; the four rear tyres are visual followers (`CarModel.extra_wheels`). The cargo
-truck (vehicle 2) still uses the box placeholder.

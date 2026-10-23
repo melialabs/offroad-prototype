@@ -281,6 +281,83 @@ func _tri(st: SurfaceTool, a: Vector3, b: Vector3, c: Vector3) -> void:
 
 
 ## Maşını asfalt yolun üzərinə, yolun istiqamətində qoyur.
+const GARAGE_SCENE := "res://assets/garage/garage.glb"
+## Qaraj otağı dünyadan çox yuxarıda qurulur (10 x 6 x 4 m); mənbə modeli: assets/garage/garage.glb
+const GARAGE_POS := Vector3(0.0, 900.0, 0.0)
+const GARAGE_SPOT := Vector3(0.3, 0.9, 1.4)  # maşının dayanacağı yer (çuxurun üstü), otağa görə
+var garage: Node3D
+var garage_active := false
+var _saved_light := Vector2.ZERO  # günəş və ambient enerjisi (qarajdan çıxanda bərpa)
+
+
+func _build_garage() -> void:
+	if garage != null or not ResourceLoader.exists(GARAGE_SCENE):
+		return
+	garage = Node3D.new()
+	garage.position = GARAGE_POS
+	var room := (load(GARAGE_SCENE) as PackedScene).instantiate() as Node3D
+	garage.add_child(room)
+	var floor_body := StaticBody3D.new()
+	var shape := CollisionShape3D.new()
+	var box := BoxShape3D.new()
+	box.size = Vector3(10.4, 0.6, 6.4)
+	shape.shape = box
+	shape.position = Vector3(0, -0.3, 0)
+	floor_body.add_child(shape)
+	garage.add_child(floor_body)
+	for p in [Vector3(-3.0, 3.3, 0.0), Vector3(1.0, 3.3, 0.0), Vector3(3.8, 3.3, 0.0), Vector3(-1.0, 3.3, -2.2), Vector3(-1.0, 3.3, 2.2)]:
+		var l := OmniLight3D.new()
+		l.position = p
+		l.light_color = Color(1.0, 0.95, 0.85)
+		l.light_energy = 1.6
+		l.omni_range = 7.5
+		garage.add_child(l)
+	garage.visible = false
+	add_child(garage)
+
+
+## Qaraj səhifəsi: maşın qarajın içinə qoyulur, kamera otağın içində fırlanır.
+func enter_garage() -> void:
+	_build_garage()
+	if garage == null or garage_active:
+		return
+	garage_active = true
+	garage.visible = true
+	_saved_light = Vector2(_sun.light_energy, _env.ambient_light_energy)
+	_sun.light_energy = 0.0
+	_env.ambient_light_energy = 0.28
+	cam.garage_center = GARAGE_POS + GARAGE_SPOT
+	cam.garage_mode = true
+	_park_in_garage()
+
+
+func leave_garage() -> void:
+	if not garage_active:
+		return
+	garage_active = false
+	garage.visible = false
+	cam.garage_mode = false
+	_restore_world_light()
+	_place_on_road()
+
+
+func _restore_world_light() -> void:
+	_sun.light_energy = _saved_light.x
+	_env.ambient_light_energy = _saved_light.y
+
+
+func _park_in_garage() -> void:
+	if winch != null:
+		winch.detach()
+	if exhaust != null:
+		exhaust.reset()
+	truck.linear_velocity = Vector3.ZERO
+	truck.angular_velocity = Vector3.ZERO
+	# irəli (+Z) otağın +X ucuna (rulon qapıya) baxır
+	truck.global_transform = Transform3D(Basis(Vector3.UP, PI / 2.0), GARAGE_POS + GARAGE_SPOT + Vector3(0, 0.6, 0))
+	cam.snap()
+
+
 func _place_on_road() -> void:
 	if winch != null:
 		winch.detach()
@@ -318,6 +395,11 @@ func _open_menu(game_running: bool) -> void:
 
 
 func _close_menu() -> void:
+	if garage_active:
+		garage_active = false
+		garage.visible = false
+		cam.garage_mode = false
+		_restore_world_light()
 	_menu_open = false
 	cam.reset_mouse_look()
 	_set_mouse_capture(true)
@@ -349,7 +431,10 @@ func select_vehicle(i: int) -> void:
 	if activities != null:
 		activities.exit_challenge()
 	truck.apply_spec(i)
-	_place_on_road()
+	if garage_active:
+		_park_in_garage()
+	else:
+		_place_on_road()
 
 
 ## Gündüz / gecə rejimi. Gecə: ulduzlu səma, zəif ay işığı, qaranlıq duman; fənərlər avtomatik yanır.
