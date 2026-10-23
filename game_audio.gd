@@ -199,13 +199,18 @@ func _update_road(delta: float) -> void:
 	_wind.pitch_scale = 1.0
 	var summit_wind := smoothstep(70.0, 150.0, truck.global_position.y) * 0.35
 	var gust := 0.68 + 0.20 * sin(_ambient_time * 0.31) + 0.12 * sin(_ambient_time * 0.73 + 1.4)
-	_wind.volume_db = _db(summit_wind * gust) - 14.0
+	_wind.volume_db = _db(summit_wind * gust * _wind_still()) - 14.0
+
+
+# Wind is only audible while the truck is parked; it fades out once driving.
+func _wind_still() -> float:
+	return 1.0 - smoothstep(1.0, 4.0, _speed)
 
 
 func _update_ambient(delta: float) -> void:
 	_ambient_time = wind.clock if wind != null else _ambient_time+delta
 	var tree_wind := wind.strength if wind != null else (0.35 if _night_mix > 0.5 else 0.12)
-	_wind_trees.volume_db = _db(tree_wind*(0.75+0.25*_night_mix))-12.0
+	_wind_trees.volume_db = _db(tree_wind*(0.75+0.25*_night_mix)*_wind_still())-12.0
 	var day := 1.0 - _night_mix
 	# Smooth day/night crossfade, subdued at mountain altitude. Brook follows water.
 	var forest := 1.0 - smoothstep(70.0, 130.0, truck.global_position.y)
