@@ -75,11 +75,27 @@ func run() -> void:
 	t.global_position = Vector3(600, 10, 600)
 	a._update_ambient(0.1)
 	check(a._brook.volume_db < near_water - 30.0, "water recording fades with distance from the lake")
+	# Vehicle speed must not introduce wind; the natural forest bed stays intact.
+	t.global_position = Vector3(0,10,0)
+	t.linear_velocity = Vector3.ZERO
+	a._update_ambient(.1)
+	var forest_wind := a._wind_trees.volume_db
+	t.linear_velocity = Vector3(0,0,40)
+	a._update_road(5.0)
+	a._update_ambient(.1)
+	check(a._wind.volume_db < -70.0, "fast driving adds no wind rush")
+	check(is_equal_approx(a._wind_trees.volume_db,forest_wind), "natural forest wind is independent of vehicle speed")
+	t.linear_velocity = Vector3.ZERO
+	a._speed = 0.0
 	t.global_position = Vector3(492, 180, 382)
 	a._update_ambient(0.1)
 	check(a._bird.volume_db < -70.0, "summit does not sound like the forest floor")
 	a._update_road(0.1)
 	var first_wind := a._wind.volume_db
+	t.linear_velocity = Vector3(0,0,40)
+	a._update_road(5.0)
+	check(is_equal_approx(a._wind.volume_db,first_wind) and is_equal_approx(a._wind.pitch_scale,1.0), "mountain wind gain and pitch ignore driving speed")
+	t.linear_velocity = Vector3.ZERO
 	# Ambient gusts now read the shared wind clock.
 	main.wind.advance(7.0)
 	a._update_ambient(7.0)

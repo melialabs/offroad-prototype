@@ -195,11 +195,11 @@ func _update_road(delta: float) -> void:
 	# A stationary idling engine does not churn mud; spinning wheels do.
 	var churn := clampf(truck.wheel_slip / 8.0, 0.0, 1.0) * grounded
 	_mud.volume_db = _db(amt * soft + 0.3 * soft * churn) - 7.0
-	var wamt := clampf(_speed / 35.0, 0.0, 1.0)
-	_wind.pitch_scale = 0.8 + wamt * 0.7
+	# Environmental wind only: driving speed must not add a rushing-wind layer.
+	_wind.pitch_scale = 1.0
 	var summit_wind := smoothstep(70.0, 150.0, truck.global_position.y) * 0.35
 	var gust := 0.68 + 0.20 * sin(_ambient_time * 0.31) + 0.12 * sin(_ambient_time * 0.73 + 1.4)
-	_wind.volume_db = _db(maxf(wamt * wamt, summit_wind * gust)) - 14.0
+	_wind.volume_db = _db(summit_wind * gust) - 14.0
 
 
 func _update_ambient(delta: float) -> void:
