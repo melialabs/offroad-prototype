@@ -338,6 +338,7 @@ func _build_controls() -> VBoxContainer:
 		["T", "c_t"],
 		["c_other", ""],
 		["1 – 6", "c_nums"],
+		["C", "c_c"],
 		["M", "c_m"],
 		["Backspace", "c_bksp"],
 		["[ / ]", "c_brk"],
@@ -485,6 +486,11 @@ func _refresh_vehicle_buttons() -> void:
 		_vehicle_buttons[i].text = "%s%s\n%d %s  ·  %d N·m  ·  %d L\n%s: %s  ·  %s: %s" % [
 			"✓ " if cur else "", I18n.vehicle(str(sp["name"])), int(sp["mass"]), I18n.t("kg"),
 			int(VehicleDynamics.for_vehicle(i)["torque"]), int(sp["fuel"]), I18n.t("awd"), awd, I18n.t("diff"), diff]
+		var unlocked := VehicleProgress.is_unlocked(i)
+		_vehicle_buttons[i].disabled = not unlocked
+		_vehicle_buttons[i].modulate = Color.WHITE if unlocked else Color(1, 1, 1, 0.55)
+		if not unlocked:
+			_vehicle_buttons[i].text = "%s\n???\n%s" % [I18n.t("locked"), I18n.t("locked_hint")]
 
 
 func _refresh_settings() -> void:

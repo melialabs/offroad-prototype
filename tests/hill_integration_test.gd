@@ -119,7 +119,7 @@ func run() -> void:
 		check(a.state == HillClimbActivity.State.COUNTDOWN and main.truck.spec_idx == vehicle, "UAZ retry keeps selected vehicle: %d" % vehicle)
 		a.exit_challenge()
 	var shown: Array = main.menu._vehicle_buttons.filter(func(b): return b.visible)
-	check(main.menu._vehicle_buttons.size() == OffroadTruck.SPECS.size() and shown.size() == OffroadTruck.selectable_specs().size() and shown.size() == 6, "garage exposes the six selectable vehicles")
+	check(main.menu._vehicle_buttons.size() == OffroadTruck.SPECS.size() and shown.size() == 6, "garage exposes the six selectable vehicles")
 	check(main.world_map.activities == a,"GPS shares live activity state")
 	a.set_activity_enabled(a.routes[0]["id"],false)
 	check(not a.marker_enabled(0) and a.marker_enabled(12),"per-route disable retains other activity hubs")

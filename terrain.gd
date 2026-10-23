@@ -751,7 +751,7 @@ func base_height_at(p: Vector3) -> float:
 
 
 func activity_clearing(p: Vector3) -> bool:
-	return hill_zone != null and hill_zone.clearing(Vector2(p.x,p.z))
+	return (hill_zone != null and hill_zone.clearing(Vector2(p.x,p.z))) or BarnFinds.clearing(p)
 
 
 # Vegetation placement consumes the same original values and random sequence.

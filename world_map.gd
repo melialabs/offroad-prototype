@@ -2,6 +2,7 @@ class_name WorldMap
 extends Control
 ## Bottom-left GPS is always visible; M expands the same map.
 
+var barns: BarnFinds
 var activities: HillClimbActivity
 var terrain: MudTerrain
 var truck: OffroadTruck
@@ -69,6 +70,7 @@ func _draw() -> void:
 			draw_string(font, origin + Vector2(side + 20, 30 + row * 30), "%d. %s" % [row + 1, place[0]], HORIZONTAL_ALIGNMENT_LEFT, -1, 16, Color.WHITE)
 		row += 1
 	_draw_activities(origin,side)
+	_draw_barns(origin, side)
 	var vehicle := Vector2(truck.global_position.x, truck.global_position.z)
 	var current := origin + (vehicle + Vector2.ONE * 1024) / 2048.0 * side
 	draw_circle(current, 6.0, Color(0.2, 0.95, 1))
@@ -84,6 +86,24 @@ func _draw() -> void:
 				if activities.route_enabled(route_index):
 					enabled_count += 1
 			draw_string(font,origin+Vector2(side+20,280),"▲ Hill Climb · %d routes" % enabled_count,HORIZONTAL_ALIGNMENT_LEFT,-1,15,Color(1,0.78,0.3))
+
+
+## Köhnə qarajlar: tapılmamışlar təxmini "şayiə" dairəsi, tapılanlar ev işarəsi.
+func _draw_barns(origin: Vector2, side: float) -> void:
+	if barns == null:
+		return
+	for s in barns.sites:
+		if not s["found"]:
+			var r: Vector2 = s["rumor"]
+			var at := origin + (r + Vector2.ONE * 1024) / 2048.0 * side
+			var rad := maxf(5.0, BarnFinds.RUMOR_RADIUS / 2048.0 * side)
+			draw_arc(at, rad, 0.0, TAU, 28, Color(0.95, 0.85, 0.4, 0.85), 1.6, true)
+			draw_string(ThemeDB.fallback_font, at + Vector2(-4, 5), "?", HORIZONTAL_ALIGNMENT_LEFT, -1, 14, Color(0.95, 0.85, 0.4))
+		else:
+			var p: Vector3 = (s["root"] as Node3D).global_position
+			var at2 := origin + (Vector2(p.x, p.z) + Vector2.ONE * 1024) / 2048.0 * side
+			var col := Color(0.55, 0.9, 0.5) if s["taken"] else Color(1.0, 0.6, 0.2)
+			draw_colored_polygon(PackedVector2Array([at2 + Vector2(-5, 4), at2 + Vector2(5, 4), at2 + Vector2(5, -2), at2 + Vector2(0, -7), at2 + Vector2(-5, -2)]), col)
 
 
 func _draw_activities(origin: Vector2, side: float) -> void:

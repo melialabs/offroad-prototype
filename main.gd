@@ -4,6 +4,7 @@ var activities: HillClimbActivity
 var truck: OffroadTruck
 var cam: ChaseCamera
 var world_map: WorldMap
+var barns: BarnFinds
 var hud: Hud
 var menu: MainMenu
 var audio: GameAudio
@@ -107,6 +108,12 @@ func _ready() -> void:
 	world_map = WorldMap.new()
 	world_map.terrain = terrain
 	world_map.truck = truck
+	barns = BarnFinds.new()
+	barns.truck = truck
+	barns.main = self
+	add_child(barns)
+	barns.build(terrain)
+	world_map.barns = barns
 	map_layer.add_child(world_map)
 	add_child(map_layer)
 	cam.mode_changed.connect(hud.show_toast)

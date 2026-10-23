@@ -366,7 +366,7 @@ func _unhandled_input(event: InputEvent) -> void:
 static func selectable_specs() -> Array[int]:
 	var out: Array[int] = []
 	for i in SPECS.size():
-		if i not in HIDDEN_SPECS:
+		if i not in HIDDEN_SPECS and VehicleProgress.is_unlocked(i):
 			out.append(i)
 	return out
 

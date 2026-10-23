@@ -117,3 +117,6 @@ Edit cuts and file hashes: `assets/audio/engines/RECOVERY_SOURCES.json`.
 
 ## Qaraj otağı
 "Auto Workshop interier optimized free low-poly 3d model" — oleksiy-sema (CGTrader, "FREE"); lisenziya şərtləri müstəqil yoxlanılmayıb (repo ictimai olarsa yoxlayın). `Garage.fbx` Godot-un FBX idxalı ilə GLB-yə çevrilib: teksturalar 1024 px və JPEG-ə kiçildilib, günəş işığı çıxarılıb. Nəticə: `assets/garage/garage.glb`.
+
+## Köhnə qaraj (gizli qaraj tapıntıları)
+Sketchfab "Old garage" fotoskan modeli (`square-garage`), istifadəçi tərəfindən yüklənib; müəllif və lisenziya yoxlanılmayıb (repo ictimai olarsa Sketchfab səhifəsindən yazın). Teksturalar 8192 → 2048 px kiçildilib; sağ ön küncdəki skan deşiyi sol küncün güzgülənmiş həndəsəsi ilə bağlanıb (`tools/make_barn_corner.gd`).
