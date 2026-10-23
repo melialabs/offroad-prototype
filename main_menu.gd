@@ -32,6 +32,7 @@ var _btn_shadows: Button
 var _btn_night: Button
 var _btn_sound: Button
 var _btn_lang: Button
+var _btn_quality: Button
 var _sound := true
 var _fullscreen := false
 var _shadows := true
@@ -389,6 +390,8 @@ func _build_settings() -> VBoxContainer:
 	v.add_child(_btn_sound)
 	_btn_lang = _card_button("", _cycle_language, 52.0)
 	v.add_child(_btn_lang)
+	_btn_quality = _card_button("", _cycle_quality, 52.0)
+	v.add_child(_btn_quality)
 	v.add_child(_card_button(I18n.t("back"), func(): _show_page("main"), 48.0))
 	return v
 
@@ -426,6 +429,15 @@ func _toggle_shadows() -> void:
 	_shadows = not _shadows
 	if main != null:
 		main.set_shadows(_shadows)
+	_refresh_settings()
+
+
+func _cycle_quality() -> void:
+	var nxt := GraphicsQuality.next(GraphicsQuality.saved_level())
+	if main != null and main.has_method("set_graphics_quality"):
+		main.set_graphics_quality(nxt)
+	else:
+		GraphicsQuality.level = nxt
 	_refresh_settings()
 
 
@@ -500,6 +512,7 @@ func _refresh_settings() -> void:
 	_btn_sound.text = "%s:  %s" % [I18n.t("sound"), I18n.t("on" if _sound else "off")]
 	_btn_night.text = "%s:  %s" % [I18n.t("time"), I18n.t("night" if is_night else "day")]
 	_btn_lang.text = "%s:  %s" % [I18n.t("language"), I18n.LANG_NAMES[I18n.lang]]
+	_btn_quality.text = "%s:  %s" % [I18n.t("graphics"), GraphicsQuality.saved_level()]
 
 
 # --- düymə üslubu -------------------------------------------------------------------------

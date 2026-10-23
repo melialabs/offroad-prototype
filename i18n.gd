@@ -35,6 +35,7 @@ const TEXT := {
 	"sound": ["Sound", "Səs"],
 	"time": ["Time", "Vaxt"],
 	"language": ["Language", "Dil"],
+	"graphics": ["Graphics", "Qrafika"],
 	"on": ["on", "açıq"],
 	"off": ["off", "bağlı"],
 	"night": ["Night", "Gecə"],

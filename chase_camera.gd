@@ -46,6 +46,9 @@ var _yaw := 0.0
 var _orbit_angle := 0.6
 var _fov := 68.0
 var _snap := true
+## Asma reaksiyası: maşının şaquli təcilinə görə kiçik, sönən kamera yırğalanması (m)
+var _bump := 0.0
+var _prev_vy := 0.0
 
 
 func _ready() -> void:
@@ -191,6 +194,11 @@ func _update_chase(delta: float) -> void:
 
 	# Lead the smoothing target by the truck's velocity so the camera does not trail behind at speed.
 	desired += target.linear_velocity * (0.85 / float(p["pos_rate"]))
+	var vy := target.linear_velocity.y
+	var accel := (vy - _prev_vy) / maxf(delta, 0.001)
+	_prev_vy = vy
+	_bump = lerpf(_bump, clampf(-accel * 0.01, -0.22, 0.22), 1.0 - exp(-7.0 * delta))
+	desired.y += _bump
 	if _snap or global_position.distance_to(desired) > 40.0:
 		global_position = desired
 	else:

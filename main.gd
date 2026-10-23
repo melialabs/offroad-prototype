@@ -6,6 +6,7 @@ var cam: ChaseCamera
 var world_map: WorldMap
 var barns: BarnFinds
 var props: WorldProps
+var wheel_fx: WheelEffects
 var hud: Hud
 var menu: MainMenu
 var audio: GameAudio
@@ -84,6 +85,10 @@ func _ready() -> void:
 	winch.truck = truck
 	winch.forest = vegetation
 	add_child(winch)
+	wheel_fx = WheelEffects.new()
+	wheel_fx.truck = truck
+	wheel_fx.terrain = terrain
+	add_child(wheel_fx)
 	exhaust = ExhaustSmoke.new()
 	exhaust.truck = truck
 	exhaust.wind = wind
@@ -157,6 +162,22 @@ func _ready() -> void:
 	_maybe_open_menu.call_deferred()
 
 
+## Gündüz işıq balansı (AgX + SSAO ilə): bütün profillərdə eyni
+const DAY_SUN := 1.55
+const DAY_AMBIENT := 0.62
+const DAY_SATURATION := 1.08
+const DAY_FOG_END := 4200.0
+const NIGHT_FOG_END := 900.0
+
+
+## Menyudan: LOW / MEDIUM / HIGH / ULTRA
+func set_graphics_quality(lvl: String) -> void:
+	GraphicsQuality.save(lvl)
+	GraphicsQuality.apply(lvl, _env, _sun, get_viewport(), night)
+	if wheel_fx != null:
+		wheel_fx.dust_scale = 0.5 if lvl == "LOW" else 1.0
+
+
 func _setup_environment() -> void:
 	var sky_mat := ShaderMaterial.new()
 	_sky_mat = sky_mat
@@ -168,21 +189,31 @@ func _setup_environment() -> void:
 	env.background_mode = Environment.BG_SKY
 	env.sky = sky
 	env.ambient_light_source = Environment.AMBIENT_SOURCE_SKY
-	env.ambient_light_energy = 0.7
+	env.ambient_light_energy = DAY_AMBIENT
+	env.ambient_light_sky_contribution = 0.85
+	env.reflected_light_source = Environment.REFLECTION_SOURCE_SKY
+	# ACES, ağ nöqtə yüksək: işıqlı səma və asfalt ağarmır, rənglər canlı qalır
 	env.tonemap_mode = Environment.TONE_MAPPER_ACES
-	env.tonemap_white = 6.0
+	env.tonemap_exposure = 1.0
+	env.tonemap_white = 8.0
 	env.glow_enabled = true
-	env.glow_intensity = 0.5
-	env.glow_bloom = 0.05
-	env.glow_hdr_threshold = 1.1
+	env.glow_intensity = 0.32
+	env.glow_bloom = 0.0
+	env.glow_hdr_threshold = 1.35
+	# dərinlik dumanı: 90 m-ə qədər təmiz, uzaq dağlar yumşaq atmosferdə (aerial perspective)
 	env.fog_enabled = true
-	env.fog_light_color = Color(0.72, 0.86, 0.98)
-	env.fog_density = 0.00065
-	env.fog_sky_affect = 0.25
-	env.fog_aerial_perspective = 0.35
+	env.fog_mode = Environment.FOG_MODE_DEPTH
+	env.fog_light_color = Color(0.70, 0.80, 0.90)
+	env.fog_depth_begin = 90.0
+	env.fog_depth_end = DAY_FOG_END
+	env.fog_depth_curve = 1.6
+	env.fog_sun_scatter = 0.12
+	env.fog_sky_affect = 0.12
+	env.fog_aerial_perspective = 0.55
 	env.adjustment_enabled = true
-	env.adjustment_saturation = 1.15
+	env.adjustment_saturation = DAY_SATURATION
 	env.adjustment_contrast = 1.05
+	env.adjustment_brightness = 1.0
 	_env = env
 	var we := WorldEnvironment.new()
 	we.environment = env
@@ -192,12 +223,10 @@ func _setup_environment() -> void:
 	_sun = sun
 	sun.rotation_degrees = Vector3(-42, -30, 0)
 	sun.light_color = Color(1.0, 0.95, 0.85)
-	sun.light_energy = 1.3
+	sun.light_energy = DAY_SUN
 	sun.shadow_enabled = true
-	sun.shadow_blur = 2.0
-	sun.directional_shadow_max_distance = 90.0
-	sun.directional_shadow_mode = DirectionalLight3D.SHADOW_PARALLEL_2_SPLITS
 	add_child(sun)
+	GraphicsQuality.apply(GraphicsQuality.saved_level(), env, sun, get_viewport(), false)
 
 
 func _build_scenery(terrain: MudTerrain) -> void:
@@ -453,6 +482,7 @@ func set_night(on: bool) -> void:
 	night = on
 	get_tree().call_group("street_lamps", "set_lit", on)
 	wind.night = on
+	GraphicsQuality.apply(GraphicsQuality.saved_level(), _env, _sun, get_viewport(), on)
 	_sky_mat.set_shader_parameter("night", 1.0 if on else 0.0)
 	if on:
 		_sky_mat.set_shader_parameter("top_col", Vector3(0.008, 0.015, 0.05))
@@ -464,6 +494,7 @@ func set_night(on: bool) -> void:
 		_env.ambient_light_energy = 0.16
 		_env.fog_light_color = Color(0.05, 0.08, 0.15)
 		_env.fog_density = 0.0035
+		_env.fog_depth_end = NIGHT_FOG_END
 		_env.adjustment_saturation = 0.85
 		if truck.lights.headlight_mode == 0:
 			truck.lights.set_headlights(1)
@@ -473,11 +504,12 @@ func set_night(on: bool) -> void:
 		_sky_mat.set_shader_parameter("ground_col", Vector3(0.45, 0.62, 0.40))
 		_sun.rotation_degrees = Vector3(-42, -30, 0)
 		_sun.light_color = Color(1.0, 0.95, 0.85)
-		_sun.light_energy = 1.3
-		_env.ambient_light_energy = 0.7
-		_env.fog_light_color = Color(0.72, 0.86, 0.98)
+		_sun.light_energy = DAY_SUN
+		_env.ambient_light_energy = DAY_AMBIENT
+		_env.fog_light_color = Color(0.66, 0.77, 0.88)
 		_env.fog_density = 0.00065
-		_env.adjustment_saturation = 1.15
+		_env.fog_depth_end = DAY_FOG_END
+		_env.adjustment_saturation = DAY_SATURATION
 		if truck.lights.headlight_mode != 0:
 			truck.lights.set_headlights(0)
 
