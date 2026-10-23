@@ -26,6 +26,8 @@ func _physics_process(_d: float) -> bool:
 		var p: Vector2 = s["p"]
 		check(t.road_distance_at(Vector3(p.x, 0, p.y)) > 10.0, "prop off the asphalt: %s" % s["model"])
 		check(WorldProps.clearing(Vector3(p.x, 0, p.y)), "vegetation cleared at prop")
+	for n in props.find_children("*Wire*", "MeshInstance3D", true, false):
+		check(false, "dangling power cables removed")
 	var lamps := main.get_tree().get_nodes_in_group("street_lamps")
 	check(props.lamps.size() >= 20, "street lamps along the asphalt: %d" % props.lamps.size())
 	check(lamps.size() == props.lamps.size() + main.barns.sites.size(), "one extra lamp per barn")

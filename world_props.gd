@@ -3,9 +3,10 @@ extends Node3D
 ## Xəritədəki hazır modellər (assets/props): sənaye binası, köhnə anbar xarabalığı,
 ## karxanada torpaq və daş yığınları; asfalt boyunca aralıqlı küçə lampaları.
 
-## sink: model dibinin yerə nə qədər basdırılacağı (m); slab: yamacda beton özül
+## sink: model dibinin yerə nə qədər basdırılacağı (m); slab: yamacda beton özül;
+## hide: adında bu sözlər olan hissələr çıxarılır (məs. havada bitən elektrik kabelləri)
 const PROPS := [
-	{"model": "res://assets/props/utility_building.glb", "p": Vector2(-715, -645), "scale": 1.0, "clear": 26.0, "slab": true, "sink": 0.0},
+	{"model": "res://assets/props/utility_building.glb", "p": Vector2(-715, -645), "scale": 1.0, "clear": 26.0, "slab": true, "sink": 0.0, "hide": ["Wire"]},
 	{"model": "res://assets/props/storage_building.glb", "p": Vector2(-520, -130), "scale": 1.0, "clear": 13.0, "slab": true, "sink": 0.0},
 	{"model": "res://assets/props/dirt_mound.glb", "p": Vector2(560, -465), "scale": 0.4, "clear": 9.0, "slab": false, "sink": 0.6},
 	{"model": "res://assets/props/cobble_pile.glb", "p": Vector2(520, -495), "scale": 0.32, "clear": 5.0, "slab": false, "sink": 0.1, "mean": true},
@@ -52,6 +53,12 @@ func _place(terrain: MudTerrain, s: Dictionary) -> void:
 	if not ResourceLoader.exists(s["model"]):
 		return
 	var model := (load(s["model"]) as PackedScene).instantiate() as Node3D
+	for n in model.find_children("*", "MeshInstance3D", true, false):
+		for word in s.get("hide", []):
+			if str(n.name).contains(word):
+				n.get_parent().remove_child(n)
+				n.free()
+				break
 	var sc: float = s["scale"]
 	# modelin dibi və mərkəzi (miqyasdan əvvəl)
 	var lo := Vector3(INF, INF, INF)
