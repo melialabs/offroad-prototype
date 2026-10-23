@@ -114,3 +114,6 @@ recording. Sources below are Joseph Sardin / BigSoundBank (CC0):
 - Peugeot 107: https://bigsoundbank.com/small-gasoline-engine-s0966.html
 
 Edit cuts and file hashes: `assets/audio/engines/RECOVERY_SOURCES.json`.
+
+## Ağır tır modeli (Kenworth tipli yük maşını)
+İstifadəçi tərəfindən verilmiş `Kenwood.max` (3ds Max) faylından çevrilmiş GLB; mənbə və lisenziya şərtləri müstəqil yoxlanılmayıb. `tools/prepare_kenworth_model.py` ilə hazırlanıb: miqyas, oxlar, hissə adlarına görə material rəngləri, təkərlərin ayrılması (6 təkər, tandem arxa ox); loqo meshləri çıxarılıb. Nəticə: `assets/cars/truck_kenworth.glb`.

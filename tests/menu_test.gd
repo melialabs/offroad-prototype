@@ -59,7 +59,7 @@ func _physics_process(_delta: float) -> bool:
 	if frames == 334:
 		_check(main.menu.visible, "Esc oyun içində menyunu açmalıdır")
 		_check(main.menu.in_game, "oyun içində menyu 'Davam et' rejimində olmalıdır")
-		_check(main.menu._btn_start.text == "Davam et", "düymə 'Davam et' olmalıdır: %s" % main.menu._btn_start.text)
+		_check(main.menu._btn_start.text == I18n.t("m_continue"), "continue button expected: %s" % main.menu._btn_start.text)
 		main.select_vehicle(2)
 	if frames == 338:
 		_check(main.truck.spec_idx == 2, "texnika seçimi işləmədi: %d" % main.truck.spec_idx)

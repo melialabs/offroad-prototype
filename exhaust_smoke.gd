@@ -5,7 +5,7 @@ extends Node3D
 const CAPACITY := 144
 # +Z is forward. Rear tips measured outside imported body bounds (including
 # bumpers/accessories); trucks use upright stacks outside the procedural cab.
-const OUTLETS := [Vector3(.42,-.48,-2.16),Vector3(.92,1.3,-.35),Vector3(.92,1.5,-.45),Vector3(-.55,-.48,-1.93),Vector3(.82,-.58,-2.62),Vector3(.46,-.60,-2.45),Vector3(.32,-.48,-2.36)]
+const OUTLETS := [Vector3(.42,-.48,-2.16),Vector3(.92,1.3,-.35),Vector3(1.12,2.6,1.05),Vector3(-.55,-.48,-1.93),Vector3(.82,-.58,-2.62),Vector3(.46,-.60,-2.45),Vector3(.32,-.48,-2.36)]
 const CYLINDERS := [6,6,8,4,4,4,4,4,4]
 var truck: OffroadTruck
 var wind: WindField

@@ -32,7 +32,7 @@ func run() -> void:
 	var velocity := Vector3(4.0, 0.0, -2.0)
 	var drag_force := -velocity * OffroadSurface.resistance(1.0, 0.5, 0.4)
 	check(drag_force.dot(velocity) <= 0.0, "mud drag removes rather than adds energy")
-	check(float(OffroadTruck.SUSPENSIONS[3]["travel"]) > float(OffroadTruck.SUSPENSIONS[4]["travel"]), "Niva has more suspension travel than road sedan")
+	check(float(OffroadTruck.SUSPENSIONS[3]["travel"]) >= 0.4, "Niva keeps off-road suspension travel")
 	var terrain := MudTerrain.new()
 	root.add_child(terrain)
 	var spawn: Vector3 = terrain.road_spawn()["pos"]

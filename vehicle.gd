@@ -21,8 +21,9 @@ const SPECS := [
 	{"name": "Yük maşını", "mass": 3500.0, "torque": 650.0, "fuel": 140.0,
 		"radius": 0.55, "awd": "switch", "diff": "switch", "tire": 1},
 	{"name": "Ağır tır", "mass": 5500.0, "torque": 1250.0, "fuel": 220.0,
-		"radius": 0.65, "awd": "always", "diff": "switch", "tire": 2},
-	# Lada modelləri (CC BY 4.0, CREDITS.md): real kütlə, zəif mühərrik, yalnız Niva dörd təkərli
+		"radius": 0.65, "awd": "always", "diff": "switch", "tire": 2,
+		"car": "res://assets/cars/truck_kenworth.glb", "origin": 1.25, "lights": [0.95, 1.0, 1.07, 0.9],
+		"collision_size": Vector3(2.5, 1.3, 8.0), "collision_offset": Vector3(0, 0.0, 0.0)},
 	{"name": "Lada Niva", "mass": 1250.0, "torque": 140.0, "fuel": 42.0,
 		"radius": 0.36, "awd": "always", "diff": "switch", "tire": 1,
 		"car": "res://assets/cars/lada_niva.glb", "origin": 0.8, "lights": [0.55, 0.78, 0.55, 0.62]},
@@ -54,8 +55,6 @@ const SUSPENSIONS := [
 	{"stiffness": 36.0, "travel": 0.45, "compression": 2.0, "rebound": 2.4, "width": 0.40},
 	{"stiffness": 42.0, "travel": 0.4, "compression": 2.2, "rebound": 2.6, "width": 0.50},
 	{"stiffness": 30.0, "travel": 0.42, "compression": 1.8, "rebound": 2.2, "width": 0.23},
-	{"stiffness": 32.0, "travel": 0.26, "compression": 2.0, "rebound": 2.5, "width": 0.19},
-	{"stiffness": 32.0, "travel": 0.26, "compression": 2.0, "rebound": 2.5, "width": 0.19},
 	{"stiffness": 30.0, "travel": 0.48, "compression": 1.9, "rebound": 2.3, "width": 0.34},
 	{"stiffness": 30.0, "travel": 0.42, "compression": 1.9, "rebound": 2.3, "width": 0.25},
 	{"stiffness": 30.0, "travel": 0.44, "compression": 1.8, "rebound": 2.2, "width": 0.25},
@@ -109,6 +108,8 @@ var _jeep: JeepModel
 var _box_nodes: Array[Node3D] = []
 ## spec indeksi -> {model: CarModel, meshes: Array[MeshInstance3D], pos: Array[Vector3]}
 var _cars: Dictionary = {}
+## Tandem arxa ox təkərləri: {node, wheel, offset}; hər fizika addımında fiziki təkərin dönməsi ilə yenilənir.
+var _extra_wheel_nodes: Array[Dictionary] = []
 var _col: CollisionShape3D
 var _default_wheel_pos: Array[Vector3] = []
 var _jeep_wheel_pos: Array[Vector3] = []
@@ -295,6 +296,7 @@ func apply_spec(idx: int) -> void:
 			positions.append(_default_wheel_pos[i])
 			meshes.append(null)
 	_rebuild_wheels(r, positions, meshes)
+	_rebuild_extra_wheels(car["model"] if use_car else null)
 	var suspension: Dictionary = SUSPENSIONS[spec_idx]
 	for w in wheels:
 		w.suspension_stiffness = float(suspension["stiffness"])
@@ -311,6 +313,26 @@ func apply_spec(idx: int) -> void:
 ## Godot VehicleWheel3D bağlantı nöqtəsini yalnız ağaca ilk girəndə oxuyur: işləmə vaxtı position
 ## dəyişmək təsir etmir, yerində təkrar əlavə etmək də sonradan sürüşməyə səbəb olur. Ona görə texnika
 ## dəyişəndə təkərlər silinir və düzgün mövqedə yenidən yaradılır.
+func _rebuild_extra_wheels(model: CarModel) -> void:
+	for e in _extra_wheel_nodes:
+		(e["node"] as Node).queue_free()
+	_extra_wheel_nodes.clear()
+	if model == null:
+		return
+	for e in model.extra_wheels:
+		var mi := MeshInstance3D.new()
+		mi.mesh = e["mesh"]
+		add_child(mi)
+		_extra_wheel_nodes.append({"node": mi, "wheel": e["wheel"], "offset": e["offset"]})
+
+
+func _update_extra_wheels() -> void:
+	for e in _extra_wheel_nodes:
+		var w: VehicleWheel3D = wheels[int(e["wheel"])]
+		(e["node"] as Node3D).global_transform = Transform3D(
+			w.global_basis, w.global_position + global_basis * (e["offset"] as Vector3))
+
+
 func _rebuild_wheels(r: float, positions: Array, meshes: Array) -> void:
 	for w in wheels:
 		remove_child(w)
@@ -409,6 +431,7 @@ func _torque_at(r: float) -> float:
 	return VehicleDynamics.torque_at(powertrain,r)
 
 func _physics_process(delta: float) -> void:
+	_update_extra_wheels()
 	var want := Input.get_axis(&"ui_down", &"ui_up")
 	if Input.is_physical_key_pressed(KEY_W):
 		want = 1.0
