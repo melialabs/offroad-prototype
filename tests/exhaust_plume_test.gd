@@ -98,7 +98,7 @@ func run() -> void:
 		smoke._process(.02)
 	check(smoke.emitted==emitted,'no emissions after shutoff')
 	check(smoke._multimesh.visible_instance_count==0,'remaining plume fully dissipates')
-	for vehicle in 9:
+	for vehicle in 7:
 		t.apply_spec(vehicle)
 		smoke._process(.02)
 		var expected := (t.global_basis*(Vector3.UP if vehicle in [1,2] else Vector3(.08,-.1,-1).normalized())).normalized()

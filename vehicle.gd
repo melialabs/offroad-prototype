@@ -10,6 +10,10 @@ const DRIVETRAIN_EFF := 0.85
 ## Yük altında oturmuş asmanın ölçülmüş uzanması (m). Hardtail Lada modellərində təkər mərkəzi modeldəki yerə düşür.
 const SETTLED_EXTENSION := 0.25
 
+## Garajdan və 1–6 düymələrindən çıxarılmış texnikalar (Lada Niva). SPECS indeksləri
+## rekordlar, səslər və egzoz üçün sabit qalsın deyə qeydlər silinmir, yalnız gizlədilir.
+const HIDDEN_SPECS := [3]
+
 # awd/diff: "none" yoxdur, "switch" açar-bağlar, "always" həmişə açıq
 const SPECS := [
 	{"name": "Skaut", "mass": 1800.0, "torque": 340.0, "fuel": 80.0,
@@ -22,14 +26,6 @@ const SPECS := [
 	{"name": "Lada Niva", "mass": 1250.0, "torque": 140.0, "fuel": 42.0,
 		"radius": 0.36, "awd": "always", "diff": "switch", "tire": 1,
 		"car": "res://assets/cars/lada_niva.glb", "origin": 0.8, "lights": [0.55, 0.78, 0.55, 0.62]},
-	{"name": "Lada 2107", "mass": 1050.0, "torque": 125.0, "fuel": 39.0,
-		"radius": 0.28, "awd": "none", "diff": "none", "tire": 0,
-		"car": "res://assets/cars/lada_2107.glb", "origin": 0.72, "lights": [0.55, 0.7, 0.55, 0.78]},
-	{"name": "Lada 2106", "mass": 1030.0, "torque": 116.0, "fuel": 39.0,
-		"radius": 0.3, "awd": "none", "diff": "none", "tire": 0,
-		"car": "res://assets/cars/lada_2106.glb", "origin": 0.72, "lights": [0.5, 0.55, 0.5, 0.74]},
-	# User-supplied UAZ models. Indices are appended to preserve vehicle records.
-	# Torque/suspension are gameplay tuning, not manufacturer specifications.
 	{"name": "UAZ Expedition", "mass": 2300.0, "torque": 520.0, "fuel": 90.0,
 		"radius": 0.468, "awd": "switch", "diff": "switch", "tire": 2,
 		"car": "res://assets/cars/uaz_expedition.glb", "origin": 1.05, "lights": [0.66, 1.0, 1.36, 1.3],
@@ -362,24 +358,20 @@ func _unhandled_input(event: InputEvent) -> void:
 				diff_lock = not diff_lock
 		KEY_T:
 			tire_idx = (tire_idx + 1) % TIRES.size()
-		KEY_1:
-			apply_spec(0)
-		KEY_2:
-			apply_spec(1)
-		KEY_3:
-			apply_spec(2)
-		KEY_4:
-			apply_spec(3)
-		KEY_5:
-			apply_spec(4)
-		KEY_6:
-			apply_spec(5)
-		KEY_7:
-			apply_spec(6)
-		KEY_8:
-			apply_spec(7)
-		KEY_9:
-			apply_spec(8)
+		KEY_1, KEY_2, KEY_3, KEY_4, KEY_5, KEY_6:
+			var slot: int = event.physical_keycode - KEY_1
+			var shown := selectable_specs()
+			if slot < shown.size():
+				apply_spec(shown[slot])
+
+
+## Garajda və rəqəm düymələrində görünən texnikaların SPECS indeksləri.
+static func selectable_specs() -> Array[int]:
+	var out: Array[int] = []
+	for i in SPECS.size():
+		if i not in HIDDEN_SPECS:
+			out.append(i)
+	return out
 
 
 ## Mühərriki işə sal / söndür (I düyməsi).

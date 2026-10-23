@@ -101,30 +101,6 @@
       ]
     },
     {
-      "file": "start_lada2107.wav",
-      "seconds": 1.5,
-      "sha256": "ee6e4e4f3c97ab7a87b3bc97213166060ca7340896c5456b12cbbfc29530d1ae",
-      "loop": false,
-      "vehicle": "lada2107",
-      "source": "0966",
-      "cut": [
-        2,
-        3.5
-      ]
-    },
-    {
-      "file": "start_lada2106.wav",
-      "seconds": 2.0,
-      "sha256": "68dca318ece763fabd889789392f95a488ff74b264129e616fa06248244e32ee",
-      "loop": false,
-      "vehicle": "lada2106",
-      "source": "0872",
-      "cut": [
-        8,
-        10
-      ]
-    },
-    {
       "file": "start_uaz_expedition.wav",
       "seconds": 1.7,
       "sha256": "7dc2b19ec005a7b001b5d929cafb707c6ac7bce417fbccc9a547af3dc23f459c",

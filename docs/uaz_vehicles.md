@@ -4,9 +4,9 @@ All three supplied models are available in the garage and free roam:
 
 | Key | Vehicle | Model wheel radius | Default tires |
 | --- | --- | --- | --- |
-| 7 | UAZ Expedition (Post Apocalyptic UAZ) | 0.467 m | Mud |
-| 8 | UAZ 452 Bukhanka | 0.430 m | Mountain |
-| 9 | UAZ 469 Classic (1973) | 0.404 m | Mountain |
+| 4 | UAZ Expedition (Post Apocalyptic UAZ) | 0.467 m | Mud |
+| 5 | UAZ 452 Bukhanka | 0.430 m | Mountain |
+| 6 | UAZ 469 Classic (1973) | 0.404 m | Mountain |
 
 Use I to start the engine, E for AWD, F for the differential lock, Q for low
 range and T to change tires. Each has its own mass, engine tuning, suspension,
@@ -17,7 +17,7 @@ with independent records. Number-key car changes are blocked during a run;
 selecting another car in the garage safely exits the activity first.
 
 Existing vehicle indices 0–5, map geometry and saved records are preserved.
-The garage scrolls so all nine vehicles are accessible. Real lens triangles,
+The garage scrolls so all selectable vehicles are accessible. Lada Niva (spec index 3) is hidden via `OffroadTruck.HIDDEN_SPECS`; Lada 2107 and 2106 were removed from the project. Real lens triangles,
 not added floating bulbs, provide both front spot origins and rear lamp glow.
 
 ## Rebuilding
@@ -25,9 +25,9 @@ not added floating bulbs, provide both front spot origins and rear lamp glow.
 Install Python's numpy and Pillow. Run from the project directory:
 
 ```sh
-python3 tools/prepare_uaz_models.py expedition SOURCE.glb assets/cars/uaz_expedition.glb assets/ui/car_6.png
-python3 tools/prepare_uaz_models.py bukhanka SOURCE.glb assets/cars/uaz_452.glb assets/ui/car_7.png
-python3 tools/prepare_uaz_models.py classic SOURCE.glb assets/cars/uaz_469.glb assets/ui/car_8.png
+python3 tools/prepare_uaz_models.py expedition SOURCE.glb assets/cars/uaz_expedition.glb assets/ui/car_4.png
+python3 tools/prepare_uaz_models.py bukhanka SOURCE.glb assets/cars/uaz_452.glb assets/ui/car_5.png
+python3 tools/prepare_uaz_models.py classic SOURCE.glb assets/cars/uaz_469.glb assets/ui/car_6.png
 ```
 
 For Classic, SOURCE.glb is `uaz-469-1973-classic/source/UAZ 469 Classic.glb`

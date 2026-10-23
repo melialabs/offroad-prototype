@@ -13,7 +13,7 @@ func run() -> void:
 	t.freeze = true
 	var a := VehicleEngineAudio.new()
 	root.add_child(a)
-	for index in 6:
+	for index in 4:
 		t.apply_spec(index)
 		a.select_vehicle(index)
 		for player in [a.idle,a.rev,a.load_layer]:
@@ -45,7 +45,7 @@ func run() -> void:
 		hud.free()
 	# Identity checks use different source-bank prefixes; resources are duplicated
 	# to keep loop settings local, so resource_path is intentionally empty.
-	check(a._cache.size()==18,"six separate idle/rev/load sample triplets")
+	check(a._cache.size()==12,"four separate idle/rev/load sample triplets")
 	a.free()
 	t.free()
 	await create_timer(0.15).timeout

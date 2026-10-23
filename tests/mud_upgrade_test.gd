@@ -79,7 +79,7 @@ func run() -> void:
 	check(drop > 0.2, "vehicle physically descends into ruts")
 	check(drop < 1.6, "underfloor stops falling through world")
 	# Source glow and spotlight use the same actual lamp for all imported cars.
-	for spec in [0, 3, 4, 5]:
+	for spec in [0, 3, 4, 5, 6]:
 		truck.apply_spec(spec)
 		truck.lights.set_headlights(1)
 		truck.lights._process(0.0)

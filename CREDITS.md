@@ -58,8 +58,6 @@ hazırlanmış optimallaşdırılmış versiyalar (`assets/vegetation/`) istifad
 Modellər `tools/blender_vehicle_prep.py` ilə oyun üçün hazırlanıb (miqyas, təkərlərin ayrılması, tekstura kiçildilməsi, VAZ 2106-da üçbucaqların azaldılması). Müəlliflərə aid hüquqlar saxlanılır.
 
 - **Lada Niva** — Greg McKechnie (https://sketchfab.com/mckechniegreg6), https://sketchfab.com/3d-models/lada-niva-26ebf5872bce4ff4ad2baee41882d6b2, CC BY 4.0
-- **LADA 2107** — tiunov.se (https://sketchfab.com/tiunov.se), https://sketchfab.com/3d-models/lada-2107-31201f80892b404a8e49c272490a664c, CC BY 4.0
-- **Lada VAZ 2106 AZELOW Style Classic Soviet Car 3D** — Abram (https://sketchfab.com/AbramBusiness), https://sketchfab.com/3d-models/lada-vaz-2106-azelow-style-classic-soviet-car-3d-7e4171a38afb406681ae5e74db56fa99, CC BY 4.0
 
 ## İstifadəçinin təqdim etdiyi UAZ modelləri
 
@@ -91,8 +89,6 @@ cuts: `assets/audio/engines/SOURCES.json`.
 | Yük rev/load | Iveco acceleration, Joseph Sardin | https://bigsoundbank.com/truck-engine-big-accelerations-s1147.html |
 | Ağır tır | Unidentified truck, Joseph Sardin | https://bigsoundbank.com/truck-engine-2-s1443.html |
 | Lada Niva | Unidentified retro car #2, DenisChardonnet | https://bigsoundbank.com/car-engine-2-s0291.html |
-| Lada 2107 | Peugeot 107 1.0 petrol, Joseph Sardin | https://bigsoundbank.com/small-gasoline-engine-s0966.html |
-| Lada 2106 | Unidentified retro car #1, DenisChardonnet | https://bigsoundbank.com/motor-car-1-s0290.html |
 | Gravel rolling | MTB on gravel, Joseph Sardin | https://bigsoundbank.com/bike-on-gravel-mtb-1-s1284.html |
 | Mud churn | Liquid-mud footsteps, Joseph Sardin | https://bigsoundbank.com/steps-in-the-mud-s0495.html |
 

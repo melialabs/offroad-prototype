@@ -24,7 +24,7 @@ func run() -> void:
 	t.gear_changed.connect(func(_old: int,_new: int): shifts += 1)
 	var speeds: Array[float] = []
 	var identities: Array[String] = []
-	for index in 6:
+	for index in 4:
 		t.apply_spec(index)
 		t.global_transform = Transform3D(Basis.IDENTITY,Vector3(index*15,2,0))
 		t.linear_velocity = Vector3.ZERO
@@ -81,7 +81,7 @@ func run() -> void:
 		t._physics_process(1.0/60.0)
 		check(t.engine_force == 0,"engine off cannot propel: %d" % index)
 		t.engine_state = OffroadTruck.EngineState.RUNNING
-	check(identities.size()==6,"six distinct powertrain identities")
+	check(identities.size()==4,"four distinct powertrain identities")
 	check(speeds.max()-speeds.min()>10,"vehicles accelerate differently")
 	world.free()
 	print("POWERTRAIN TEST failures=",failures.size())

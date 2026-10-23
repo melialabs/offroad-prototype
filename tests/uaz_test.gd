@@ -4,7 +4,7 @@ extends SceneTree
 
 var main: Node
 var frames := 0
-var idx := 6
+var idx := 4
 var failures: Array[String] = []
 var pos0 := Vector3.ZERO
 
@@ -64,7 +64,7 @@ func _physics_process(_delta: float) -> bool:
 		_check(moved > 8.0, "maşın getməlidir (%d): %.1f m" % [idx, moved])
 		print("UAZ %s getdi %.1f m, %.0f km/saat" % [t.spec["name"], moved, t.linear_velocity.length() * 3.6])
 		idx += 1
-		if idx > 8:
+		if idx > 6:
 			for m in failures:
 				print("FAIL ", m)
 			print("UAZ TEST: uğursuzluq=%d" % failures.size())

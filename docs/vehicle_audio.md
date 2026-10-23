@@ -10,8 +10,6 @@ Quadratic aerodynamic drag replaces the old large hidden linear speed damping.
 | Yük maşını | 650 / 3200 | 6 | 100 | 650 |
 | Ağır tır | 600 / 2600 | 8 | 85 | 1250 |
 | Lada Niva | 850 / 6000 | 5 | 130 | 140 |
-| Lada 2107 | 820 / 6200 | 5 | 145 | 125 |
-| Lada 2106 | 780 / 5800 | 4 | 140 | 116 |
 
 Top speeds are propulsion cutoff targets, not measured performance claims.
 Body velocity is never clamped: downhill momentum, sliding and mud still use
@@ -55,9 +53,9 @@ a normal game session and further tuning.
 
 ## Automated run, 23 October 2026
 
-All six vehicles maintained four initial wheel contacts and accelerated for
+All four vehicles maintained four initial wheel contacts and accelerated for
 12 seconds on the same flat collider: Skaut 107.8, cargo 86.5, heavy 79.0,
-Niva 87.1, 2107 95.4 and 2106 86.3 KM/H. These are simulated test results,
+Niva 87.1 KM/H. These are simulated test results,
 not real-car measurements or achieved maximum speeds. The tests also exercised
 braking, reverse, shift events and propulsion cutoffs without clamping velocity.
 

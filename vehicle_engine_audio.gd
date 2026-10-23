@@ -7,8 +7,6 @@ const BANKS := [
 	{"id":"cargo", "label":"Substitute · Iveco Daily 3.0 / Joseph Sardin"},
 	{"id":"heavy", "label":"Substitute · unidentified truck / Joseph Sardin"},
 	{"id":"niva", "label":"Substitute · unidentified retro car #2 / DenisChardonnet"},
-	{"id":"lada2107", "label":"Substitute · Peugeot 107 1.0 / Joseph Sardin"},
-	{"id":"lada2106", "label":"Substitute · unidentified retro car #1 / DenisChardonnet"},
 ]
 var idle: AudioStreamPlayer
 var rev: AudioStreamPlayer
@@ -32,9 +30,9 @@ func _make_player() -> AudioStreamPlayer:
 	return p
 
 func select_vehicle(vehicle: int) -> void:
-	# Additional UAZs retain a disclosed petrol substitute; original six have
+	# Additional UAZs retain a disclosed petrol substitute; original four have
 	# different actual source recordings, not six differently pitched copies.
-	var selected := vehicle if vehicle < 6 else 0
+	var selected := vehicle if vehicle < BANKS.size() else 0
 	if index == selected:
 		return
 	index = selected

@@ -50,7 +50,7 @@ func _physics_process(_delta: float) -> bool:
 		_check(moved > 8.0, "maşın getməlidir (%d): %.1f m" % [idx, moved])
 		print("CARS %s getdi %.1f m, %.0f km/saat" % [t.spec["name"], moved, t.linear_velocity.length() * 3.6])
 		idx += 1
-		if idx > 5:
+		if idx > 3:
 			for m in failures:
 				print("FAIL ", m)
 			print("CARS TEST: uğursuzluq=%d" % failures.size())

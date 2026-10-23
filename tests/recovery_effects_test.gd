@@ -50,7 +50,7 @@ func run() -> void:
 	t.set_physics_process(false)
 	t.freeze = true
 	var starts: Array[String] = []
-	for i in 9:
+	for i in 7:
 		main.select_vehicle(i)
 		t.controls_enabled = true
 		t.freeze = true

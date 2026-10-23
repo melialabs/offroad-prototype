@@ -178,6 +178,7 @@ func _build_vehicle() -> VBoxContainer:
 			b.add_theme_constant_override("icon_max_width", 150)
 			b.add_theme_constant_override("h_separation", 14)
 			b.add_theme_font_size_override("font_size", 16)
+		b.visible = i not in OffroadTruck.HIDDEN_SPECS
 		_vehicle_buttons.append(b)
 		grid.add_child(b)
 	v.add_child(_button("Geri", func(): _show_page("main")))
@@ -207,7 +208,7 @@ func _build_controls() -> VBoxContainer:
 		["F", "diferensial kilidi"],
 		["T", "təkər növü"],
 		["Digər", ""],
-		["1 – 9", "texnika; 7: UAZ Expedition, 8: Bukhanka, 9: UAZ 469"],
+		["1 – 6", "texnika; 4: UAZ Expedition, 5: Bukhanka, 6: UAZ 469"],
 		["M", "GPS xəritəsini böyüt / kiçilt"],
 		["Backspace", "Hill Climb-dən çıx"],
 		["[ / ]", "aktivlik məntəqəsində marşrut seç"],
@@ -329,7 +330,7 @@ func _refresh_vehicle_buttons() -> void:
 		var awd: String = {"always": "həmişə", "switch": "açar-bağla"}.get(sp["awd"], "yox")
 		var diff: String = {"none": "yoxdur", "switch": "var", "always": "həmişə"}.get(sp["diff"], "yox")
 		var cur := truck != null and truck.spec_idx == i
-		var bank: Dictionary = VehicleEngineAudio.BANKS[i if i < 6 else 0]
+		var bank: Dictionary = VehicleEngineAudio.BANKS[i if i < VehicleEngineAudio.BANKS.size() else 0]
 		_vehicle_buttons[i].tooltip_text = str(bank["label"])
 		_vehicle_buttons[i].text = "%s%s\n%d kq  ·  %d N·m  ·  %d L\nAWD: %s  ·  dif. kilidi: %s" % [
 			"✓ " if cur else "", sp["name"], int(sp["mass"]), int(VehicleDynamics.for_vehicle(i)["torque"]), int(sp["fuel"]), awd, diff]

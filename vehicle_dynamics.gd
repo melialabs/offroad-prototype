@@ -7,8 +7,6 @@ const PROFILES := [
 	{"id":"cargo", "idle":650.0, "redline":3200.0, "peak_rpm":1800.0, "torque":650.0, "up":2700.0, "down":1100.0, "final":4.88, "gears":[5.72,3.24,2.10,1.35,1.0,0.78], "reverse":5.20, "low":2.0, "response":2.7, "shift":0.45, "top":100.0, "drag":1.25},
 	{"id":"heavy", "idle":600.0, "redline":2600.0, "peak_rpm":1400.0, "torque":1250.0, "up":2200.0, "down":900.0, "final":5.43, "gears":[7.10,4.80,3.40,2.45,1.80,1.32,1.0,0.82], "reverse":6.20, "low":1.80, "response":1.8, "shift":0.62, "top":85.0, "drag":1.9},
 	{"id":"niva", "idle":850.0, "redline":6000.0, "peak_rpm":3400.0, "torque":140.0, "up":5000.0, "down":1900.0, "final":4.10, "gears":[3.67,2.10,1.36,1.0,0.82], "reverse":3.53, "low":2.135, "response":4.4, "shift":0.32, "top":130.0, "drag":0.60},
-	{"id":"lada2107", "idle":820.0, "redline":6200.0, "peak_rpm":3600.0, "torque":125.0, "up":5200.0, "down":1850.0, "final":3.90, "gears":[3.67,2.10,1.36,1.0,0.82], "reverse":3.53, "low":1.90, "response":5.2, "shift":0.30, "top":145.0, "drag":0.48},
-	{"id":"lada2106", "idle":780.0, "redline":5800.0, "peak_rpm":3200.0, "torque":116.0, "up":4800.0, "down":1700.0, "final":4.10, "gears":[3.24,1.99,1.29,1.0], "reverse":3.34, "low":1.90, "response":3.8, "shift":0.38, "top":140.0, "drag":0.52},
 ]
 
 static func for_vehicle(index: int) -> Dictionary:
@@ -16,8 +14,8 @@ static func for_vehicle(index: int) -> Dictionary:
 		return PROFILES[maxi(index,0)]
 	# Retain the appended UAZs with their existing stronger gameplay engines.
 	var p: Dictionary = PROFILES[0].duplicate(true)
-	p["id"] = ["uaz_expedition","uaz452","uaz469"][clampi(index-6,0,2)]
-	p["torque"] = [520.0,430.0,400.0][clampi(index-6,0,2)]
+	p["id"] = ["uaz_expedition","uaz452","uaz469"][clampi(index-4,0,2)]
+	p["torque"] = [520.0,430.0,400.0][clampi(index-4,0,2)]
 	p["top"] = 115.0
 	return p
 

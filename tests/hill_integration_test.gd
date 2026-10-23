@@ -99,14 +99,14 @@ func run() -> void:
 	main.select_vehicle(4)
 	check(a.state == HillClimbActivity.State.FREE_ROAM and main.truck.spec_idx == 4,"garage selection exits safely before swapping vehicle")
 	# Newly appended UAZs share activation, retry and per-vehicle record storage.
-	for vehicle in [6, 7, 8]:
+	for vehicle in [4, 5, 6]:
 		main.select_vehicle(vehicle)
 		main.truck.freeze = true
 		main.truck.position = a.markers[0]["p"] + Vector3.UP
 		main.truck.linear_velocity = Vector3.ZERO
 		a._scan_markers(1.0)
 		check(a.start_challenge(0), "UAZ can activate challenge: %d" % vehicle)
-		key(KEY_7 if vehicle != 6 else KEY_9)
+		key(KEY_1)
 		check(main.truck.spec_idx == vehicle, "number keys cannot replace UAZ during run: %d" % vehicle)
 		a.state = HillClimbActivity.State.RUNNING
 		a.elapsed = 25.0
@@ -118,7 +118,8 @@ func run() -> void:
 		a.retry()
 		check(a.state == HillClimbActivity.State.COUNTDOWN and main.truck.spec_idx == vehicle, "UAZ retry keeps selected vehicle: %d" % vehicle)
 		a.exit_challenge()
-	check(main.menu._vehicle_buttons.size() == 9, "garage exposes all nine vehicles")
+	var shown: Array = main.menu._vehicle_buttons.filter(func(b): return b.visible)
+	check(main.menu._vehicle_buttons.size() == OffroadTruck.SPECS.size() and shown.size() == OffroadTruck.selectable_specs().size() and shown.size() == 6, "garage exposes the six selectable vehicles")
 	check(main.world_map.activities == a,"GPS shares live activity state")
 	a.set_activity_enabled(a.routes[0]["id"],false)
 	check(not a.marker_enabled(0) and a.marker_enabled(12),"per-route disable retains other activity hubs")
