@@ -11,3 +11,9 @@ Model: `assets/barn/old_garage.glb` (photoscan rotated ~23° in the source; `MOD
 doors face +Z, towards the nearest road). The hole at the front-right corner is closed with
 `assets/barn/corner_fill.res`, produced by `tools/make_barn_corner.gd` (mirrors the intact left corner).
 Vegetation is cleared within 15 m of every barn via `MudTerrain.activity_clearing`.
+
+## World props and street lamps
+`world_props.gd` places the industrial utility building (start base), the old storage ruin (west of the lake)
+and the dirt mound and cobblestone pile (quarry), on concrete slabs where the ground slopes, with trimesh
+collision. Street lamps (`street_lamp.gd`) stand every 110 m along the asphalt, alternating sides, and one
+beside each barn door; `main.set_night()` lights them all (spot light + glowing head, faded beyond 140 m).

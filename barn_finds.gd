@@ -7,8 +7,8 @@ extends Node3D
 signal discovered(spec: int)
 
 const MODEL := "res://assets/barn/old_garage.glb"
-## Qarajın ölçüsü: 0.6 -> təxminən 6.0 x 7.3 m, hündürlük ~4.2 m. Aşağıdakı ölçülər buna görə hesablanır.
-const SCALE := 0.6
+## Qarajın ölçüsü: 0.75 -> təxminən 7.5 x 9.1 m, hündürlük ~5.3 m (maşınlardan xeyli böyük). Aşağıdakı ölçülər buna görə hesablanır.
+const SCALE := 0.75
 const MODEL_GROUND := Vector3(1.66, 1.107, -0.22)  # modeldə döşəmənin mərkəzi
 ## Skan modeldə ~23° fırlanıb: döndərib mərkəzləyirik ki, qapılar düz +Z-ə baxsın.
 const MODEL_YAW := 0.398
@@ -27,7 +27,7 @@ const SITES := [
 	{"id": "barn_east", "p": Vector2(828, -228), "vehicle": 5},
 	{"id": "barn_south", "p": Vector2(204, 804), "vehicle": 4},
 ]
-const CLEAR_RADIUS := 15.0
+const CLEAR_RADIUS := 17.0
 const DISCOVER_RANGE := 18.0
 const TAKE_RANGE := 10.0
 ## GPS-də "şayiə" dairəsi: tapılmamış qaraj təxmini sahədə göstərilir
@@ -37,8 +37,6 @@ const RUMOR_OFFSET := [Vector2(28, -22), Vector2(-25, 30), Vector2(20, 26)]
 var truck: OffroadTruck
 var main: Node
 var sites: Array[Dictionary] = []
-## Skan materialları işıqsız (unlit) gəlir və gecə parlayır; işıq qəbul edən surətləri bütün qarajlar bölüşür.
-var _lit_cache: Dictionary = {}
 
 
 ## Bitki örtüyü qarajların ətrafında yer saxlayır (MudTerrain.activity_clearing).
@@ -83,6 +81,13 @@ func build(terrain: MudTerrain) -> void:
 			_corner_patch(root)
 			_make_lit(root)
 		_static_box(root, Vector3(0, HALF.y, 0), HALF * 2.0)
+		# qapının yanında küçə lampası, qolu qapı qarşısındakı maşına baxır
+		var lamp := StreetLamp.new()
+		var lp: Vector3 = root.transform * Vector3(HALF.x + 1.2, 0, HALF.z + 0.8)
+		lp.y = terrain.height_at(lp) - 0.05
+		var toward: Vector3 = basis * Vector3(-1, 0, 1).normalized()
+		lamp.transform = Transform3D(Basis(Vector3.UP, atan2(-toward.z, toward.x)), lp)
+		add_child(lamp)
 		# gizli maşın qapının qarşısında, burnu yola baxır, örtük altında
 		var spec: int = s["vehicle"]
 		var car_pos := Vector3(0, 0, HALF.z + 3.4)
@@ -176,20 +181,7 @@ func _foundation(root: Node3D, depth: float) -> void:
 
 
 func _make_lit(node: Node) -> void:
-	for n in node.find_children("*", "MeshInstance3D", true, false):
-		var mi := n as MeshInstance3D
-		for s in mi.mesh.get_surface_count():
-			var mat := mi.get_active_material(s) as BaseMaterial3D
-			if mat == null or mat.shading_mode != BaseMaterial3D.SHADING_MODE_UNSHADED:
-				continue
-			if not _lit_cache.has(mat):
-				var lit := mat.duplicate() as BaseMaterial3D
-				lit.shading_mode = BaseMaterial3D.SHADING_MODE_PER_PIXEL
-				lit.roughness = 1.0
-				lit.metallic = 0.0
-				lit.metallic_specular = 0.15
-				_lit_cache[mat] = lit
-			mi.set_surface_override_material(s, _lit_cache[mat])
+	WorldProps.make_lit(node)
 
 
 func _corner_patch(root: Node3D) -> void:

@@ -120,3 +120,10 @@ Edit cuts and file hashes: `assets/audio/engines/RECOVERY_SOURCES.json`.
 
 ## Köhnə qaraj (gizli qaraj tapıntıları)
 Sketchfab "Old garage" fotoskan modeli (`square-garage`), istifadəçi tərəfindən yüklənib; müəllif və lisenziya yoxlanılmayıb (repo ictimai olarsa Sketchfab səhifəsindən yazın). Teksturalar 8192 → 2048 px kiçildilib; sağ ön küncdəki skan deşiyi sol küncün güzgülənmiş həndəsəsi ilə bağlanıb (`tools/make_barn_corner.gd`).
+
+## Xəritə obyektləri (assets/props)
+İstifadəçinin yüklədiyi Sketchfab GLB-ləri; müəllif və lisenziyalar yoxlanılmayıb (repo ictimai olarsa yazın):
+`industrial_utility_building_game-ready`, `old_industrial_storage_building`, `digged_construction_dirt`,
+`small_cobblestone_paving_cubes_pile_free`, `street_lamp`. `tools/prepare_prop.gd` ilə teksturalar kiçildilib,
+ağır skanlar sadələşdirilib (anbar 2.75M → 154k, torpaq 611k → 73k, daşlar 200k → 50k üçbucaq).
+Düzgün görünməyən `stone_hut_scan` və `chateau_de_sabarda` əlavə edilmədi.

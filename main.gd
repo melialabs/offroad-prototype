@@ -5,6 +5,7 @@ var truck: OffroadTruck
 var cam: ChaseCamera
 var world_map: WorldMap
 var barns: BarnFinds
+var props: WorldProps
 var hud: Hud
 var menu: MainMenu
 var audio: GameAudio
@@ -114,6 +115,9 @@ func _ready() -> void:
 	add_child(barns)
 	barns.build(terrain)
 	world_map.barns = barns
+	props = WorldProps.new()
+	add_child(props)
+	props.build(terrain)
 	map_layer.add_child(world_map)
 	add_child(map_layer)
 	cam.mode_changed.connect(hud.show_toast)
@@ -447,6 +451,7 @@ func select_vehicle(i: int) -> void:
 ## Gündüz / gecə rejimi. Gecə: ulduzlu səma, zəif ay işığı, qaranlıq duman; fənərlər avtomatik yanır.
 func set_night(on: bool) -> void:
 	night = on
+	get_tree().call_group("street_lamps", "set_lit", on)
 	wind.night = on
 	_sky_mat.set_shader_parameter("night", 1.0 if on else 0.0)
 	if on:
