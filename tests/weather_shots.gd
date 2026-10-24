@@ -10,8 +10,8 @@ func _initialize() -> void:
 	run.call_deferred()
 
 
-func shot(name: String) -> void:
-	for i in 3:
+func shot(name: String, frames := 3) -> void:
+	for i in frames:
 		await process_frame
 	var img := root.get_texture().get_image()
 	var path := "%s/%s.png" % [out_dir, name]
@@ -39,6 +39,15 @@ func run() -> void:
 		main.set_weather(id, true)
 		await settle(90)
 		await shot("day_" + id)
+	main.set_weather("storm", true)
+	await settle(90)
+	await shot("day_storm_calm")
+	main.weather.strike(700.0)
+	await shot("day_storm_flash", 1)
+	await settle(120)
+	main.weather.strike(380.0)
+	await shot("day_storm_close", 1)
+	await settle(100)
 	main.set_weather("rain", true)
 	main.set_night(true)
 	await settle(90)
@@ -46,6 +55,10 @@ func run() -> void:
 	main.set_weather("fog", true)
 	await settle(60)
 	await shot("night_fog")
+	main.set_weather("storm", true)
+	await settle(60)
+	main.weather.strike(650.0)
+	await shot("night_storm_flash", 1)
 	main.set_night(false)
 	main.set_weather("cloudy", true)
 	main._open_menu(true)

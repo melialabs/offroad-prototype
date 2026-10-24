@@ -34,6 +34,8 @@ uniform float cloud_dark = 0.0;    // yağış buludlarının tündlüyü
 uniform float haze = 0.0;          // duman: səma üfüqə doğru dumanlanır
 uniform vec3 overcast_col = vec3(0.62, 0.66, 0.72);
 uniform vec3 haze_col = vec3(0.70, 0.78, 0.86);
+uniform float flash = 0.0;         // şimşək parıltısı
+uniform vec3 flash_dir = vec3(0.0, 0.35, 1.0);
 float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
 float vnoise(vec2 p) {
 	vec2 i = floor(p); vec2 f = fract(p);
@@ -88,6 +90,10 @@ void sky() {
 		vec2 f = fract(sp) - 0.5;
 		float star = step(0.93, h) * smoothstep(0.22, 0.0, length(f)) * (0.5 + 0.5 * hash(cell + 3.1));
 		col += vec3(0.85, 0.9, 1.0) * star * night * smoothstep(0.0, 0.25, d.y) * (1.0 - clamp(cloud_cover + haze, 0.0, 1.0));
+	}
+	if (flash > 0.0) {
+		float near_bolt = pow(max(dot(d, normalize(flash_dir)), 0.0), 5.0);
+		col += vec3(0.62, 0.74, 1.0) * flash * (0.22 + 1.9 * near_bolt) * (0.25 + 0.75 * cloud_cover) * smoothstep(-0.1, 0.1, d.y);
 	}
 	vec3 sd = normalize(LIGHT0_DIRECTION);
 	float s = max(dot(d, sd), 0.0);

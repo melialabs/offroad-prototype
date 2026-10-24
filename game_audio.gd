@@ -36,6 +36,9 @@ var _brook: AudioStreamPlayer
 var _rain: AudioStreamPlayer
 ## 0..1, WeatherSystem yazır
 var rain := 0.0
+var storm := 0.0
+var _thunder: Array = [null, null, null]
+var thunders := 0
 var _hoot_t := 12.0
 var _throttle := 0.0
 var _speed := 0.0
@@ -202,10 +205,11 @@ func _update_road(delta: float) -> void:
 	var churn := clampf(truck.wheel_slip / 8.0, 0.0, 1.0) * grounded
 	_mud.volume_db = _db(amt * soft + 0.3 * soft * churn) - 7.0
 	# Environmental wind only: driving speed must not add a rushing-wind layer.
-	_wind.pitch_scale = 1.0
 	var summit_wind := smoothstep(70.0, 150.0, truck.global_position.y) * 0.35
 	var gust := 0.68 + 0.20 * sin(_ambient_time * 0.31) + 0.12 * sin(_ambient_time * 0.73 + 1.4)
-	_wind.volume_db = _db(summit_wind * gust * _wind_still()) - 14.0
+	# fırtına küləyi hərəkət edəndə də eşidilir
+	_wind.volume_db = _db(maxf(summit_wind * gust * _wind_still(), storm * 0.6 * gust)) - 14.0
+	_wind.pitch_scale = 1.0 + 0.07 * storm * sin(_ambient_time * 0.9)
 
 
 # Wind is only audible while the truck is parked; it fades out once driving.
@@ -249,6 +253,48 @@ func _recording(name: String) -> AudioStreamOggVorbis:
 	var stream := load("res://assets/audio/%s.ogg" % name).duplicate() as AudioStreamOggVorbis
 	stream.loop = true
 	return stream
+
+
+## İldırım: məsafəyə görə yaxın (çaqqıltı + gurultu), orta və uzaq (yalnız gurultu).
+func play_thunder(distance: float) -> void:
+	var kind := 0 if distance < 500.0 else (1 if distance < 1000.0 else 2)
+	if _thunder[kind] == null:
+		_thunder[kind] = _thunder_sound(kind)
+	var db := lerpf(-1.0, -12.0, clampf((distance - 250.0) / 1100.0, 0.0, 1.0))
+	thunders += 1
+	_play_sfx(_thunder[kind], db)
+
+
+## Sintez olunmuş ildırım (həqiqi yazı yoxdur): qəhvəyi küy gurultusu + yaxında qısa çaqqıltı.
+func _thunder_sound(kind: int) -> AudioStreamWAV:
+	var dur := [5.5, 6.5, 7.5][kind] as float
+	var n := int(dur * SR)
+	var out := PackedFloat32Array()
+	out.resize(n)
+	var r := RandomNumberGenerator.new()
+	r.seed = 700 + kind
+	var lp1 := 0.0
+	var lp2 := 0.0
+	var crack_lp := 0.0
+	var crack_gain := [1.0, 0.45, 0.0][kind] as float
+	var rumble_lp := [0.030, 0.020, 0.014][kind] as float
+	var peak := 0.0001
+	for i in n:
+		var t := float(i) / SR
+		var w := r.randf_range(-1.0, 1.0)
+		lp1 += (w - lp1) * rumble_lp
+		lp2 += (lp1 - lp2) * rumble_lp * 2.0
+		var env := (1.0 - exp(-t / 0.3)) * exp(-t / (dur * 0.30))
+		var roll := 0.62 + 0.38 * sin(t * 5.3 + 1.9 * sin(t * 1.4)) * sin(t * 2.1 + 0.6)
+		var v := lp2 * 9.0 * env * roll
+		if crack_gain > 0.0 and t < 0.45:
+			crack_lp += (w - crack_lp) * 0.55
+			v += crack_lp * crack_gain * exp(-t * 11.0) * 1.6
+		out[i] = v
+		peak = maxf(peak, absf(v))
+	for i in n:
+		out[i] = out[i] / peak * 0.9
+	return _wav(out, false)
 
 
 func _on_light_tick(on: bool) -> void:

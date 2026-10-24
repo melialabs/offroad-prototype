@@ -25,8 +25,8 @@ func run() -> void:
 	var sky: ShaderMaterial = main._sky_mat
 
 	check(w != null, "weather system exists")
-	check(WeatherSystem.IDS.size() == 4, "four presets")
-	check(WeatherSystem.next_id("rain") == "sunny", "preset cycle wraps")
+	check(WeatherSystem.IDS.size() == 5, "five presets")
+	check(WeatherSystem.next_id("storm") == "sunny", "preset cycle wraps")
 
 	main.set_weather("sunny", true)
 	var sunny_sun := sun.light_energy
@@ -63,7 +63,48 @@ func run() -> void:
 	await process_frame
 	check(w._rain.emitting, "rain particles emit")
 
+	# fırtına: ən qaranlıq və küləkli, şimşək və ildırım
+	main.set_weather("storm", true)
+	check(w.rain_level > 0.99, "storm rains")
+	check(sun.light_energy < main.DAY_SUN * 0.15, "storm is darker than rain")
+	check(main.wind.weather_mul > 2.4, "storm wind is strong")
+	check(float(sky.get_shader_parameter("cloud_dark")) > 0.9, "storm clouds are black")
+	await process_frame
+	var strikes_before := w.strikes
+	w.strike(800.0)
+	check(w.strikes == strikes_before + 1, "strike registered")
+	check(w._thunder_queue.size() == 1, "thunder is queued")
+	check(is_equal_approx(float(w._thunder_queue[0][0]), 800.0 / 343.0), "thunder delay follows distance")
+	w._next_strike = 1000.0
+	w._update_lightning(0.02)
+	w._step(0.0)
+	check(w.flash > 0.5, "lightning flashes")
+	check(float(sky.get_shader_parameter("flash")) > 0.5, "sky receives the flash")
+	check(sun.light_energy > main.DAY_SUN * 0.3, "flash lights the scene")
+	check(w._bolt.mesh != null and w._bolt.visible, "bolt is drawn")
+	check(sun.light_color.b > sun.light_color.r, "flash light is blue-white")
+	for i in 40:
+		w._update_lightning(0.1)
+	check(is_zero_approx(w.flash), "flash dies out")
+	check(not w._bolt.visible, "bolt disappears")
+	check(w._thunder_queue.is_empty(), "thunder was delivered")
+	check(main.audio.thunders >= 1, "audio played thunder")
+	for kind in 3:
+		var snd: AudioStreamWAV = main.audio._thunder_sound(kind)
+		check(snd.get_length() > 4.0, "thunder variant %d is long" % kind)
+	check(sun.rotation_degrees.is_equal_approx(Vector3(-42, -30, 0)), "sun direction restored after lightning")
+	w._next_strike = 0.0
+	w._update_lightning(0.1)
+	check(w.strikes > strikes_before + 1, "storm keeps striking on its own")
+	for i in 40:
+		w._update_lightning(0.1)
+	w._step(0.0)
+	main.set_weather("sunny", true)
+	w._update_lightning(0.05)
+	check(is_zero_approx(w.flash), "no lightning in clear weather")
+
 	# gecə + yağış gündüz + yağışdan qaranlıqdır
+	main.set_weather("rain", true)
 	var rain_day_sun := sun.light_energy
 	var rain_day_fog := env.fog_light_color.v
 	main.set_night(true)
