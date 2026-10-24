@@ -162,10 +162,10 @@ void fragment() {
 	albedo *= 1.0 - 0.30 * wetness;
 	albedo *= mix(1.0, 0.55, puddle);
 	rough = mix(rough, rough * 0.55, wetness * 0.6);
-	rough = mix(rough, 0.05, puddle);
+	rough = mix(rough, 0.38, puddle);
 	nxy *= 1.0 - puddle * 0.9;
 	vec2 ripple = rain_ripples(world * 3.2, TIME * 1.6) * rain_amount;
-	nxy += ripple * puddle * 0.9;
+	nxy += clamp(ripple, vec2(-1.0), vec2(1.0)) * puddle * 0.15;
 
 	// asfalt yol (UV2: yol oxuna işarəli məsafə, yol boyu uzunluq)
 	vec2 au_ = world / asphalt_tile;
@@ -189,13 +189,13 @@ void fragment() {
 	asphalt = mix(asphalt, yellow * (0.55 + ad.r * 1.4), paint * 0.88);
 	asphalt *= 1.0 - 0.40 * wetness;
 	float asphalt_rough = mix(ar, 0.85, paint);
-	asphalt_rough = mix(asphalt_rough, 0.12, wetness * 0.8);
+	asphalt_rough = mix(asphalt_rough, 0.2, wetness * 0.8);
 	vec2 an_xy = an.rg * 2.0 - 1.0;
 	// asfaltın çökək yerlərində nazik su təbəqəsi: güzgü kimi parlaq, damcılar halqa açır
 	float sheet = wetness * smoothstep(0.56, 0.70, texture(macro_noise, world * 0.045 + vec2(0.11, 0.53)).r) * (1.0 - paint);
 	asphalt *= 1.0 - 0.25 * sheet;
-	asphalt_rough = mix(asphalt_rough, 0.03, sheet);
-	an_xy = an_xy * (1.0 - 0.85 * sheet) + ripple * (0.25 + 0.75 * sheet) * 0.8;
+	asphalt_rough = mix(asphalt_rough, 0.17, sheet);
+	an_xy = an_xy * (1.0 - 0.6 * sheet) + clamp(ripple, vec2(-1.0), vec2(1.0)) * (0.25 + 0.75 * sheet) * 0.12;
 
 	// qar yolun üstündə nazik (yol hərəkətlə təmizlənir)
 	float road_snow = snow_amount * 0.2 * road * up;
@@ -221,5 +221,5 @@ void fragment() {
 	ALBEDO = col;
 	ROUGHNESS = clamp(r_out, 0.03, 1.0);
 	NORMAL_MAP = vec3(n_out * 0.5 + 0.5, nz * 0.5 + 0.5);
-	SPECULAR = 0.5 + 0.5 * max(wetness, ice);
+	SPECULAR = 0.5 + 0.25 * max(wetness, ice);
 }

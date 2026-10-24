@@ -210,7 +210,7 @@ func _apply_environment() -> void:
 		sun.light_energy = float(b["sun"]) * sun_mul
 		sun.light_color = (b["sun_col"] as Color) * (c["sun_col"] as Color)
 		env.ambient_light_energy = float(b["amb"]) * float(c["amb"]) + flash * 1.4
-		sun.light_energy += flash * 2.4 * _flash_scale
+		sun.light_energy += flash * 1.5 * _flash_scale
 		sun.light_color = sun.light_color.lerp(Color(0.80, 0.88, 1.0), clampf(flash, 0.0, 1.0) * 0.85)
 	var level := GraphicsQuality.saved_level()
 	var profile: Dictionary = GraphicsQuality.PROFILES.get(level, GraphicsQuality.PROFILES[GraphicsQuality.DEFAULT])
@@ -566,6 +566,11 @@ func _update_lightning(delta: float) -> void:
 	if _bolt.visible:
 		_bolt_mat.albedo_color = Color(5.0, 5.6, 8.0) * clampf(flash, 0.35, 1.0)
 		_bolt_glow_mat.albedo_color = Color(0.55, 0.65, 1.0, 0.35 * clampf(flash, 0.0, 1.0))
+	# SSR çox parlaq şimşək geometriyasını yola əks etdirib ağ ləkə və qara nöqtələr yaradır: parıltı müddətində söndürülür
+	var env: Environment = main._env if main != null and main.get("_env") != null else null
+	if env != null:
+		var ssr_on := bool(GraphicsQuality.PROFILES.get(GraphicsQuality.saved_level(), GraphicsQuality.PROFILES[GraphicsQuality.DEFAULT])["ssr"])
+		env.ssr_enabled = ssr_on and flash < 0.04
 	if _bolt_light != null:
 		_bolt_light.light_energy = flash * 5.0 * _flash_scale
 	if _rain_mat != null:
