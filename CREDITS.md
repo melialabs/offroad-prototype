@@ -132,3 +132,7 @@ Düzgün görünməyən `stone_hut_scan` və `chateau_de_sabarda` əlavə edilm�
 İstifadəçinin yüklədiyi Sketchfab GLB-ləri (müəllif/lisenziya yoxlanılmayıb): `desert_shrubs`, `scanned_plants_and_grass`, `xmas_tree_realistic`,
 `forest_house_ruin`, `stone_fireplace`, `stone_rockpart11`, `nordic_forest_rock_small`, `nordic_forest_tree_fallen_medium`, `old_river_log`.
 `tools/prepare_prop.gd` ilə kiçildilib. Düzgün görünməyən `realistics_grass_06`, `low_poly_trees_free`, Kikuyu otu əlavə edilmədi.
+
+## Şəhər obyektləri (assets/props/city)
+Sketchfab GLB-ləri (müəllif/lisenziya yoxlanılmayıb): `panel_house_3f`, `lowpoly_gas_station`, `midsize_dock_crane`, `apocalypse_improvised_house` (qatar vaqonu).
+Düzgün görünməyən `ban_khuan_din_daeng…`, `house_ko_bulon…`, `deganwy_mound`, `moss_covered_rock_pile`, `modular_bridge` əlavə edilmədi.

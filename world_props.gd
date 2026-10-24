@@ -16,6 +16,21 @@ const PROPS := [
 	{"model": "res://assets/props/new/house_ruin.glb", "p": Vector2(-620, -60), "scale": 0.42, "clear": 10.0, "slab": false, "sink": 0.3, "mean": true},
 	{"model": "res://assets/props/new/house_ruin.glb", "p": Vector2(-280, 330), "scale": 0.42, "clear": 10.0, "slab": false, "sink": 0.3, "mean": true},
 	{"model": "res://assets/props/new/house_ruin.glb", "p": Vector2(-200, -560), "scale": 0.42, "clear": 10.0, "slab": false, "sink": 0.3, "mean": true},
+	# şəhərin kənarında paneli evlər
+	{"model": "res://assets/props/city/panel_house.glb", "p": Vector2(285, -70), "scale": 1.0, "clear": 14.0, "slab": true, "sink": 0.0},
+	{"model": "res://assets/props/city/panel_house.glb", "p": Vector2(-200, -95), "scale": 1.0, "clear": 14.0, "slab": true, "sink": 0.0},
+	{"model": "res://assets/props/city/panel_house.glb", "p": Vector2(-205, 120), "scale": 1.0, "clear": 14.0, "slab": true, "sink": 0.0},
+	{"model": "res://assets/props/city/panel_house.glb", "p": Vector2(75, 190), "scale": 1.0, "clear": 14.0, "slab": true, "sink": 0.0},
+	{"model": "res://assets/props/city/panel_house.glb", "p": Vector2(90, -175), "scale": 1.0, "clear": 14.0, "slab": true, "sink": 0.0},
+	# yanacaq məntəqələri: başlanğıc yolunda və şəhərin şərq çıxışında
+	{"model": "res://assets/props/city/gas_station.glb", "p": Vector2(-95, 470), "scale": 0.85, "clear": 22.0, "slab": true, "sink": 0.0},
+	{"model": "res://assets/props/city/gas_station.glb", "p": Vector2(330, 10), "scale": 0.85, "clear": 22.0, "slab": true, "sink": 0.0},
+	# mədənin şimal kənarında və gölün cənub sahilində kranlar
+	{"model": "res://assets/props/city/crane.glb", "p": Vector2(690, -105), "scale": 1.0, "clear": 14.0, "slab": false, "sink": 0.6, "mean": true},
+	{"model": "res://assets/props/city/crane.glb", "p": Vector2(-130, -540), "scale": 0.8, "clear": 12.0, "slab": false, "sink": 0.5, "mean": true},
+	# tərk edilmiş qatar vaqonları: bataqlıq yanında və mədən yolunda
+	{"model": "res://assets/props/city/improvised_house.glb", "p": Vector2(-360, 255), "scale": 1.0, "clear": 18.0, "slab": false, "sink": 0.4, "mean": true},
+	{"model": "res://assets/props/city/improvised_house.glb", "p": Vector2(880, 200), "scale": 1.0, "clear": 18.0, "slab": false, "sink": 0.4, "mean": true},
 	# xaraba evlərin yanında tək yolka
 	{"model": "res://assets/props/plants/xmas_tree.glb", "p": Vector2(-598, -48), "scale": 1.3, "clear": 3.0, "slab": false, "sink": 0.1, "mean": true},
 	{"model": "res://assets/props/plants/xmas_tree.glb", "p": Vector2(-258, 345), "scale": 1.3, "clear": 3.0, "slab": false, "sink": 0.1, "mean": true},
