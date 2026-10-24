@@ -10,7 +10,9 @@ const CONFIGS := {
 	# length: real uzunluq (m); yaw: Y oxu ətrafında dönmə (derece, irəli +Z olsun deyə); tex: max tekstur ölçüsü
 	# wheel_mat / wheel_name: təkər meshlərini seçən regex; drop_mat / drop_name: atılan meshlər (interyer və s.)
 	"g63": {"length": 4.87, "yaw": 0.0, "tex": 1024,
-		"wheel_mat": "Wheel1A", "wheel_name": "", "drop_mat": "(?i)interior|engine", "drop_name": ""},
+		"wheel_mat": "Wheel1A", "wheel_name": "", "drop_mat": "(?i)interior|engine", "drop_name": "",
+		# lamps: fənər şüşələri ayrıca L_HEAD_N/P (ön) və L_TAIL_N/P (arxa) olur ki, oyunda öz şüşəsi yansın
+		"lamps": "LightA_Material1|^red_glass$"},
 	"brabus": {"length": 4.87, "yaw": 0.0, "tex": 512,
 		"wheel_mat": "(?i)Tire_Shader", "wheel_name": "", "drop_mat": "(?i)leather|plastic|interior|IntWindows", "drop_name": ""},
 	# Hilux OBJ: dörd təkər bir obyektdədir (Rims + Tires), üçbucaq səviyyəsində künclərə bölünür
@@ -125,6 +127,13 @@ func run() -> void:
 			(wheel_items if is_wheel else body_items).append(item)
 	print("body meshes=", body_items.size(), " wheel meshes=", wheel_items.size(), " dropped=", dropped)
 	wheel_items = _split_combined_wheels(wheel_items)
+	var lamp_items: Array = []
+	if cfg.has("lamps"):
+		var lamp_re := RegEx.create_from_string(str(cfg["lamps"]))
+		for i in range(body_items.size() - 1, -1, -1):
+			if lamp_re.search(_mat_names(body_items[i]["mi"])) != null:
+				lamp_items.append(body_items[i])
+				body_items.remove_at(i)
 	# ehtiyat təkər (yuxarıda, kuzovda) gövdəyə qalır: mərkəzi digər təkərlərdən xeyli yüksəkdir
 	var ys: Array[float] = []
 	var hs: Array[float] = []
@@ -217,8 +226,52 @@ func run() -> void:
 	var origin := Vector3((lo.x + hi.x) * 0.5, ground, (lo.z + hi.z) * 0.5)
 	var final := Transform3D(Basis.from_scale(Vector3.ONE * scale_f), Vector3.ZERO) * Transform3D(Basis.IDENTITY, -origin)
 
+	# probe=<regex>: uyğun hissələrin son koordinatını çap edir (məs. işlənmiş qaz borusu)
+	for a in args:
+		if a.begins_with("probe="):
+			var pr := RegEx.create_from_string("(?i)" + a.substr(6))
+			for it in body_items:
+				var mi: MeshInstance3D = it["mi"]
+				if pr.search(str(mi.name) + "|" + _mat_names(mi)) != null:
+					var fb: AABB = final * (it["aabb"] as AABB)
+					print("PROBE %s [%s] lo=%s hi=%s" % [mi.name, _mat_names(mi), fb.position, fb.end])
+	if args.has("probe_rear"):
+		var minz := 1e9
+		for it in body_items:
+			minz = minf(minz, (final * (it["aabb"] as AABB)).position.z)
+		for it in body_items:
+			var fb: AABB = final * (it["aabb"] as AABB)
+			if fb.size.length() < 1.2 and fb.position.z < minz + 0.7 and fb.end.y < 0.8:
+				print("REAR %s [%s] lo=%s hi=%s" % [(it["mi"] as MeshInstance3D).name, _mat_names(it["mi"]).substr(0, 40), fb.position, fb.end])
 	var new_root := Node3D.new()
 	new_root.name = "Car"
+	if not lamp_items.is_empty():
+		var lamp_groups := {"L_HEAD_N": [], "L_HEAD_P": [], "L_TAIL_N": [], "L_TAIL_P": []}
+		var mid_x := (lo.x + hi.x) * 0.5
+		var front_z := hi.z - size.z * 0.12
+		var rear_z := lo.z + size.z * 0.12
+		# bir mesh çox fənəri (və tavan işıqlarını) daşıya bilər: üçbucaqlar ön/arxa uca görə bölünür, qalanı gövdədə qalır
+		for it in lamp_items:
+			var parts := _split_tris(it, func(c: Vector3) -> String:
+				if c.z > front_z:
+					return "L_HEAD_" + ("P" if c.x > mid_x else "N")
+				if c.z < rear_z:
+					return "L_TAIL_" + ("P" if c.x > mid_x else "N")
+				return "")
+			for key in parts:
+				if key == "":
+					body_items.append(parts[key])
+				else:
+					lamp_groups[key].append(parts[key])
+		for key in lamp_groups:
+			if lamp_groups[key].is_empty():
+				continue
+			var lmi := MeshInstance3D.new()
+			lmi.name = key
+			lmi.mesh = _merge(lamp_groups[key], final, Vector3.ZERO)
+			new_root.add_child(lmi)
+			lmi.owner = new_root
+			print("%s: %d hissə, mərkəz %s" % [key, lamp_groups[key].size(), lmi.get_aabb().get_center()])
 	var body_mi := MeshInstance3D.new()
 	body_mi.name = "Body"
 	body_mi.mesh = _merge(body_items, final, Vector3.ZERO)
@@ -460,3 +513,38 @@ func _apply_tex_sets(root: Node, sets: Dictionary, base_dir: String) -> void:
 					mesh.surface_set_material(sidx, built[old.resource_name])
 					replaced += 1
 	print("tekstur dəsti tətbiq olundu: ", replaced, " səth")
+
+
+## Üçbucaqları classifier(mərkəz) açarına görə ayrı meshlərə bölür (açar "" = qalan hissə).
+func _split_tris(it: Dictionary, classifier: Callable) -> Dictionary:
+	var mi: MeshInstance3D = it["mi"]
+	var xf: Transform3D = it["xf"]
+	var tools: Dictionary = {}
+	for s in mi.mesh.get_surface_count():
+		var arr := mi.mesh.surface_get_arrays(s)
+		var verts: PackedVector3Array = arr[Mesh.ARRAY_VERTEX]
+		var idx: PackedInt32Array = arr[Mesh.ARRAY_INDEX] if arr[Mesh.ARRAY_INDEX] != null else PackedInt32Array(range(verts.size()))
+		for t in range(0, idx.size(), 3):
+			var c := xf * ((verts[idx[t]] + verts[idx[t + 1]] + verts[idx[t + 2]]) / 3.0)
+			var key: String = classifier.call(c)
+			if not tools.has(key):
+				tools[key] = {}
+			if not tools[key].has(s):
+				var st := SurfaceTool.new()
+				st.begin(Mesh.PRIMITIVE_TRIANGLES)
+				st.set_material(mi.mesh.surface_get_material(s))
+				tools[key][s] = st
+			for k in 3:
+				_add_vertex(tools[key][s], arr, idx[t + k])
+	var out: Dictionary = {}
+	for key in tools:
+		var m := ArrayMesh.new()
+		for sidx in tools[key]:
+			var st2: SurfaceTool = tools[key][sidx]
+			st2.index()
+			st2.commit(m)
+		var part := MeshInstance3D.new()
+		part.name = mi.name
+		part.mesh = m
+		out[key] = {"mi": part, "xf": xf, "aabb": xf * m.get_aabb()}
+	return out

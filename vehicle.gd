@@ -40,19 +40,21 @@ const SPECS := [
 	# İstifadəçinin verdiyi modellər (tools/prep_vehicle.gd ilə hazırlanıb). Kütlə/tork oyun balansıdır, zavod rəqəmi deyil.
 	{"name": "Mercedes-AMG G63", "mass": 2560.0, "torque": 620.0, "fuel": 100.0,
 		"radius": 0.394, "awd": "always", "diff": "switch", "tire": 1,
-		"car": "res://assets/cars/g63.glb", "origin": 0.95, "lights": [0.62, 0.72, 0.98, 0.95],
+		"car": "res://assets/cars/g63.glb", "origin": 0.95, "lights": [0.62, 0.72, 0.95, 1.0], "lens": false,
 		"collision_size": Vector3(1.9, 1.0, 4.6), "collision_offset": Vector3(0, -0.05, 0.0)},
 	{"name": "Brabus G700", "mass": 2700.0, "torque": 720.0, "fuel": 100.0,
 		"radius": 0.461, "awd": "always", "diff": "switch", "tire": 2,
-		"car": "res://assets/cars/brabus_g700.glb", "origin": 1.02, "lights": [0.62, 0.72, 1.02, 0.98],
+		"car": "res://assets/cars/brabus_g700.glb", "origin": 1.02, "lights": [0.62, 0.72, 0.95, 1.0], "lens": false,
 		"collision_size": Vector3(1.95, 1.0, 4.6), "collision_offset": Vector3(0, -0.03, 0.0)},
 	{"name": "Toyota Hilux", "mass": 2100.0, "torque": 470.0, "fuel": 80.0,
 		"radius": 0.505, "awd": "switch", "diff": "switch", "tire": 2,
-		"car": "res://assets/cars/hilux.glb", "origin": 1.07, "lights": [0.68, 0.72, 1.05, 1.05],
+		"car": "res://assets/cars/hilux.glb", "origin": 1.07, "lights": [0.68, 0.72, 1.05, 1.05], "lens": false,
 		"collision_size": Vector3(1.85, 0.95, 5.1), "collision_offset": Vector3(0, 0.0, 0.0)},
 	{"name": "Crossroad Pickup", "mass": 2400.0, "torque": 520.0, "fuel": 90.0,
 		"radius": 0.43, "awd": "switch", "diff": "switch", "tire": 2,
-		"car": "res://assets/cars/crossroad_pickup.glb", "origin": 0.98, "lights": [0.6, 0.7, 0.95, 1.0],
+		"car": "res://assets/cars/crossroad_pickup.glb", "origin": 0.98, "lights": [0.6, 0.7, 0.95, 1.0], "lens": false,
+		"head_pos": [Vector3(0.63, 0.04, 2.13), Vector3(-0.63, 0.04, 2.13)],
+		"roof_bar": [Vector3(-0.375, 0.77, 0.63), Vector3(-0.225, 0.77, 0.63), Vector3(-0.075, 0.77, 0.63), Vector3(0.075, 0.77, 0.63), Vector3(0.225, 0.77, 0.63), Vector3(0.375, 0.77, 0.63)],
 		"collision_size": Vector3(1.85, 0.95, 5.0), "collision_offset": Vector3(0, 0.0, 0.0)},
 ]
 
@@ -281,7 +283,10 @@ func apply_spec(idx: int) -> void:
 			lights.set_lens_visible(false)
 		else:
 			lights.clear_model_lamps()
-			lights.set_lens_visible(true)
+			# "lens": false: modelin öz fənərləri gövdədədir, süni kürə linzalar havada qalmasın
+			lights.set_lens_visible(bool(spec.get("lens", true)))
+			if spec.has("head_pos"):
+				lights.place_heads(spec["head_pos"])
 	elif use_jeep:
 		(_col.shape as BoxShape3D).size = Vector3(1.8, 0.9, 4.2)
 		lights.clear_model_lamps()
@@ -300,6 +305,8 @@ func apply_spec(idx: int) -> void:
 		lights.clear_model_lamps()
 		lights.layout(2.1, -2.08, 0.58, 0.76, 0.22, 0.2)
 		lights.set_lens_visible(true)
+	# dam işıq paneli (yalnız onu olan maşınlarda, uzaq işıqda yanır)
+	lights.set_roof_bar(spec.get("roof_bar", []))
 	var positions: Array = []
 	var meshes: Array = []
 	for i in 4:

@@ -11,7 +11,7 @@ const PROFILES := [
 	{"id":"uaz469", "seconds":1.40, "source":"Peugeot 107 · substitute"},
 ]
 ## Yeni maşınlar mövcud yazılardan birini işlədir: V8 -> scout, dizel pikaplar -> cargo.
-const EXTRA := {7: 0, 8: 0, 9: 1, 10: 1}
+const EXTRA := {7: 0, 8: 0, 9: 1, 10: 0}
 static func profile(index: int) -> Dictionary:
 	if EXTRA.has(index):
 		return PROFILES[EXTRA[index]]

@@ -9,7 +9,7 @@ const BANKS := [
 	{"id":"niva", "label":"Substitute · unidentified retro car #2 / DenisChardonnet"},
 ]
 ## Yeni maşınlar: dizel pikaplar cargo (dizel) bankını işlədir, G-class-lar scout (V8).
-const EXTRA_BANK := {9: 1, 10: 1}
+const EXTRA_BANK := {9: 1}
 var idle: AudioStreamPlayer
 var rev: AudioStreamPlayer
 var load_layer: AudioStreamPlayer

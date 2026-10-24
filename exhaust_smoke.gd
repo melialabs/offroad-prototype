@@ -5,7 +5,9 @@ extends Node3D
 const CAPACITY := 144
 # +Z is forward. Rear tips measured outside imported body bounds (including
 # bumpers/accessories); trucks use upright stacks outside the procedural cab.
-const OUTLETS := [Vector3(.42,-.48,-2.16),Vector3(.92,1.3,-.35),Vector3(.92,1.3,-.35),Vector3(-.55,-.48,-1.93),Vector3(.82,-.58,-2.62),Vector3(.46,-.60,-2.45),Vector3(.32,-.48,-2.36),Vector3(.98,-.58,-.95),Vector3(1.0,-.62,-.95),Vector3(.55,-.66,-2.62),Vector3(.5,-.6,-2.5)]
+const OUTLETS := [Vector3(.42,-.48,-2.16),Vector3(.92,1.3,-.35),Vector3(.92,1.3,-.35),Vector3(-.55,-.48,-1.93),Vector3(.82,-.58,-2.62),Vector3(.46,-.60,-2.45),Vector3(.32,-.48,-2.36),Vector3(1.0,-.6,-.85),Vector3(1.04,-.64,-.85),Vector3(-.47,-.5,-1.58),Vector3(.175,-.58,-2.24)]
+## Modelin öz işlənmiş qaz borusu olan maşınlar: əlavə boru çəkilmir, tüstü borunun ağzından bu istiqamətdə çıxır
+const MODEL_PIPES := {7: Vector3(1, -.15, -.25), 8: Vector3(1, -.15, -.25), 9: Vector3(0, -.1, -1), 10: Vector3(0, -.1, -1)}
 const CYLINDERS := [6,6,8,4,4,4,4,8,8,4,4]
 var truck: OffroadTruck
 var wind: WindField
@@ -149,11 +151,13 @@ func _process(delta: float) -> void:
 		reset()
 		_previous_state = truck.engine_state
 	outlet = OUTLETS[clampi(truck.spec_idx,0,OUTLETS.size()-1)]
-	var diesel := truck.spec_idx in [1,2,9,10]
-	var direction := Vector3.UP if diesel else Vector3(.08,-.1,-1).normalized()
+	var diesel := truck.spec_idx in [1,2,9]
+	var own_pipe := MODEL_PIPES.has(truck.spec_idx)
+	var direction: Vector3 = (MODEL_PIPES[truck.spec_idx] as Vector3).normalized() if own_pipe else (Vector3.UP if diesel else Vector3(.08,-.1,-1).normalized())
+	_pipe.visible = not own_pipe
 	var mouth := truck.to_global(outlet)
 	var world_direction := (truck.global_basis*direction).normalized()
-	_pipe.global_transform = Transform3D(Basis.looking_at(-world_direction,truck.global_basis.z if diesel else truck.global_basis.y),mouth)
+	_pipe.global_transform = Transform3D(Basis.looking_at(-world_direction,truck.global_basis.z if (diesel and not own_pipe) else truck.global_basis.y),mouth)
 	# Trucks have a long stack behind the cab; passenger cars a short tailpipe.
 	# The Jeep's tailpipe runs forward under the frame (clear of the rear tyre) instead of hanging off the bumper.
 	_pipe.scale = Vector3(1.25,1.25,4.8) if diesel else (Vector3(1.4,1.4,3.8) if truck.spec_idx == 0 else Vector3.ONE)

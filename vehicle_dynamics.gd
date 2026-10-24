@@ -14,7 +14,7 @@ const EXTRA_PROFILES := {
 	7: {"id":"g63", "idle":650.0, "redline":6500.0, "peak_rpm":3500.0, "torque":620.0, "up":5600.0, "down":1800.0, "final":3.27, "gears":[4.38,2.86,1.92,1.37,1.0,0.82,0.73], "reverse":3.42, "low":2.93, "response":4.6, "shift":0.2, "top":210.0, "drag":0.95},
 	8: {"id":"brabus_g700", "idle":650.0, "redline":6500.0, "peak_rpm":3200.0, "torque":720.0, "up":5600.0, "down":1800.0, "final":3.27, "gears":[4.38,2.86,1.92,1.37,1.0,0.82,0.73], "reverse":3.42, "low":2.93, "response":4.8, "shift":0.2, "top":210.0, "drag":1.0},
 	9: {"id":"hilux", "idle":750.0, "redline":4200.0, "peak_rpm":2000.0, "torque":470.0, "up":3400.0, "down":1300.0, "final":4.10, "gears":[4.31,2.33,1.44,1.0,0.84,0.70], "reverse":4.0, "low":2.57, "response":3.2, "shift":0.35, "top":165.0, "drag":1.05},
-	10: {"id":"crossroad_pickup", "idle":750.0, "redline":4200.0, "peak_rpm":2000.0, "torque":520.0, "up":3400.0, "down":1300.0, "final":4.30, "gears":[4.31,2.33,1.44,1.0,0.84,0.70], "reverse":4.0, "low":2.57, "response":3.0, "shift":0.35, "top":150.0, "drag":1.2},
+	10: {"id":"crossroad_pickup", "idle":700.0, "redline":5800.0, "peak_rpm":3400.0, "torque":520.0, "up":4800.0, "down":1700.0, "final":3.92, "gears":[3.83,2.33,1.44,1.0,0.79], "reverse":3.65, "low":2.72, "response":4.2, "shift":0.28, "top":160.0, "drag":1.2},
 }
 
 static func for_vehicle(index: int) -> Dictionary:

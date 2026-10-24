@@ -39,6 +39,10 @@ var _amber_lights: Array[OmniLight3D] = []
 var _amber_lens: Array[StandardMaterial3D] = []
 var _rev_light: OmniLight3D
 var _rev_lens: StandardMaterial3D
+## Dam işıq paneli (məs. pikapın üstündəki fənərlər): yalnız uzaq işıqda yanır
+var _roof_lights: Array[SpotLight3D] = []
+var _roof_lens: Array[StandardMaterial3D] = []
+var _roof_nodes: Array[Node3D] = []
 
 
 func _ready() -> void:
@@ -156,6 +160,7 @@ func layout(front_z: float, rear_z: float, head_x: float, tail_x: float, head_y:
 	REV_POS = Vector3(0, tail_y + 0.02, rear_z)
 	for i in 2:
 		_head_meshes[i].position = HEAD_POS[i]
+		_head_meshes[i].scale = Vector3.ONE
 		_tail_meshes[i].position = TAIL_POS[i]
 		_tail_lights[i].position = TAIL_POS[i] + Vector3(0, 0, -0.15)
 	for i in 4:
@@ -279,5 +284,52 @@ func _apply() -> void:
 		# SpotLight -Z-yə baxır, ona görə +Z (irəli) üçün 180° Y fırlanma, sonra aşağı əyilmə
 		sp.transform = Transform3D(Basis(Vector3.UP, PI) * Basis(Vector3.RIGHT, -pitch), HEAD_POS[i])
 		_head_lens[i].emission_energy_multiplier = 0.0 if headlight_mode == 0 else (3.5 if headlight_mode == 1 else 7.0)
+	var roof_on := headlight_mode == 2
+	for sp in _roof_lights:
+		sp.visible = roof_on
+	for m in _roof_lens:
+		m.emission_energy_multiplier = 8.0 if roof_on else 0.0
 	if not _model_head.is_empty():
 		_set_overlay(_model_head, _ov_head, Color(3.2, 2.9, 2.4) if headlight_mode > 0 else Color.BLACK)
+
+
+## Dam işıq paneli: lens mövqeləri (maşın koordinatında). Boş massiv paneli silir.
+## Hər iki lensə bir projektor düşür ki, kölgəli işıq sayı az qalsın.
+func set_roof_bar(lenses: Array) -> void:
+	for n in _roof_nodes:
+		n.queue_free()
+	_roof_nodes.clear()
+	_roof_lights.clear()
+	_roof_lens.clear()
+	var meshes: Array[MeshInstance3D] = []
+	for p in lenses:
+		_roof_lens.append(_lens(p, Color(1.0, 0.97, 0.9), 0.06, meshes))
+	for mi in meshes:
+		mi.scale = Vector3(1.0, 1.0, 0.35)
+		_roof_nodes.append(mi)
+	for i in range(0, lenses.size(), 2):
+		var a: Vector3 = lenses[i]
+		var b: Vector3 = lenses[mini(i + 1, lenses.size() - 1)]
+		var sp := SpotLight3D.new()
+		sp.light_color = Color(1.0, 0.97, 0.9)
+		sp.light_energy = 22.0
+		sp.spot_angle = 24.0
+		sp.spot_range = 90.0
+		sp.spot_attenuation = 0.7
+		sp.shadow_enabled = false
+		sp.transform = Transform3D(Basis(Vector3.UP, PI) * Basis(Vector3.RIGHT, -deg_to_rad(4.0)), (a + b) * 0.5)
+		add_child(sp)
+		_roof_lights.append(sp)
+		_roof_nodes.append(sp)
+	_apply()
+
+
+## Modelin öz fənər şüşəsinin yeri məlumdursa: ön fənər mənbələri oraya keçir və yalnız ön
+## linzalar (yastı disk kimi) görünür ki, yaxın/uzaq işıqda modelin fənərləri yansın.
+func place_heads(positions: Array) -> void:
+	HEAD_POS = [positions[0], positions[1]]
+	for i in 2:
+		_head_meshes[i].position = HEAD_POS[i]
+		_head_meshes[i].scale = Vector3(1.25, 1.25, 0.3)
+		_head_meshes[i].visible = true
+	_apply()
