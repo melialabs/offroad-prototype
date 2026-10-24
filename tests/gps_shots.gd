@@ -13,6 +13,7 @@ func run() -> void:
 	await settle(20)
 	main.menu.start_requested.emit()
 	var t0 := Time.get_ticks_msec()
+	main.world_map.set_target(1)
 	await settle(90)
 	print("GPS bake ready=", main.world_map.map_texture != null, " ms~", Time.get_ticks_msec() - t0)
 	root.get_texture().get_image().save_png(out + "/gps_mini.png")

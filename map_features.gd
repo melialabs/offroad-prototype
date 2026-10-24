@@ -9,6 +9,8 @@ const ROOFS := [Color(0.5, 0.22, 0.16), Color(0.32, 0.3, 0.3), Color(0.42, 0.28,
 
 var buildings := 0
 var bridges := 0
+## Şəhər binalarının yer planı (GPS üçün): [mərkəz Vector2, ölçü Vector2, hündür?]
+var footprints: Array = []
 var _window_tex: ImageTexture
 var _wall_mats := {}
 
@@ -46,6 +48,7 @@ func _building(terrain: MudTerrain, body: StaticBody3D, p: Vector2, tall: bool, 
 	var w := rng.randf_range(9.0, 14.0) if tall else rng.randf_range(7.0, 10.0)
 	var d := rng.randf_range(9.0, 13.0) if tall else rng.randf_range(7.0, 9.5)
 	var floors := rng.randi_range(4, 7) if tall else rng.randi_range(1, 2)
+	footprints.append([p, Vector2(w, d), tall])
 	var hgt := floors * 3.0
 	var ground := INF
 	for k in [Vector2(-1, -1), Vector2(1, -1), Vector2(-1, 1), Vector2(1, 1)]:

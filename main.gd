@@ -167,6 +167,8 @@ func _ready() -> void:
 	features = MapFeatures.new()
 	add_child(features)
 	features.build(terrain)
+	world_map.features = features
+	world_map.main_node = self
 	map_layer.add_child(world_map)
 	add_child(map_layer)
 	cam.mode_changed.connect(hud.show_toast)
