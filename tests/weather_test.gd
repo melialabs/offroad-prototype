@@ -89,6 +89,13 @@ func run() -> void:
 	check(not w._bolt.visible, "bolt disappears")
 	check(w._thunder_queue.is_empty(), "thunder was delivered")
 	check(main.audio.thunders >= 1, "audio played thunder")
+	check(main.audio._rain.stream is AudioStreamOggVorbis, "rain uses the real recording")
+	check((main.audio._rain.stream as AudioStreamOggVorbis).loop, "rain recording loops")
+	check((main.audio._rain.stream as AudioStreamOggVorbis).get_length() > 120.0, "rain recording is long")
+	for kind in 3:
+		var th: AudioStream = main.audio._thunder_stream(kind)
+		check(th is AudioStreamOggVorbis, "thunder %d uses a real recording" % kind)
+		check(th.get_length() > 10.0, "real thunder %d is long enough" % kind)
 	for kind in 3:
 		var snd: AudioStreamWAV = main.audio._thunder_sound(kind)
 		check(snd.get_length() > 4.0, "thunder variant %d is long" % kind)

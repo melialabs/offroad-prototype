@@ -9,6 +9,10 @@ These files are field recordings, not synthesized wildlife. CC0 permits redistri
 | birds_dawn.ogg | resaural | https://freesound.org/people/resaural/sounds/634511/ | CC0 recording edited into a loop by todak-public |
 | crickets.ogg | felixblume | https://freesound.org/people/felixblume/sounds/479041/ | CC0 recording edited into a loop by todak-public |
 | stream_brook.ogg | cher1101 | https://freesound.org/people/cher1101/sounds/671883/ | CC0 recording edited into a loop by todak-public |
+| rain_terrace.ogg | Joseph Sardin / BigSoundBank | https://bigsoundbank.com/summer-rain-on-terrace-s1019.html | Rain and storm bed; 44.1 kHz Ogg Vorbis, seamless 2-second loop crossfade, loudness-normalized |
+| thunder_7.ogg | Joseph Sardin / BigSoundBank | https://bigsoundbank.com/thunder-7-s3180.html | Near thunder; Ogg Vorbis, +1 dB with peak limiter |
+| thunder_5.ogg | Joseph Sardin / BigSoundBank | https://bigsoundbank.com/thunder-5-s3116.html | Mid-distance thunder; same processing |
+| thunder_1.ogg | Joseph Sardin / BigSoundBank | https://bigsoundbank.com/thunder-s2718.html | Distant thunder; same processing |
 
 Loop distribution and provenance: https://github.com/euuuuuuan/todak-public/tree/main/assets/ambience and assets/thirdparty/ambience_src/SOURCES.json. Only explicitly CC0 recording derivatives were used, not that repository's restricted synthesized tracks.
 
