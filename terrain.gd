@@ -139,7 +139,12 @@ func _make_material() -> ShaderMaterial:
 
 ## Hava və fəsil: yağış (islanma), qar örtüyü, buz. Hamısı 0..1. İndi yalnız görünüşdür,
 ## fizika 3-cü mərhələdə SurfaceType ilə bağlanacaq.
+## Yerin ıslaqlığı (0..1): sürtünməyə və tozlanmaya təsir edir (vehicle.gd, WeatherSystem).
+var wet_level := 0.0
+
+
 func set_surface_conditions(wet: float, snow: float, ice: float) -> void:
+	wet_level = clampf(wet, 0.0, 1.0)
 	_material.set_shader_parameter("wetness", clampf(wet, 0.0, 1.0))
 	_material.set_shader_parameter("snow_amount", clampf(snow, 0.0, 1.0))
 	_material.set_shader_parameter("ice_amount", clampf(ice, 0.0, 1.0))

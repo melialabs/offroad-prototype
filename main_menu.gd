@@ -30,6 +30,7 @@ var _btn_restart: Button
 var _btn_fullscreen: Button
 var _btn_shadows: Button
 var _btn_night: Button
+var _btn_weather: Button
 var _btn_sound: Button
 var _btn_lang: Button
 var _btn_quality: Button
@@ -65,6 +66,7 @@ func open(game_running: bool) -> void:
 	_btn_start.text = I18n.t("m_continue") if in_game else I18n.t("m_start")
 	_btn_restart.visible = in_game
 	_refresh_vehicle_buttons()
+	_refresh_settings()
 	_show_page("main")
 	visible = true
 
@@ -329,6 +331,7 @@ func _build_controls() -> VBoxContainer:
 		["L", "c_l"],
 		["Z", "c_z"],
 		["N", "c_n"],
+		["K", "c_k"],
 		["c_camera", ""],
 		["Mouse", "c_mouse"],
 		["V", "c_v"],
@@ -379,18 +382,20 @@ func _build_controls() -> VBoxContainer:
 
 func _build_settings() -> VBoxContainer:
 	var v := VBoxContainer.new()
-	v.add_theme_constant_override("separation", 8)
-	_btn_fullscreen = _card_button("", _toggle_fullscreen, 52.0)
+	v.add_theme_constant_override("separation", 6)
+	_btn_fullscreen = _card_button("", _toggle_fullscreen, 46.0)
 	v.add_child(_btn_fullscreen)
-	_btn_shadows = _card_button("", _toggle_shadows, 52.0)
+	_btn_shadows = _card_button("", _toggle_shadows, 46.0)
 	v.add_child(_btn_shadows)
-	_btn_night = _card_button("", _toggle_night, 52.0)
+	_btn_night = _card_button("", _toggle_night, 46.0)
 	v.add_child(_btn_night)
-	_btn_sound = _card_button("", _toggle_sound, 52.0)
+	_btn_weather = _card_button("", _cycle_weather, 46.0)
+	v.add_child(_btn_weather)
+	_btn_sound = _card_button("", _toggle_sound, 46.0)
 	v.add_child(_btn_sound)
-	_btn_lang = _card_button("", _cycle_language, 52.0)
+	_btn_lang = _card_button("", _cycle_language, 46.0)
 	v.add_child(_btn_lang)
-	_btn_quality = _card_button("", _cycle_quality, 52.0)
+	_btn_quality = _card_button("", _cycle_quality, 46.0)
 	v.add_child(_btn_quality)
 	v.add_child(_card_button(I18n.t("back"), func(): _show_page("main"), 48.0))
 	return v
@@ -422,6 +427,12 @@ func _toggle_sound() -> void:
 func _toggle_night() -> void:
 	if main != null:
 		main.set_night(not main.night)
+	_refresh_settings()
+
+
+func _cycle_weather() -> void:
+	if main != null and main.has_method("set_weather"):
+		main.set_weather(WeatherSystem.next_id(main.weather.id))
 	_refresh_settings()
 
 
@@ -511,6 +522,9 @@ func _refresh_settings() -> void:
 	_btn_shadows.text = "%s:  %s" % [I18n.t("shadows"), I18n.t("on" if _shadows else "off")]
 	_btn_sound.text = "%s:  %s" % [I18n.t("sound"), I18n.t("on" if _sound else "off")]
 	_btn_night.text = "%s:  %s" % [I18n.t("time"), I18n.t("night" if is_night else "day")]
+	if _btn_weather != null:
+		var wid: String = main.weather.id if main != null and main.get("weather") != null else "sunny"
+		_btn_weather.text = "%s:  %s" % [I18n.t("weather"), I18n.t(WeatherSystem.NAME_KEYS[wid])]
 	_btn_lang.text = "%s:  %s" % [I18n.t("language"), I18n.LANG_NAMES[I18n.lang]]
 	_btn_quality.text = "%s:  %s" % [I18n.t("graphics"), GraphicsQuality.saved_level()]
 

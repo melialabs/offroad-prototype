@@ -20,6 +20,8 @@ const TRACK_LIFE := 45.0  # s
 var truck: OffroadTruck
 var terrain: MudTerrain
 var dust_scale := 1.0
+## Hava: yaş yerdə toz qalxmır (WeatherSystem)
+var dust_wet_factor := 1.0
 
 var _dust: Array[GPUParticles3D] = []
 var _splash: Array[GPUParticles3D] = []
@@ -89,7 +91,7 @@ func _physics_process(_delta: float) -> void:
 			Surface.DIRT, Surface.GRAVEL: amount = clampf(speed / 14.0 + slip / 10.0, 0.0, 1.0)
 			Surface.GRASS: amount = clampf((speed - 4.0) / 20.0 + slip / 14.0, 0.0, 0.6)
 			Surface.MUD: amount = clampf(slip / 8.0 + speed / 30.0, 0.0, 0.5)
-		amount *= dust_scale
+		amount *= dust_scale * dust_wet_factor
 		dust.global_position = p + Vector3.UP * 0.15 - truck.global_basis.z * 0.25
 		dust.emitting = amount > 0.04 and surf != Surface.WATER
 		if dust.emitting:

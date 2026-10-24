@@ -21,6 +21,7 @@ var _terrain: MudTerrain
 var _env: Environment
 var _sky_mat: ShaderMaterial
 var night := false
+var weather: WeatherSystem
 
 const SKY_SHADER := """
 shader_type sky;
@@ -28,6 +29,11 @@ uniform vec3 top_col = vec3(0.16, 0.45, 0.85);
 uniform vec3 hor_col = vec3(0.70, 0.86, 0.98);
 uniform vec3 ground_col = vec3(0.45, 0.62, 0.40);
 uniform float night = 0.0;
+uniform float cloud_cover = 0.0;   // 0 = ilkin səma, 1 = tam bulud örtüyü
+uniform float cloud_dark = 0.0;    // yağış buludlarının tündlüyü
+uniform float haze = 0.0;          // duman: səma üfüqə doğru dumanlanır
+uniform vec3 overcast_col = vec3(0.62, 0.66, 0.72);
+uniform vec3 haze_col = vec3(0.70, 0.78, 0.86);
 float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
 float vnoise(vec2 p) {
 	vec2 i = floor(p); vec2 f = fract(p);
@@ -49,7 +55,31 @@ void sky() {
 		float c = smoothstep(0.50, 0.78, fbm(uv));
 		c *= smoothstep(0.02, 0.2, d.y);
 		vec3 cc = mix(vec3(1.0), vec3(0.78, 0.84, 0.93), smoothstep(0.5, 1.0, fbm(uv + 7.0)));
+		c *= 1.0 - cloud_cover * 0.9;
 		col = mix(col, cc * mix(1.0, 0.07, night), c * mix(0.92, 0.6, night));
+	}
+	vec3 sd0 = normalize(LIGHT0_DIRECTION);
+	if (cloud_cover > 0.0) {
+		// qatlı örtük: iri formalar + xırda detal, üfüqdə sıxlaşır, günəşin yanında işıqlanır
+		float hy = max(d.y, 0.0);
+		vec2 uv = d.xz / (hy + 0.16) * 0.85 + vec2(TIME * 0.006, TIME * 0.0025);
+		float big = fbm(uv);
+		float fine = fbm(uv * 3.3 + 11.0 + vec2(TIME * 0.011, 0.0));
+		float dens = smoothstep(mix(0.60, 0.05, cloud_cover), mix(0.90, 0.40, cloud_cover), big * 0.78 + fine * 0.28);
+		dens = clamp(dens + smoothstep(0.35, 0.0, hy) * 0.35 * cloud_cover, 0.0, 1.0);
+		float shade = 0.62 + 0.55 * (1.0 - fine) - cloud_dark * (0.55 * big + 0.15);
+		vec3 oc = overcast_col * clamp(shade, 0.15, 1.3) * mix(1.0, 0.07, night);
+		float silver = pow(max(dot(d, sd0), 0.0), 7.0) * 0.28 * (1.0 - cloud_dark) * (1.0 - night);
+		oc += vec3(silver);
+		float opaque = mix(0.55, 0.985, clamp(cloud_cover, 0.0, 1.0)) * mix(0.9, 1.0, dens);
+		col = mix(col, oc, dens * opaque + (1.0 - dens) * 0.0);
+		if (d.y < 0.0) { col = mix(col, overcast_col * 0.5 * mix(1.0, 0.07, night), cloud_cover * 0.4); }
+	}
+	if (haze > 0.0) {
+		float lift = smoothstep(0.0, 0.9, max(d.y, 0.0));
+		float k = haze * (1.0 - 0.4 * lift * (1.0 - haze));
+		vec3 hc = haze_col * mix(1.0, 0.07, night);
+		col = mix(col, hc, clamp(k, 0.0, 1.0));
 	}
 	if (night > 0.0 && d.y > 0.0) {
 		vec2 sp = d.xz / (d.y + 0.35) * 55.0;
@@ -57,12 +87,13 @@ void sky() {
 		float h = hash(cell);
 		vec2 f = fract(sp) - 0.5;
 		float star = step(0.93, h) * smoothstep(0.22, 0.0, length(f)) * (0.5 + 0.5 * hash(cell + 3.1));
-		col += vec3(0.85, 0.9, 1.0) * star * night * smoothstep(0.0, 0.25, d.y);
+		col += vec3(0.85, 0.9, 1.0) * star * night * smoothstep(0.0, 0.25, d.y) * (1.0 - clamp(cloud_cover + haze, 0.0, 1.0));
 	}
 	vec3 sd = normalize(LIGHT0_DIRECTION);
 	float s = max(dot(d, sd), 0.0);
 	vec3 disc = mix(vec3(1.0, 0.92, 0.7), vec3(0.75, 0.85, 1.0), night);
-	col += disc * (pow(s, mix(600.0, 1500.0, night)) * mix(3.0, 2.2, night) + pow(s, 12.0) * mix(0.12, 0.05, night));
+	float sun_vis = (1.0 - clamp(cloud_cover, 0.0, 1.0) * 0.97) * (1.0 - haze * 0.9);
+	col += disc * (pow(s, mix(600.0, 1500.0, night)) * mix(3.0, 2.2, night) + pow(s, 12.0) * mix(0.12, 0.05, night)) * sun_vis;
 	COLOR = col;
 }
 """
@@ -72,6 +103,9 @@ func _ready() -> void:
 	_setup_environment()
 	wind = WindField.new()
 	add_child(wind)
+	weather = WeatherSystem.new()
+	weather.main = self
+	add_child(weather)
 
 	var terrain := MudTerrain.new()
 	add_child(terrain)
@@ -162,6 +196,9 @@ func _ready() -> void:
 	menu.resume_requested.connect(_close_menu)
 	menu.restart_requested.connect(_restart_from_menu)
 	menu.quit_requested.connect(get_tree().quit)
+	# yadda saxlanmış hava yalnız oyun əsas səhnə kimi açılanda tətbiq olunur (testlər dəyişməz qalır)
+	if get_tree().current_scene == self:
+		weather.set_preset(WeatherSystem.saved(), true)
 	# menyu yalnız oyun əsas səhnə kimi açılanda görünür (testlər main.tscn-i alt düyün kimi yükləyir)
 	_maybe_open_menu.call_deferred()
 
@@ -181,6 +218,8 @@ func set_graphics_quality(lvl: String) -> void:
 	if wheel_fx != null:
 		wheel_fx.dust_scale = 0.5 if lvl == "LOW" else 1.0
 		wheel_fx.set_reflection_probe(GraphicsQuality.vehicle_probe(lvl))
+	if weather != null:
+		weather.apply()
 
 
 func _setup_environment() -> void:
@@ -376,6 +415,8 @@ func leave_garage() -> void:
 func _restore_world_light() -> void:
 	_sun.light_energy = _saved_light.x
 	_env.ambient_light_energy = _saved_light.y
+	if weather != null:
+		weather.apply()
 
 
 func _park_in_garage() -> void:
@@ -504,6 +545,15 @@ func set_night(on: bool) -> void:
 		_env.adjustment_saturation = DAY_SATURATION
 		if truck.lights.headlight_mode != 0:
 			truck.lights.set_headlights(0)
+	if weather != null:
+		weather.apply()
+
+
+## Hava: "sunny" | "cloudy" | "fog" | "rain". Keçid yumşaqdır; seçim yadda saxlanılır.
+func set_weather(id: String, instant := false) -> void:
+	weather.set_preset(id, instant)
+	if get_tree().current_scene == self:
+		WeatherSystem.save(weather.id)
 
 
 func set_sound(on: bool) -> void:
@@ -524,6 +574,9 @@ func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventKey and event.pressed and not event.echo and event.physical_keycode == KEY_N:
 		set_night(not night)
 		hud.show_toast("Gecə rejimi" if night else "Gündüz rejimi")
+	if event is InputEventKey and event.pressed and not event.echo and event.physical_keycode == KEY_K:
+		set_weather(WeatherSystem.next_id(weather.id))
+		hud.show_toast(I18n.t(WeatherSystem.NAME_KEYS[weather.id]))
 	if event is InputEventKey and event.pressed and not event.echo and event.physical_keycode == KEY_ESCAPE:
 		_open_menu(true)
 

@@ -670,12 +670,18 @@ func _update_wheel_state() -> void:
 		var soil := _is_soil_support(w)
 		var asphalt := terrain.road_distance_fast(contact) < MudTerrain.ROAD_HALF
 		var soft := terrain.softness_at(contact) if soil else 0.0
+		# yağış: yumşaq torpaq daha da yumşalır
+		if soft > 0.02:
+			soft = minf(1.0, soft * (1.0 + 0.45 * terrain.wet_level))
 		var depth := maxf(terrain.depth_at(contact), 0.0) if soil else 0.0
 		_w_soil[k] = 1 if soil else 0
 		_w_asphalt[k] = 1 if asphalt else 0
 		_w_soft[k] = soft
 		_w_depth[k] = depth
 		_w_grip[k] = OffroadSurface.grip(tire, asphalt, soft, depth)
+		if asphalt:
+			# yaş asfalt: ~30 % az tutuş
+			_w_grip[k] *= 1.0 - 0.30 * terrain.wet_level
 
 
 func _is_soil_support(wheel: VehicleWheel3D) -> bool:

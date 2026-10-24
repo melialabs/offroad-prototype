@@ -33,6 +33,9 @@ var _click: AudioStreamWAV
 var _hoot: AudioStream
 var _animal: AudioStreamPlayer3D
 var _brook: AudioStreamPlayer
+var _rain: AudioStreamPlayer
+## 0..1, WeatherSystem yazır
+var rain := 0.0
 var _hoot_t := 12.0
 var _throttle := 0.0
 var _speed := 0.0
@@ -67,6 +70,8 @@ func _ready() -> void:
 	_bed = _player(_recording("forest"), -80.0)
 	_crickets = _player(_recording("crickets"), -80.0)
 	_brook = _player(_recording("stream_brook"), -80.0)
+	# yağış: sintez olunmuş geniş zolaqlı səs-küy (həqiqi yazı yoxdur)
+	_rain = _player(_noise_loop(3.2, 0.82, 0.18, 1.0), -80.0)
 	_sfx = _player(null, -4.0, false)
 	_bird = _player(_recording("birds_dawn"), -80.0)
 	_tick_a = _tick(1900.0)
@@ -89,7 +94,7 @@ func _ready() -> void:
 			_play_sfx(_click,-23.0)
 		)
 		truck.vehicle_changed.connect(_on_vehicle_changed)
-	for p in [_road, _mud, _gravel, _wind_trees, _wind, _bed, _crickets, _bird, _brook]:
+	for p in [_road, _mud, _gravel, _wind_trees, _wind, _bed, _crickets, _bird, _brook, _rain]:
 		# Long field recordings should not restart with the same bird call on
 		# every visit. Keep their pitch intact, with an independent loop phase.
 		var offset := 0.0
@@ -218,9 +223,11 @@ func _update_ambient(delta: float) -> void:
 	# The forest bed also contains real daytime birds. Fade it out at night
 	# rather than leaving a dawn chorus beneath the owl and crickets.
 	var foliage := 0.93 + 0.07 * sin(_ambient_time * 0.17)
-	_bed.volume_db = _db(day * forest * foliage) - 19.0
-	_bird.volume_db = _db(day * forest) - 22.0
-	_crickets.volume_db = _db(_night_mix * forest) - 22.0
+	var dry := 1.0 - 0.85 * rain  # yağışda quşlar, cırcıramalar və meşə küyü boğulur
+	_bed.volume_db = _db(day * forest * foliage * dry) - 19.0
+	_bird.volume_db = _db(day * forest * dry) - 22.0
+	_crickets.volume_db = _db(_night_mix * forest * dry) - 22.0
+	_rain.volume_db = _db(rain) - 17.0
 	# ən yaxın su: göl (ellips kənarı) və ya çay
 	var tp := Vector2(truck.global_position.x, truck.global_position.z)
 	var water_distance := maxf(0.0, (MapLayout._ellipse(tp, MapLayout.LAKE_CENTER, MapLayout.LAKE_RADII) - 1.0) * MapLayout.LAKE_RADII.y)
