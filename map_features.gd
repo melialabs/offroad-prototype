@@ -116,14 +116,69 @@ func _plain(color: Color) -> StandardMaterial3D:
 
 ## --- körpülər ---------------------------------------------------------------------------------------
 
+## Real beton: prosedur ləkəli rəng, məsamə relyefi (normal xəritə), triplanar (qutuların hər üzündə eyni miqyas).
+static func concrete_material(tint: Color, scale: float) -> StandardMaterial3D:
+	var m := StandardMaterial3D.new()
+	var blotch := FastNoiseLite.new()
+	blotch.seed = 811
+	blotch.frequency = 0.012
+	blotch.fractal_octaves = 5
+	var ramp := Gradient.new()
+	ramp.offsets = PackedFloat32Array([0.0, 0.45, 0.7, 1.0])
+	ramp.colors = PackedColorArray([tint.darkened(0.28), tint.darkened(0.06), tint, tint.lightened(0.12)])
+	var albedo := NoiseTexture2D.new()
+	albedo.noise = blotch
+	albedo.color_ramp = ramp
+	albedo.seamless = true
+	albedo.width = 512
+	albedo.height = 512
+	var pores := FastNoiseLite.new()
+	pores.seed = 812
+	pores.noise_type = FastNoiseLite.TYPE_CELLULAR
+	pores.frequency = 0.09
+	var normal := NoiseTexture2D.new()
+	normal.noise = pores
+	normal.as_normal_map = true
+	normal.bump_strength = 1.4
+	normal.seamless = true
+	normal.width = 512
+	normal.height = 512
+	m.albedo_texture = albedo
+	m.normal_enabled = true
+	m.normal_texture = normal
+	m.normal_scale = 0.35
+	m.roughness = 0.92
+	m.uv1_triplanar = true
+	m.uv1_world_triplanar = true
+	m.uv1_scale = Vector3.ONE * scale
+	return m
+
+
 func _build_bridges(terrain: MudTerrain) -> void:
 	var road := terrain._road
-	var concrete := _plain(Color(0.62, 0.61, 0.58))
-	var rail_mat := _plain(Color(0.55, 0.56, 0.58))
-	rail_mat.metallic = 0.6
-	rail_mat.roughness = 0.45
+	var concrete := concrete_material(Color(0.60, 0.59, 0.56), 0.18)
+	var rail_mat := concrete_material(Color(0.66, 0.65, 0.62), 0.35)
 	var body := StaticBody3D.new()
 	add_child(body)
+	# Körpü: çayın üstü və onun yanında yol göyərtəsi yerdən xeyli yuxarıda qalan hissələr,
+	# hər iki ucda bir seqment də quruya uzanır ki, göyərtə və məhəccər sahilə çatsın.
+	var spans := PackedByteArray()
+	spans.resize(road.size())
+	for i in road.size() - 1:
+		if terrain._road_gap[i] == 1:
+			continue
+		var m2 := (road[i] + road[i + 1]) * 0.5
+		var rv2: float = terrain._near_route(m2, terrain._river, terrain._river_len, terrain._river_bins)[0]
+		var ground2 := terrain.sample_grid(terrain.base, Vector3(m2.x, 0, m2.y))
+		var deck2 := (terrain._road_h[i] + terrain._road_h[i + 1]) * 0.5
+		if rv2 < MapLayout.RIVER_HALF + 10.0 or (rv2 < 70.0 and ground2 < deck2 - 1.0):
+			spans[i] = 1
+	var grown := spans.duplicate()
+	for i in road.size() - 1:
+		if spans[i] == 1:
+			for k in [i - 1, i + 1]:
+				if k >= 0 and k < road.size() - 1 and terrain._road_gap[k] == 0:
+					grown[k] = 1
 	var on_bridge := false
 	for i in road.size() - 1:
 		if terrain._road_gap[i] == 1:
@@ -133,8 +188,7 @@ func _build_bridges(terrain: MudTerrain) -> void:
 		var b := road[i + 1]
 		var mid := (a + b) * 0.5
 		var rv: float = terrain._near_route(mid, terrain._river, terrain._river_len, terrain._river_bins)[0]
-		var span := rv < MapLayout.RIVER_HALF + 10.0
-		if not span:
+		if grown[i] == 0:
 			on_bridge = false
 			continue
 		if not on_bridge:
