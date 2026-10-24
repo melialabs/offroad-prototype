@@ -3,10 +3,14 @@ extends Node3D
 ## Original roadside landmarks built from simple meshes and existing materials.
 
 const PLACES := MapLayout.PLACES
+## Yol kənarında lövhəsi olmayan yerlər (ad yalnız GPS xəritəsində qalır)
+const NO_SIGN := ["Başlanğıc qarajı"]
 
 func build(terrain: MudTerrain) -> void:
 	_build_road(terrain)
 	for place in PLACES:
+		if place[0] in NO_SIGN:
+			continue
 		var p: Vector2 = place[1]
 		var ground := Vector3(p.x, 0, p.y)
 		ground.y = terrain.height_at(ground)

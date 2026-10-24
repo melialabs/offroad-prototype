@@ -370,7 +370,14 @@ func _update_rain(delta: float) -> void:
 			var angle := _rng.randf_range(0.0, TAU)
 			var r := SPLASH_RADIUS * sqrt(_rng.randf())
 			var p := Vector3(origin.x + cos(angle) * r, 0.0, origin.z + sin(angle) * r)
-			p.y = (terrain.height_at(p) if terrain != null else origin.y - 1.5) + 0.02
+			if terrain != null:
+				var ground := terrain.height_at(p)
+				# körpü altına yağış yağmır; çay/göldə dairələr su səthində olur
+				if terrain.bridge_deck_above(p, ground) > -INF:
+					continue
+				p.y = maxf(ground, terrain.water_level_at(p)) + 0.02
+			else:
+				p.y = origin.y - 1.5
 			_s_pos[_s_cursor] = p
 			_s_age[_s_cursor] = 0.0
 			_s_cursor = (_s_cursor + 1) % SPLASH_COUNT

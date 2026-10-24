@@ -24,7 +24,7 @@ const PROPS := [
 	{"model": "res://assets/props/city/panel_house.glb", "p": Vector2(90, -175), "scale": 1.0, "clear": 14.0, "slab": true, "sink": 0.0},
 	# yanacaq məntəqələri: başlanğıc yolunda və şəhərin şərq çıxışında
 	{"model": "res://assets/props/city/gas_station.glb", "p": Vector2(-95, 470), "scale": 0.85, "clear": 22.0, "slab": true, "sink": 0.0},
-	{"model": "res://assets/props/city/gas_station.glb", "p": Vector2(330, 10), "scale": 0.85, "clear": 22.0, "slab": true, "sink": 0.0},
+	{"model": "res://assets/props/city/gas_station.glb", "p": Vector2(192, -36), "scale": 0.85, "clear": 22.0, "slab": true, "sink": 0.0},
 	# mədənin şimal kənarında və gölün cənub sahilində kranlar
 	{"model": "res://assets/props/city/crane.glb", "p": Vector2(690, -105), "scale": 1.0, "clear": 14.0, "slab": false, "sink": 0.6, "mean": true},
 	{"model": "res://assets/props/city/crane.glb", "p": Vector2(-130, -540), "scale": 0.8, "clear": 12.0, "slab": false, "sink": 0.5, "mean": true},

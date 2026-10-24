@@ -34,7 +34,9 @@ func _ready() -> void:
 			_soft.append(terrain.sample_grid(terrain.soft, p))
 			_uv.append(Vector2(p.x, p.z))
 			var route := terrain._near_route(Vector2(p.x, p.z), terrain._road, terrain._road_len, terrain._road_bins)
-			_uv2.append(Vector2(route[1], route[2]))
+			var seg: int = route[3]
+			var deck := lerpf(terrain._road_h[seg], terrain._road_h[mini(seg + 1, terrain._road_h.size() - 1)], float(route[4]))
+			_uv2.append(Vector2(route[1], route[2]) if _base[_base.size() - 1] > deck - MudTerrain.BRIDGE_CLEARANCE else Vector2(1000.0, route[2]))
 	for z in SIDE - 1:
 		for x in SIDE - 1:
 			var a := z * SIDE + x

@@ -235,6 +235,20 @@ func _build_rivers() -> void:
 
 
 ## Su səthinin hündürlüyü (göl, çay, bataqlıq gölməçəsi); su yoxdursa -INF.
+## Yol göyərtəsi yerdən bu qədər yuxarıdadırsa, altı körpü altı sayılır (asfalt boyanmır, yağış yağmır).
+const BRIDGE_CLEARANCE := 1.5
+
+
+## Nöqtənin üstündə körpü göyərtəsi varsa onun hündürlüyü, yoxdursa -INF.
+func bridge_deck_above(world_pos: Vector3, ground_y: float) -> float:
+	var rd := _near_route(Vector2(world_pos.x, world_pos.z), _road, _road_len, _road_bins)
+	if float(rd[0]) > ROAD_HALF + 1.0:
+		return -INF
+	var seg: int = rd[3]
+	var deck := lerpf(_road_h[seg], _road_h[mini(seg + 1, _road_h.size() - 1)], float(rd[4]))
+	return deck if deck > ground_y + BRIDGE_CLEARANCE else -INF
+
+
 func water_level_at(world_pos: Vector3) -> float:
 	var p := Vector2(world_pos.x, world_pos.z)
 	if MapLayout._ellipse(p, MapLayout.LAKE_CENTER, MapLayout.LAKE_RADII) < 1.0:
@@ -496,7 +510,8 @@ func _generate() -> void:
 			base[i] = hh
 			soft[i] = s
 			_uv[i] = Vector2(wx, wz)
-			_uv2[i] = Vector2(rd[1], rd[2])
+			# körpü altı (yer yol göyərtəsindən xeyli aşağıda): asfalt və zolaq xətləri yerə çəkilməsin
+			_uv2[i] = Vector2(rd[1], rd[2]) if hh > road_h - BRIDGE_CLEARANCE else Vector2(1000.0, rd[2])
 
 	# dik yamaclarda və hündürlükdə palçıq olmasın (qaya və qar)
 	for z in N:
