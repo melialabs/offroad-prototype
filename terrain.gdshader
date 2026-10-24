@@ -149,14 +149,16 @@ void fragment() {
 	vec3 ad = texture(a_diff, au_).rgb;
 	vec3 an = texture(a_nor, au_).rgb;
 	float ar = texture(a_rough, au_).r;
-	float u = abs(UV2.x);
+	// UV.x: yola işarəsiz məsafə (relyef), UV2.x: işarəli məsafə. Maska üçün ikisinin böyüyü götürülür:
+	// iki yol arasında və yol ucunda işarəli məsafə 0-dan keçsə də işarəsiz böyük qalır, yalançı xətt çəkilmir.
+	float u = max(abs(UV2.x), UV.x);
 	float along = UV2.y;
 	float road = 1.0 - smoothstep(road_half - 0.06, road_half + 0.06, u);
 	float shoulder = (1.0 - smoothstep(road_half + 0.5, road_half + 1.3, u)) * (1.0 - road);
 	float edge_line = smoothstep(road_half - 0.62, road_half - 0.56, u)
 			* (1.0 - smoothstep(road_half - 0.40, road_half - 0.34, u));
 	float dash = step(fract(along / 9.0), 0.55);
-	float center = (1.0 - smoothstep(0.08, 0.12, u)) * dash;
+	float center = (1.0 - smoothstep(0.08, 0.12, abs(UV2.x))) * dash * (1.0 - step(road_half, UV.x));
 	float paint = max(edge_line, center) * road;
 	vec3 yellow = vec3(0.78, 0.60, 0.07);
 	// real asfalt: tünd, bir az isti boz (albedo ~0.12-0.2), mavi çalar yox

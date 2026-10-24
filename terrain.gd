@@ -46,6 +46,9 @@ var _tangents := PackedFloat32Array()
 var _colors := PackedColorArray()
 var _uv := PackedVector2Array()    # dünya xz (tekstur üçün)
 var _uv2 := PackedVector2Array()   # (yol oxuna işarəli məsafə, yol boyu uzunluq)
+## Yola işarəsiz məsafə (mesh UV.x): asfalt maskası bununla hesablanır. İşarəli məsafə iki yolun arasında
+## və yol uclarında işarəsini dəyişir, təpələr arasında 0-dan keçir və nazik "yalançı yol" çəkirdi.
+var _road_un := PackedFloat32Array()
 var _indices := PackedInt32Array()
 var _dirty := false
 var _timer := 0.0
@@ -386,6 +389,7 @@ func _generate() -> void:
 	soft.resize(N * N)
 	_uv.resize(N * N)
 	_uv2.resize(N * N)
+	_road_un.resize(N * N)
 	var hills := _hill_noise()
 	_big.seed = 31
 	_big.frequency = 0.009
@@ -522,6 +526,7 @@ func _generate() -> void:
 			_uv[i] = Vector2(wx, wz)
 			# körpü altı (yer yol göyərtəsindən xeyli aşağıda): asfalt və zolaq xətləri yerə çəkilməsin
 			_uv2[i] = Vector2(rd[1], rd[2]) if hh > road_h - BRIDGE_CLEARANCE else Vector2(1000.0, rd[2])
+			_road_un[i] = float(rd[0]) if hh > road_h - BRIDGE_CLEARANCE else 1000.0
 
 	# dik yamaclarda və hündürlükdə palçıq olmasın (qaya və qar)
 	for z in N:
@@ -615,7 +620,7 @@ func _build_chunk(cx: int, cz: int) -> void:
 			vertices.append(_verts[i] - Vector3.UP * underfloor)
 			normals.append(_normals[i])
 			tangents.append_array(_tangents.slice(i * 4, i * 4 + 4))
-			uv.append(_uv[i])
+			uv.append(Vector2(_road_un[i], 0.0))
 			uv2.append(_uv2[i])
 			heights.append(h[i] - underfloor)
 	var arrays := []

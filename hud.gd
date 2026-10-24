@@ -66,43 +66,48 @@ func _draw() -> void:
 	var sz := get_viewport_rect().size
 	var s := minf(clampf(sz.y / 900.0, 0.7, 1.5),maxf(0.45,(sz.x-250.0)/670.0))
 	var m := 14.0 * s
-	# One compact instrument cluster; lower-left GPS remains unobstructed.
-	var h := 178.0 * s
-	var y0 := sz.y - m - h
-	var gap := 10.0 * s
-	var panel := Rect2(Vector2(sz.x - m - 640.0 * s,y0),Vector2(640,178)*s)
+	# Kompakt premium panel (aşağı sağ): solda sürət halqası, ortada dişli + RPM LED zolağı + yanacaq,
+	# altda bütün vəziyyət çipləri bir sırada. Ekranın ortası və aşağı sol (GPS) boş qalır.
+	var pw := 372.0 * s
+	var ph := 128.0 * s
+	var panel := Rect2(Vector2(sz.x - m - pw, sz.y - m - ph - 14.0 * s), Vector2(pw, ph))
+	var y0 := panel.position.y
+	var h := ph
 	_panel(panel)
+	draw_rect(Rect2(panel.position + Vector2(14, 0) * s, Vector2(pw - 28.0 * s, 2.0 * s)), Color(0.92, 0.78, 0.42, 0.85))
 	var o := panel.position
-	_text_l(str(truck.spec["name"]).to_upper(),o+Vector2(22,22)*s,int(12*s),DIM)
-	_text_l("SÜRÜŞ GÖSTƏRİCİLƏRİ",o+Vector2(410,20)*s,int(10*s),DIM)
-	_draw_speedo(o+Vector2(90,92)*s,62.0*s,s)
-	_draw_rpm(o+Vector2(234,92)*s,43.0*s,s)
-	_draw_fuel(o+Vector2(341,92)*s,36.0*s,s)
-	_draw_left_badges(o+Vector2(410,32)*s,208.0*s,s)
-	_badge(o+Vector2(410,116)*s,208.0*s,"Təkər: "+str(OffroadTruck.TIRES[truck.tire_idx]["name"]),true,s)
-	var mud_bar := Rect2(o+Vector2(410,146)*s,Vector2(208,12)*s)
-	draw_rect(mud_bar,PILL)
-	draw_rect(Rect2(mud_bar.position,Vector2(mud_bar.size.x*clampf(truck.mud_level,0,1),mud_bar.size.y)),Color(0.52,0.32,0.16))
-	_text_c("PALÇIQ %d%%" % int(truck.mud_level*100),mud_bar.position+Vector2(104,10)*s,int(8*s),DIM)
-
-	# mərkəz: mühərrik / fənər / qəza işığı göstəriciləri
-	var bw := 104.0 * s
-	var bx := sz.x * 0.5 - (bw * 3.0 + gap * 2.0) * 0.5
-	var by := y0 - 32.0 * s
-	var eng_txt := "Mühərrik"
+	var tire_name := str(OffroadTruck.TIRES[truck.tire_idx]["name"])
+	_text_l("%s  ·  %s təkər" % [str(truck.spec["name"]).to_upper(), tire_name.to_lower()], o + Vector2(14, 18) * s, int(10 * s), DIM)
+	if truck.mud_level > 0.01:
+		var mud := clampf(truck.mud_level, 0.0, 1.0)
+		var mb := Rect2(o + Vector2(pw / s - 96.0, 10.0) * s, Vector2(82, 5) * s)
+		draw_rect(mb, PILL)
+		draw_rect(Rect2(mb.position, Vector2(mb.size.x * mud, mb.size.y)), Color(0.62, 0.4, 0.2))
+		_text_l("PALÇIQ", mb.position + Vector2(-40, 6) * s, int(8 * s), DIM)
+	_draw_speed_ring(o + Vector2(62, 66) * s, 40.0 * s, s)
+	_draw_gear_rpm(o + Vector2(118, 32) * s, s)
+	_draw_fuel_bar(o + Vector2(118, 78) * s, s)
+	# vəziyyət çipləri
+	var chips := []
 	var eng_on: bool = truck.engine_state == OffroadTruck.EngineState.RUNNING
-	if truck.engine_state == OffroadTruck.EngineState.CRANKING:
-		eng_txt = "İşə düşür..."
-	elif not eng_on:
-		eng_txt = "Mühərrik: I"
-	_badge(Vector2(bx, by), bw, eng_txt, eng_on, s)
+	chips.append(["MÜH" if truck.engine_state != OffroadTruck.EngineState.CRANKING else "...", eng_on])
 	var hl: int = truck.lights.headlight_mode
-	_badge(Vector2(bx + bw + gap, by), bw, ["Fənər söndü", "Yaxın fənər", "Uzaq fənər"][hl], hl > 0, s)
-	var haz_on: bool = truck.lights.hazard
-	_badge(Vector2(bx + (bw + gap) * 2.0, by), bw, "Qəza işığı", haz_on and int(Time.get_ticks_msec() / 400) % 2 == 0, s)
+	chips.append([["FƏNƏR", "YAXIN", "UZAQ"][hl], hl > 0])
+	chips.append(["QƏZA", truck.lights.hazard and int(Time.get_ticks_msec() / 400) % 2 == 0])
+	var awd_always: bool = truck.spec["awd"] == "always"
+	chips.append(["4×4", truck.awd_on or awd_always])
+	chips.append(["DİF", truck.spec["diff"] != "none" and truck.diff_lock])
+	chips.append(["LOW", truck.low_range])
+	var cw := (pw - 28.0 * s - 5.0 * 5.0 * s) / 6.0
+	for k in chips.size():
+		_chip(o + Vector2(14.0 * s + k * (cw + 5.0 * s), ph - 26.0 * s), cw, chips[k][0], chips[k][1], s)
+	var gap := 10.0 * s
+	var bx := panel.position.x
+	var bw := pw / 3.0
+	var by := y0
 	if truck.engine_state == OffroadTruck.EngineState.OFF:
 		var pa := 0.6 + 0.4 * sin(Time.get_ticks_msec() * 0.005)
-		_text_c("Mühərriki işə salmaq üçün I düyməsinə bas", Vector2(sz.x * 0.5, by - 12.0 * s), int(16 * s), Color(1, 0.8, 0.3, pa))
+		_text_c("Mühərriki işə salmaq üçün I düyməsinə bas", Vector2(bx + (bw * 3.0) * 0.5, by - 10.0 * s), int(14 * s), Color(1, 0.8, 0.3, pa))
 
 	# düymə göstərişi: ilk 16 saniyə, sonra H ilə
 	var hint_a := 0.5 if _hints_forced else clampf((16.0 - _t) / 3.0, 0.0, 1.0) * 0.5
@@ -113,6 +118,76 @@ func _draw() -> void:
 	if _toast_t > 0.0:
 		var a := clampf(_toast_t / 0.4, 0.0, 1.0)
 		_text_c(_toast, Vector2(sz.x * 0.5, sz.y - m - h - 65.0 * s), int(22 * s), Color(1, 1, 1, a))
+
+
+# --- kompakt göstəricilər ---------------------------------------------------------
+
+func _draw_speed_ring(c: Vector2, r: float, s: float) -> void:
+	var frac := clampf(_speed_smooth / speed_scale(), 0.0, 1.0)
+	draw_circle(c, r + 4.0 * s, Color(0, 0, 0, 0.3))
+	draw_arc(c, r, A_START, A_START + A_SWEEP, 64, Color(1, 1, 1, 0.10), 4.0 * s, true)
+	var col := CYAN.lerp(ORANGE, smoothstep(0.6, 0.85, frac)).lerp(RED, smoothstep(0.9, 1.0, frac))
+	if frac > 0.003:
+		draw_arc(c, r, A_START, A_START + A_SWEEP * frac, 64, col, 4.0 * s, true)
+		var tip := A_START + A_SWEEP * frac
+		draw_circle(c + Vector2(cos(tip), sin(tip)) * r, 3.2 * s, Color.WHITE)
+	_text_c(str(int(round(_speed_smooth))), c + Vector2(0, 9.0 * s), int(30 * s), Color.WHITE)
+	_text_c("km/h", c + Vector2(0, 24.0 * s), int(9 * s), DIM)
+
+
+func _draw_gear_rpm(o: Vector2, s: float) -> void:
+	var box := Rect2(o, Vector2(38, 38) * s)
+	var sb := StyleBoxFlat.new()
+	sb.bg_color = Color(0.07, 0.09, 0.12, 0.95)
+	sb.set_corner_radius_all(int(8 * s))
+	sb.border_color = Color(0.92, 0.78, 0.42, 0.7)
+	sb.set_border_width_all(maxi(1, int(1.5 * s)))
+	draw_style_box(sb, box)
+	var gear_txt := "R" if truck.gear < 0 else str(truck.gear)
+	if truck.shift_remaining > 0.0:
+		gear_txt = "·"
+	_text_c(gear_txt, box.get_center() + Vector2(0, 8.0 * s), int(22 * s), Color.WHITE)
+	if truck.low_range:
+		_text_c("L", box.position + Vector2(31, 11) * s, int(8 * s), ORANGE)
+	# RPM: seqmentli LED zolağı, qırmızı zona redline-dan sonra
+	var segs := 22
+	var bar_x := o.x + 48.0 * s
+	var bar_w := 190.0 * s
+	var seg_w := bar_w / segs
+	var max_rpm := rpm_scale()
+	var frac := clampf(_rpm_smooth / max_rpm, 0.0, 1.0)
+	var red_from := float(truck.powertrain["redline"]) / max_rpm
+	for k in segs:
+		var f := (k + 0.5) / segs
+		var lit := f <= frac
+		var col := GREEN.lerp(ORANGE, smoothstep(0.5, 0.72, f))
+		if f >= red_from - 0.05:
+			col = RED
+		draw_rect(Rect2(Vector2(bar_x + k * seg_w, o.y + 8.0 * s), Vector2(seg_w - 2.0 * s, 12.0 * s)), col if lit else Color(col, 0.13))
+	_text_l("%d RPM" % int(round(_rpm_smooth / 50.0) * 50.0), Vector2(bar_x, o.y + 34.0 * s), int(9 * s), DIM)
+
+
+func _draw_fuel_bar(o: Vector2, s: float) -> void:
+	var frac := clampf(truck.fuel / float(truck.spec["fuel"]), 0.0, 1.0)
+	var low := frac < 0.15
+	var col := RED if low else (ORANGE if frac < 0.3 else CYAN)
+	if low and int(Time.get_ticks_msec() / 350) % 2 == 0:
+		col = Color(RED, 0.35)
+	_text_l("YANACAQ", o + Vector2(0, 8) * s, int(8 * s), DIM)
+	var bar := Rect2(o + Vector2(48, 1) * s, Vector2(146, 7) * s)
+	draw_rect(bar, PILL)
+	draw_rect(Rect2(bar.position, Vector2(bar.size.x * frac, bar.size.y)), col)
+	_text_l("%d L" % int(truck.fuel), o + Vector2(200, 9) * s, int(10 * s), Color.WHITE)
+
+
+func _chip(pos: Vector2, w: float, text: String, on: bool, s: float) -> void:
+	var sb := StyleBoxFlat.new()
+	sb.bg_color = Color(CYAN, 0.18) if on else Color(0.08, 0.1, 0.14, 0.85)
+	sb.set_corner_radius_all(int(6 * s))
+	sb.border_color = CYAN if on else Color(1, 1, 1, 0.08)
+	sb.set_border_width_all(1)
+	draw_style_box(sb, Rect2(pos, Vector2(w, 18.0 * s)))
+	_text_c(text, pos + Vector2(w * 0.5, 13.0 * s), int(9 * s), Color.WHITE if on else Color(1, 1, 1, 0.45))
 
 
 # --- spidometr -------------------------------------------------------------------

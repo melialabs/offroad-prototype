@@ -21,7 +21,15 @@ func run() -> void:
 	main.cam.current = false
 	cam.current = true
 	var k := 0
-	for c in [Vector2(-512, -512), Vector2(512, -512), Vector2(-512, 512), Vector2(512, 512)]:
+	var views: Array = [Vector2(-512, -512), Vector2(512, -512), Vector2(-512, 512), Vector2(512, 512)]
+	# isteğe bağlı: -- <qovluq> <ölçü m> x z x z ... (yaxın plan)
+	var a := OS.get_cmdline_user_args()
+	if a.size() > 3:
+		cam.size = float(a[1])
+		views.clear()
+		for idx in range(2, a.size() - 1, 2):
+			views.append(Vector2(float(a[idx]), float(a[idx + 1])))
+	for c in views:
 		cam.global_transform = Transform3D(Basis.looking_at(Vector3.DOWN, Vector3.FORWARD), Vector3(c.x, 900, c.y))
 		main.truck.global_position = Vector3(c.x, 950, c.y)
 		for i in 40:

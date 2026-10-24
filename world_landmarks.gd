@@ -67,7 +67,7 @@ func _build_road(terrain: MudTerrain) -> void:
 			var ri := i if k < 2 else i + 1
 			st.set_normal(Vector3.UP)
 			st.set_tangent(Plane(Vector3.RIGHT, 1))
-			st.set_uv(p)
+			st.set_uv(Vector2.ZERO)  # lentin hamısı yoldur (UV.x = işarəsiz məsafə = 0)
 			st.set_uv2(Vector2(MudTerrain.ROAD_HALF * (1.0 if k % 2 == 0 else -1.0), terrain._road_len[ri]))
 			st.add_vertex(Vector3(p.x, terrain._road_h[ri] + 0.08, p.y))
 	var road := MeshInstance3D.new()

@@ -32,11 +32,13 @@ func _ready() -> void:
 			var p := position + Vector3(x * STEP, 0, z * STEP)
 			_base.append(terrain.base_height_at(p))
 			_soft.append(terrain.sample_grid(terrain.soft, p))
-			_uv.append(Vector2(p.x, p.z))
 			var route := terrain._near_route(Vector2(p.x, p.z), terrain._road, terrain._road_len, terrain._road_bins, terrain._road_gap)
 			var seg: int = route[3]
 			var deck := lerpf(terrain._road_h[seg], terrain._road_h[mini(seg + 1, terrain._road_h.size() - 1)], float(route[4]))
-			_uv2.append(Vector2(route[1], route[2]) if _base[_base.size() - 1] > deck - MudTerrain.BRIDGE_CLEARANCE else Vector2(1000.0, route[2]))
+			var open_sky := _base[_base.size() - 1] > deck - MudTerrain.BRIDGE_CLEARANCE
+			# UV.x: yola işarəsiz məsafə (asfalt maskası), UV2: işarəli məsafə + yol boyu (orta xətt)
+			_uv.append(Vector2(float(route[0]) if open_sky else 1000.0, 0.0))
+			_uv2.append(Vector2(route[1], route[2]) if open_sky else Vector2(1000.0, route[2]))
 	for z in SIDE - 1:
 		for x in SIDE - 1:
 			var a := z * SIDE + x
