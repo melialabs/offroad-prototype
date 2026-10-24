@@ -48,6 +48,14 @@ static func vehicle_probe(lvl: String) -> bool:
 	return bool(PROFILES.get(lvl, PROFILES[DEFAULT])["probe"])
 
 
+## Kölgə salan fənər sayı: gecə sürüşdə ən bahalı hissə (hər biri əlavə kölgə keçidi), yağışda fərq görünmür.
+static func headlight_shadows() -> int:
+	match saved_level():
+		"ULTRA":
+			return 1
+	return 0
+
+
 static func veg_shadow(lvl: String) -> float:
 	return float(PROFILES.get(lvl, PROFILES[DEFAULT])["veg_shadow"])
 
@@ -97,7 +105,7 @@ static func apply(lvl: String, env: Environment, sun: DirectionalLight3D, vp: Vi
 	env.ssil_normal_rejection = 1.0
 	env.sdfgi_enabled = p["sdfgi"]
 	if p["sdfgi"]:
-		env.sdfgi_cascades = 4
+		env.sdfgi_cascades = 3
 		env.sdfgi_min_cell_size = 0.4
 		env.sdfgi_use_occlusion = true
 		env.sdfgi_energy = 0.7
@@ -133,6 +141,8 @@ static func apply(lvl: String, env: Environment, sun: DirectionalLight3D, vp: Vi
 		vp.screen_space_aa = _smaa_or_fxaa()
 	vp.msaa_3d = Viewport.MSAA_DISABLED
 	vp.mesh_lod_threshold = p["lod"]
+	vp.positional_shadow_atlas_size = 4096 if lvl == "ULTRA" else 2048
+	vp.positional_shadow_atlas_16_bits = true
 	vp.use_debanding = true
 	if vegetation != null and vegetation.has_method("set_shadow_range"):
 		vegetation.set_shadow_range(float(p["veg_shadow"]))

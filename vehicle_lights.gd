@@ -49,7 +49,7 @@ func _ready() -> void:
 	for p in HEAD_POS:
 		var sp := SpotLight3D.new()
 		sp.position = p
-		sp.shadow_enabled = true
+		sp.shadow_enabled = _heads.size() < GraphicsQuality.headlight_shadows()
 		sp.light_color = Color(1.0, 0.94, 0.79)
 		sp.spot_attenuation = 0.8
 		add_child(sp)
