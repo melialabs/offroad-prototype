@@ -8,6 +8,8 @@ const BANKS := [
 	{"id":"heavy", "label":"Substitute · unidentified truck / Joseph Sardin"},
 	{"id":"niva", "label":"Substitute · unidentified retro car #2 / DenisChardonnet"},
 ]
+## Yeni maşınlar: dizel pikaplar cargo (dizel) bankını işlədir, G-class-lar scout (V8).
+const EXTRA_BANK := {9: 1, 10: 1}
 var idle: AudioStreamPlayer
 var rev: AudioStreamPlayer
 var load_layer: AudioStreamPlayer
@@ -32,7 +34,7 @@ func _make_player() -> AudioStreamPlayer:
 func select_vehicle(vehicle: int) -> void:
 	# Additional UAZs retain a disclosed petrol substitute; original four have
 	# different actual source recordings, not six differently pitched copies.
-	var selected := vehicle if vehicle < BANKS.size() else 0
+	var selected := vehicle if vehicle < BANKS.size() else int(EXTRA_BANK.get(vehicle, 0))
 	if index == selected:
 		return
 	index = selected

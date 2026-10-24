@@ -37,6 +37,23 @@ const SPECS := [
 		"radius": 0.404, "awd": "switch", "diff": "switch", "tire": 1,
 		"car": "res://assets/cars/uaz_469.glb", "origin": 0.9, "lights": [0.6, 0.75, 1.08, 0.85],
 		"collision_size": Vector3(1.72, 0.8, 3.95), "collision_offset": Vector3(0, 0.08, -0.02)},
+	# İstifadəçinin verdiyi modellər (tools/prep_vehicle.gd ilə hazırlanıb). Kütlə/tork oyun balansıdır, zavod rəqəmi deyil.
+	{"name": "Mercedes-AMG G63", "mass": 2560.0, "torque": 620.0, "fuel": 100.0,
+		"radius": 0.394, "awd": "always", "diff": "switch", "tire": 1,
+		"car": "res://assets/cars/g63.glb", "origin": 0.95, "lights": [0.62, 0.72, 0.98, 0.95],
+		"collision_size": Vector3(1.9, 1.0, 4.6), "collision_offset": Vector3(0, -0.05, 0.0)},
+	{"name": "Brabus G700", "mass": 2700.0, "torque": 720.0, "fuel": 100.0,
+		"radius": 0.461, "awd": "always", "diff": "switch", "tire": 2,
+		"car": "res://assets/cars/brabus_g700.glb", "origin": 1.02, "lights": [0.62, 0.72, 1.02, 0.98],
+		"collision_size": Vector3(1.95, 1.0, 4.6), "collision_offset": Vector3(0, -0.03, 0.0)},
+	{"name": "Toyota Hilux", "mass": 2100.0, "torque": 470.0, "fuel": 80.0,
+		"radius": 0.505, "awd": "switch", "diff": "switch", "tire": 2,
+		"car": "res://assets/cars/hilux.glb", "origin": 1.07, "lights": [0.68, 0.72, 1.05, 1.05],
+		"collision_size": Vector3(1.85, 0.95, 5.1), "collision_offset": Vector3(0, 0.0, 0.0)},
+	{"name": "Crossroad Pickup", "mass": 2400.0, "torque": 520.0, "fuel": 90.0,
+		"radius": 0.43, "awd": "switch", "diff": "switch", "tire": 2,
+		"car": "res://assets/cars/crossroad_pickup.glb", "origin": 0.98, "lights": [0.6, 0.7, 0.95, 1.0],
+		"collision_size": Vector3(1.85, 0.95, 5.0), "collision_offset": Vector3(0, 0.0, 0.0)},
 ]
 
 # hard = bərk yerdə tutuşma, mud = palçıqda tutuşma
@@ -56,6 +73,10 @@ const SUSPENSIONS := [
 	{"stiffness": 30.0, "travel": 0.48, "compression": 1.9, "rebound": 2.3, "width": 0.34},
 	{"stiffness": 30.0, "travel": 0.42, "compression": 1.9, "rebound": 2.3, "width": 0.25},
 	{"stiffness": 30.0, "travel": 0.44, "compression": 1.8, "rebound": 2.2, "width": 0.25},
+	{"stiffness": 32.0, "travel": 0.38, "compression": 2.0, "rebound": 2.4, "width": 0.30},
+	{"stiffness": 34.0, "travel": 0.36, "compression": 2.1, "rebound": 2.5, "width": 0.33},
+	{"stiffness": 26.0, "travel": 0.50, "compression": 1.8, "rebound": 2.2, "width": 0.33},
+	{"stiffness": 30.0, "travel": 0.46, "compression": 1.9, "rebound": 2.3, "width": 0.31},
 ]
 
 var mud_spray: MudSpray
@@ -355,7 +376,7 @@ func _unhandled_input(event: InputEvent) -> void:
 				diff_lock = not diff_lock
 		KEY_T:
 			tire_idx = (tire_idx + 1) % TIRES.size()
-		KEY_1, KEY_2, KEY_3, KEY_4, KEY_5, KEY_6:
+		KEY_1, KEY_2, KEY_3, KEY_4, KEY_5, KEY_6, KEY_7, KEY_8, KEY_9:
 			var slot: int = event.physical_keycode - KEY_1
 			var shown := selectable_specs()
 			if slot < shown.size():
@@ -366,9 +387,17 @@ func _unhandled_input(event: InputEvent) -> void:
 static func selectable_specs() -> Array[int]:
 	var out: Array[int] = []
 	for i in SPECS.size():
-		if i not in HIDDEN_SPECS and VehicleProgress.is_unlocked(i):
+		if is_available(i) and VehicleProgress.is_unlocked(i):
 			out.append(i)
 	return out
+
+
+## Gizli deyil və modeli (varsa) diskdədir: lokal lisenziyalı modellər repoda olmaya bilər.
+static func is_available(i: int) -> bool:
+	if i in HIDDEN_SPECS:
+		return false
+	var sp: Dictionary = SPECS[i]
+	return not sp.has("car") or ResourceLoader.exists(str(sp["car"]))
 
 
 ## Mühərriki işə sal / söndür (I düyməsi).

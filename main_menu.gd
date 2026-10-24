@@ -310,7 +310,7 @@ func _build_vehicle() -> VBoxContainer:
 			b.add_theme_constant_override("icon_max_width", 150)
 			b.add_theme_constant_override("h_separation", 14)
 			b.add_theme_font_size_override("font_size", 16)
-		b.visible = i not in OffroadTruck.HIDDEN_SPECS
+		b.visible = OffroadTruck.is_available(i)
 		_vehicle_buttons.append(b)
 		grid.add_child(b)
 	v.add_child(_card_button(I18n.t("back"), func(): _show_page("main"), 48.0))

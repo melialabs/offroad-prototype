@@ -11,3 +11,7 @@ tools/__pycache__/
 
 .DS_Store
 *.import
+
+# CC BY-NC-ND: yalnız lokal (CREDITS.md)
+assets/cars/brabus_g700*
+assets/ui/car_8.png*

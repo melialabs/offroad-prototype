@@ -1,3 +1,7 @@
 incoming-vehicles/*.glb filter=lfs diff=lfs merge=lfs -text
 incoming-vehicles/*.zip filter=lfs diff=lfs merge=lfs -text
 assets/cars/uaz*.glb filter=lfs diff=lfs merge=lfs -text
+assets/cars/g63.glb filter=lfs diff=lfs merge=lfs -text
+assets/cars/brabus_g700.glb filter=lfs diff=lfs merge=lfs -text
+assets/cars/hilux.glb filter=lfs diff=lfs merge=lfs -text
+assets/cars/crossroad_pickup.glb filter=lfs diff=lfs merge=lfs -text

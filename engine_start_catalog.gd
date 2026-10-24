@@ -10,7 +10,11 @@ const PROFILES := [
 	{"id":"uaz452", "seconds":1.75, "source":"Peugeot 106 · substitute"},
 	{"id":"uaz469", "seconds":1.40, "source":"Peugeot 107 · substitute"},
 ]
+## Yeni maşınlar mövcud yazılardan birini işlədir: V8 -> scout, dizel pikaplar -> cargo.
+const EXTRA := {7: 0, 8: 0, 9: 1, 10: 1}
 static func profile(index: int) -> Dictionary:
+	if EXTRA.has(index):
+		return PROFILES[EXTRA[index]]
 	return PROFILES[clampi(index,0,PROFILES.size()-1)]
 static func path(index: int) -> String:
 	return "res://assets/audio/engines/start_%s.wav" % profile(index)["id"]

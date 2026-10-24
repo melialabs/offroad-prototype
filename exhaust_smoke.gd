@@ -5,8 +5,8 @@ extends Node3D
 const CAPACITY := 144
 # +Z is forward. Rear tips measured outside imported body bounds (including
 # bumpers/accessories); trucks use upright stacks outside the procedural cab.
-const OUTLETS := [Vector3(.42,-.48,-2.16),Vector3(.92,1.3,-.35),Vector3(.92,1.3,-.35),Vector3(-.55,-.48,-1.93),Vector3(.82,-.58,-2.62),Vector3(.46,-.60,-2.45),Vector3(.32,-.48,-2.36)]
-const CYLINDERS := [6,6,8,4,4,4,4,4,4]
+const OUTLETS := [Vector3(.42,-.48,-2.16),Vector3(.92,1.3,-.35),Vector3(.92,1.3,-.35),Vector3(-.55,-.48,-1.93),Vector3(.82,-.58,-2.62),Vector3(.46,-.60,-2.45),Vector3(.32,-.48,-2.36),Vector3(.98,-.58,-.95),Vector3(1.0,-.62,-.95),Vector3(.55,-.66,-2.62),Vector3(.5,-.6,-2.5)]
+const CYLINDERS := [6,6,8,4,4,4,4,8,8,4,4]
 var truck: OffroadTruck
 var wind: WindField
 var startup := 0.0
@@ -149,7 +149,7 @@ func _process(delta: float) -> void:
 		reset()
 		_previous_state = truck.engine_state
 	outlet = OUTLETS[clampi(truck.spec_idx,0,OUTLETS.size()-1)]
-	var diesel := truck.spec_idx in [1,2]
+	var diesel := truck.spec_idx in [1,2,9,10]
 	var direction := Vector3.UP if diesel else Vector3(.08,-.1,-1).normalized()
 	var mouth := truck.to_global(outlet)
 	var world_direction := (truck.global_basis*direction).normalized()
@@ -235,7 +235,7 @@ func _emit(diesel: bool,position: Vector3,direction: Vector3) -> void:
 	_cursor = (_cursor+1)%CAPACITY
 	var ignition := clampf(startup/1.8,0,1)
 	var load := clampf(_load_smoke,0,1) if diesel else 0.0
-	var pulse := 1+.09*sin(_clock*maxf(truck.rpm,400)/120.0*CYLINDERS[truck.spec_idx]*TAU)
+	var pulse := 1+.09*sin(_clock*maxf(truck.rpm,400)/120.0*CYLINDERS[clampi(truck.spec_idx,0,CYLINDERS.size()-1)]*TAU)
 	_positions[i] = position
 	_velocities[i] = truck.linear_velocity+direction*(.65+ignition*1.2+maxf(truck.throttle,0)*.65)*pulse
 	_velocities[i] += Vector3(_rng.randf_range(-.055,.055),_rng.randf_range(0,.055),_rng.randf_range(-.055,.055))

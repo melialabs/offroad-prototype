@@ -72,6 +72,21 @@ Dəyişikliklər: dünya transformları tətbiq edilib, dörd təkər və həqiq
 üzləri ayrılıb, teksturalar 1K-a kiçildilib, fizika və qaraj önizləmələri hazırlanıb.
 `tools/prepare_uaz_models.py` ilə təkrar hazırlamaq mümkündür.
 
+## İstifadəçinin təqdim etdiyi digər maşınlar (2026-10-24)
+
+- **2020 Mercedes-Benz G-Class AMG G63** — Outlaw Games (https://sketchfab.com/Outlaw_Games),
+  https://sketchfab.com/3d-models/2020-mercedes-benz-g-class-amg-g63-52296f1a65d54a85a2ed7cb67604e554,
+  CC BY-NC 4.0 (https://creativecommons.org/licenses/by-nc/4.0/): yalnız qeyri-kommersiya, müəllif göstərilməlidir.
+- **Mercedes-Benz G63 AMG BRABUS G700 (The Rocket)** — Echoo (https://sketchfab.com/echoo.),
+  https://sketchfab.com/3d-models/mercedes-benz-g63-amg-brabus-g700-the-rocket-a53e0e45b4b64dc6a65f4eeb016f01f2,
+  CC BY-NC-ND 4.0: dəyişdirilmiş versiyanın yayılmasına icazə vermir. Hazırlanmış `brabus_g700.glb`
+  yalnız lokal istifadə üçündür və repoya əlavə edilməyib.
+- **Toyota Hilux (OBJ)** və **Crossroad Pickup (LastGuns, FBX)** — istifadəçinin təqdim etdiyi fayllar;
+  müəllif/lisenziya qeydi yoxlanılmayıb (Hilux-da yoxdur; pickup README-si LastGuns paketinə istinad edir).
+
+Dəyişikliklər `tools/prep_vehicle.gd` ilə (Blender olmadan): meshlər Body + 4 təkərə birləşdirilib,
+metrə və irəli +Z-yə çevrilib, interyerin bir hissəsi atılıb, teksturalar 512–1024 px-ə kiçildilib.
+
 ## Səslər
 
 Mühərriklər səs yazılarından qurulur; bəzi avtomobil effektləri sintez olunur (aşağıdakı mənbələrə bax). Meşə, quşlar, gecə həşəratları, bayquş və su səsləri real CC0 qeydləridir. Müəlliflər, mənbələr və emal məlumatları: [assets/audio/CREDITS.md](assets/audio/CREDITS.md) və [SOURCES.json](assets/audio/SOURCES.json).
