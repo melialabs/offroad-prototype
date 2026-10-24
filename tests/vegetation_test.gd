@@ -48,6 +48,10 @@ func _run_checks() -> void:
 	var floating := 0
 	for t in trees:
 		var p: Vector3 = t[0]
+		# Hill Climb parkında ağaclar sonradan sculpt olunmuş relyefə görə qaldırılır (Vegetation._add_instance);
+		# qaydalar orada tests/hill_forest_preservation_test.gd ilə yoxlanılır
+		if HillClimbCatalog.ZONE.has_point(Vector2(p.x, p.z)):
+			continue
 		if terrain.road_distance_fast(p) < MudTerrain.ROAD_HALF + 4.9:
 			bad_road += 1
 		if terrain.softness_at(p) > 0.21:
