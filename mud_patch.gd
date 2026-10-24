@@ -13,6 +13,10 @@ const BERM_MAX := 0.12
 const BERM_SHARE := 0.22
 var _base := PackedFloat32Array()
 var _soft := PackedFloat32Array()
+## Coarse terrain's smooth vertex normal and bilinear height under each sample, so the
+## window border shades exactly like the 4 m mesh around it (no lit seam line).
+var _nbase := PackedVector3Array()
+var _flat := PackedFloat32Array()
 var _uv := PackedVector2Array()
 var _uv2 := PackedVector2Array()
 var _indices := PackedInt32Array()
@@ -32,6 +36,8 @@ func _ready() -> void:
 			var p := position + Vector3(x * STEP, 0, z * STEP)
 			_base.append(terrain.base_height_at(p))
 			_soft.append(terrain.sample_grid(terrain.soft, p))
+			_nbase.append(terrain.sample_normal(p))
+			_flat.append(terrain.sample_grid(terrain.h, p))
 			var route := terrain._near_route(Vector2(p.x, p.z), terrain._road, terrain._road_len, terrain._road_bins, terrain._road_gap)
 			var seg: int = route[3]
 			var deck := lerpf(terrain._road_h[seg], terrain._road_h[mini(seg + 1, terrain._road_h.size() - 1)], float(route[4]))
@@ -69,6 +75,11 @@ func _height(x: int, z: int) -> float:
 	var i := clampi(z, 0, SIDE - 1) * SIDE + clampi(x, 0, SIDE - 1)
 	return _base[i] - depths[i]
 
+## Fine detail above the coarse surface (ruts, berms, hill trail ruts).
+func _detail(x: int, z: int) -> float:
+	var i := clampi(z, 0, SIDE - 1) * SIDE + clampi(x, 0, SIDE - 1)
+	return _height(x, z) - _flat[i]
+
 func _rebuild() -> void:
 	var vertices := PackedVector3Array()
 	var normals := PackedVector3Array()
@@ -80,10 +91,12 @@ func _rebuild() -> void:
 			var i := z * SIDE + x
 			var y := _height(x, z)
 			vertices.append(Vector3(x * STEP, y, z * STEP))
-			var dx := _height(x + 1, z) - _height(x - 1, z)
-			var dz := _height(x, z + 1) - _height(x, z - 1)
-			normals.append(Vector3(-dx, 2.0 * STEP, -dz).normalized())
-			var t := Vector3(2.0 * STEP, dx, 0).normalized()
+			var dx := (_detail(x + 1, z) - _detail(x - 1, z)) / (2.0 * STEP)
+			var dz := (_detail(x, z + 1) - _detail(x, z - 1)) / (2.0 * STEP)
+			var nb := _nbase[i]
+			var n := (nb + Vector3(-dx, 0.0, -dz) * nb.y).normalized()
+			normals.append(n)
+			var t := Vector3(1.0, 0.0, 0.0).slide(n).normalized()
 			tangents.append_array([t.x, t.y, t.z, 1.0])
 			colors.append(Color(maxf(depths[i], 0.0) / MudTerrain.MAX_DEPTH, _soft[i], 0, 1))
 			heights.append(y)

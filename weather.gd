@@ -45,8 +45,9 @@ const PRESETS := {
 
 const WET_RISE := 0.035   # saniyədə: yağışda yer ~30 san-də islanır
 const WET_FALL := 0.010   # quruma ~100 san
-const SPLASH_COUNT := 420
-const RAIN_DROPS := 14000
+const SPLASH_COUNT := 640
+const RAIN_DROPS := 12000
+const RAIN_FAR_DROPS := 16000
 
 var main: Node
 var id := "sunny"
@@ -54,15 +55,24 @@ var id := "sunny"
 var wet := 0.0
 ## 0..1, hazırkı yağış intensivliyi (yağış səsi, hissəciklər)
 var rain_level := 0.0
+var _last_rain_sent := -1.0
 
 var _cur: Dictionary = PRESETS["sunny"].duplicate()
 var _target: Dictionary = PRESETS["sunny"]
 var _dirty := true
 var _rain: GPUParticles3D
-var _rain_mat: StandardMaterial3D
+var _rain_mat: ShaderMaterial
+var _rain_far: GPUParticles3D
+var _rain_far_mat: ShaderMaterial
 var _splash: MultiMeshInstance3D
 var _splash_mm: MultiMesh
 var _splash_mat: StandardMaterial3D
+var _bolt_glow: MeshInstance3D
+var _bolt_glow_mat: StandardMaterial3D
+var _bolt_light: OmniLight3D
+## Damcı yerə dəyəndə qalxan kiçik su tacı (şaquli billboard)
+var _crown_mm: MultiMesh
+var _crown_mat: StandardMaterial3D
 var _s_pos := PackedVector3Array()
 var _s_age := PackedFloat32Array()
 var _s_cursor := 0
@@ -168,6 +178,9 @@ func _step(delta: float) -> void:
 			main._terrain.set_surface_conditions(wet, 0.0, 0.0)
 		if main.get("wheel_fx") != null:
 			main.wheel_fx.dust_wet_factor = float(_cur["dust"]) * (1.0 - 0.85 * wet)
+	if absf(rain_level - _last_rain_sent) > 0.01 and main.get("_terrain") != null:
+		_last_rain_sent = rain_level
+		main._terrain.set_rain(rain_level)
 	var storm := float(_cur["storm"])
 	if main.get("audio") != null:
 		main.audio.rain = rain_level * (1.0 + 0.35 * storm)
@@ -229,43 +242,44 @@ func _apply_environment() -> void:
 	sky.set_shader_parameter("haze_col", Vector3(hc.r, hc.g, hc.b))
 	if _rain_mat != null:
 		var lum := lerpf(1.0, 0.30, 1.0 if night else 0.0) * (0.55 + 0.45 * minf(float(c["sun"]) * 2.0, 1.0))
-		_rain_mat.albedo_color = Color(0.80 * lum + 0.06, 0.86 * lum + 0.07, 0.95 * lum + 0.09, 0.5)
+		var tint := Vector3(0.62 * lum + 0.05, 0.67 * lum + 0.06, 0.75 * lum + 0.08)
+		_rain_mat.set_shader_parameter("tint", tint)
+		_rain_far_mat.set_shader_parameter("tint", tint)
 		_splash_mat.albedo_color = Color(0.85 * lum + 0.05, 0.9 * lum + 0.06, 1.0 * lum + 0.08, 0.7)
+		_crown_mat.albedo_color = Color(0.85 * lum + 0.05, 0.9 * lum + 0.06, 1.0 * lum + 0.08, 0.75)
 
 
 # --- yağış ----------------------------------------------------------------------------------
 
 func _build_rain() -> void:
-	var gradient := Gradient.new()
-	gradient.offsets = PackedFloat32Array([0.0, 0.5, 1.0])
-	gradient.colors = PackedColorArray([Color(1, 1, 1, 0), Color(1, 1, 1, 0.9), Color(1, 1, 1, 0)])
-	var streak := GradientTexture2D.new()
-	streak.gradient = gradient
-	streak.fill = GradientTexture2D.FILL_LINEAR
-	streak.fill_from = Vector2(0, 0)
-	streak.fill_to = Vector2(0, 1)
-	streak.width = 4
-	streak.height = 64
+	var shader := load("res://rain_drop.gdshader") as Shader
+	# yaxın qat: kameranın ətrafında iri, aydın damcılar
+	_rain_mat = ShaderMaterial.new()
+	_rain_mat.shader = shader
+	_rain_mat.set_shader_parameter("opacity", 0.42)
+	_rain_mat.set_shader_parameter("near_fade_start", 1.2)
+	_rain_mat.set_shader_parameter("near_fade_end", 2.6)
+	_rain_mat.set_shader_parameter("far_fade_start", 14.0)
+	_rain_mat.set_shader_parameter("far_fade_end", 21.0)
+	_rain = _make_rain_layer(_rain_mat, Vector2(0.007, 0.55), Vector3(20.0, 0.3, 20.0), RAIN_DROPS, 9.0)
+	# uzaq qat: dərinlik verən sıx, zəif "yağış pərdəsi"
+	_rain_far_mat = ShaderMaterial.new()
+	_rain_far_mat.shader = shader
+	_rain_far_mat.set_shader_parameter("opacity", 0.16)
+	_rain_far_mat.set_shader_parameter("near_fade_start", 12.0)
+	_rain_far_mat.set_shader_parameter("near_fade_end", 18.0)
+	_rain_far_mat.set_shader_parameter("far_fade_start", 48.0)
+	_rain_far_mat.set_shader_parameter("far_fade_end", 62.0)
+	_rain_far = _make_rain_layer(_rain_far_mat, Vector2(0.03, 1.5), Vector3(60.0, 0.5, 60.0), RAIN_FAR_DROPS, 16.0)
 
-	_rain_mat = StandardMaterial3D.new()
-	_rain_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	_rain_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	_rain_mat.albedo_texture = streak
-	_rain_mat.billboard_mode = BaseMaterial3D.BILLBOARD_PARTICLES
-	_rain_mat.billboard_keep_scale = true
-	_rain_mat.cull_mode = BaseMaterial3D.CULL_DISABLED
-	_rain_mat.distance_fade_mode = BaseMaterial3D.DISTANCE_FADE_PIXEL_ALPHA
-	_rain_mat.distance_fade_min_distance = 24.0
-	_rain_mat.distance_fade_max_distance = 5.0
-	_rain_mat.albedo_color = Color(0.8, 0.86, 0.95, 0.6)
 
+func _make_rain_layer(mat: ShaderMaterial, size: Vector2, box: Vector3, amount: int, drop: float) -> GPUParticles3D:
 	var quad := QuadMesh.new()
-	quad.size = Vector2(0.010, 0.7)
-	quad.material = _rain_mat
-
+	quad.size = size
+	quad.material = mat
 	var proc := ParticleProcessMaterial.new()
 	proc.emission_shape = ParticleProcessMaterial.EMISSION_SHAPE_BOX
-	proc.emission_box_extents = Vector3(20.0, 0.3, 20.0)
+	proc.emission_box_extents = box
 	proc.direction = Vector3(0.12, -1.0, 0.07).normalized()
 	proc.spread = 2.5
 	proc.initial_velocity_min = 19.0
@@ -274,19 +288,20 @@ func _build_rain() -> void:
 	proc.particle_flag_align_y = true
 	proc.scale_min = 0.7
 	proc.scale_max = 1.15
-
-	_rain = GPUParticles3D.new()
-	_rain.process_material = proc
-	_rain.draw_pass_1 = quad
-	_rain.amount = RAIN_DROPS
-	_rain.lifetime = 0.55
-	_rain.preprocess = 0.55
-	_rain.local_coords = false
-	_rain.visibility_aabb = AABB(Vector3(-40, -22, -40), Vector3(80, 30, 80))
-	_rain.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	_rain.top_level = true
-	_rain.emitting = false
-	add_child(_rain)
+	var layer := GPUParticles3D.new()
+	layer.process_material = proc
+	layer.draw_pass_1 = quad
+	layer.amount = amount
+	layer.lifetime = (drop + 4.0) / 22.0
+	layer.preprocess = layer.lifetime
+	layer.local_coords = false
+	layer.set_meta("drop", drop)
+	layer.visibility_aabb = AABB(Vector3(-box.x - 20, -drop - 15, -box.z - 20), Vector3(box.x * 2 + 40, drop + 30, box.z * 2 + 40))
+	layer.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	layer.top_level = true
+	layer.emitting = false
+	add_child(layer)
+	return layer
 
 
 func _build_splash() -> void:
@@ -333,6 +348,42 @@ func _build_splash() -> void:
 	_splash.custom_aabb = AABB(Vector3(-60, -60, -60), Vector3(120, 120, 120))
 	add_child(_splash)
 
+	var burst_g := Gradient.new()
+	burst_g.offsets = PackedFloat32Array([0.0, 0.35, 1.0])
+	burst_g.colors = PackedColorArray([Color(1, 1, 1, 0.95), Color(1, 1, 1, 0.45), Color(1, 1, 1, 0)])
+	var burst := GradientTexture2D.new()
+	burst.gradient = burst_g
+	burst.fill = GradientTexture2D.FILL_RADIAL
+	burst.fill_from = Vector2(0.5, 1.0)
+	burst.fill_to = Vector2(1.0, 0.6)
+	burst.width = 32
+	burst.height = 32
+	_crown_mat = StandardMaterial3D.new()
+	_crown_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	_crown_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	_crown_mat.albedo_texture = burst
+	_crown_mat.vertex_color_use_as_albedo = true
+	_crown_mat.billboard_mode = BaseMaterial3D.BILLBOARD_FIXED_Y
+	_crown_mat.billboard_keep_scale = true
+	_crown_mat.albedo_color = Color(0.9, 0.95, 1.0, 0.7)
+	var cq := QuadMesh.new()
+	cq.size = Vector2(1, 1)
+	cq.center_offset = Vector3(0, 0.5, 0)
+	cq.material = _crown_mat
+	_crown_mm = MultiMesh.new()
+	_crown_mm.transform_format = MultiMesh.TRANSFORM_3D
+	_crown_mm.use_colors = true
+	_crown_mm.mesh = cq
+	_crown_mm.instance_count = SPLASH_COUNT
+	for i in SPLASH_COUNT:
+		_crown_mm.set_instance_transform(i, Transform3D(Basis.from_scale(Vector3.ZERO), Vector3.ZERO))
+		_crown_mm.set_instance_color(i, Color(1, 1, 1, 0))
+	var crown := MultiMeshInstance3D.new()
+	crown.multimesh = _crown_mm
+	crown.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	crown.custom_aabb = _splash.custom_aabb
+	_splash.add_child(crown)
+
 
 func _camera() -> Camera3D:
 	if camera_override != null:
@@ -347,24 +398,32 @@ const SPLASH_RADIUS := 17.0
 func _update_rain(delta: float) -> void:
 	var cam := _camera()
 	var active := rain_level > 0.01 and cam != null
-	_rain.emitting = active
 	var storm_k := float(_cur["storm"])
-	_rain.amount_ratio = clampf(rain_level * (0.64 + 0.36 * storm_k), 0.05, 1.0)
-	var pm := _rain.process_material as ParticleProcessMaterial
-	pm.initial_velocity_min = 19.0 + 6.0 * storm_k
-	pm.initial_velocity_max = 26.0 + 8.0 * storm_k
+	var w := Vector3.ZERO
+	if main != null and main.get("wind") != null:
+		w = main.wind.direction * main.wind.strength
+	for layer: GPUParticles3D in [_rain, _rain_far]:
+		layer.emitting = active
+		layer.amount_ratio = clampf(rain_level * (0.64 + 0.36 * storm_k), 0.05, 1.0)
+		var pm := layer.process_material as ParticleProcessMaterial
+		pm.initial_velocity_min = 19.0 + 6.0 * storm_k
+		pm.initial_velocity_max = 26.0 + 8.0 * storm_k
+		# küləkdə damcılar maili düşür; fırtınada ara-sıra yayılma artır
+		pm.direction = Vector3(w.x * 0.55 + 0.05, -1.0, w.z * 0.55 + 0.03).normalized()
+		pm.spread = 2.5 + 4.0 * storm_k
 	_splash.visible = active or _splash_alive()
 	if cam == null:
 		return
 	var origin := cam.global_position
-	_rain.global_position = origin + Vector3(0.0, 9.0, 0.0)
-	if main != null and main.get("wind") != null:
-		var w: Vector3 = main.wind.direction * main.wind.strength
-		(_rain.process_material as ParticleProcessMaterial).direction = Vector3(w.x * 0.55 + 0.05, -1.0, w.z * 0.55 + 0.03).normalized()
+	# yağış həcmini kameranın bir az qabağına sürüşdür ki, sürətlə gedəndə boş yer görünməsin
+	var ahead := -cam.global_basis.z * Vector3(1, 0, 1)
+	for layer: GPUParticles3D in [_rain, _rain_far]:
+		var lead := 6.0 if layer == _rain else 20.0
+		layer.global_position = origin + ahead.normalized() * lead + Vector3(0.0, float(layer.get_meta("drop")), 0.0) - Vector3(w.x, 0.0, w.z) * 0.25
 	_splash.global_transform = Transform3D.IDENTITY
 	var terrain: MudTerrain = main.get("_terrain") if main != null else null
 	if active:
-		_s_credit += delta * 520.0 * rain_level * (1.0 + 0.5 * storm_k)
+		_s_credit += delta * 900.0 * rain_level * (1.0 + 0.5 * storm_k)
 		while _s_credit >= 1.0:
 			_s_credit -= 1.0
 			var angle := _rng.randf_range(0.0, TAU)
@@ -388,7 +447,13 @@ func _update_rain(delta: float) -> void:
 		var t := clampf(_s_age[i] / SPLASH_LIFE, 0.0, 1.0)
 		if t >= 1.0:
 			_splash_mm.set_instance_transform(i, Transform3D(Basis.from_scale(Vector3.ZERO), Vector3.ZERO))
+			_crown_mm.set_instance_transform(i, Transform3D(Basis.from_scale(Vector3.ZERO), Vector3.ZERO))
 			continue
+		# tac: ilk 35%-də qalxır, sonra çökür
+		var ct := clampf(t / 0.35, 0.0, 1.0)
+		var ch := 0.11 * sin(ct * PI) + 0.001
+		_crown_mm.set_instance_transform(i, Transform3D(Basis.from_scale(Vector3(0.05 + 0.07 * ct, ch, 1.0)), _s_pos[i]))
+		_crown_mm.set_instance_color(i, Color(1, 1, 1, 1.0 - ct))
 		var radius := lerpf(0.04, 0.26, sqrt(t))
 		_splash_mm.set_instance_transform(i, Transform3D(Basis.from_scale(Vector3(radius * 2.0, 1.0, radius * 2.0)), _s_pos[i]))
 		_splash_mm.set_instance_color(i, Color(1, 1, 1, (1.0 - t) * (1.0 - t)))
@@ -415,6 +480,26 @@ func _build_bolt_node() -> void:
 	_bolt.top_level = true
 	_bolt.visible = false
 	add_child(_bolt)
+	# geniş yumşaq hələ: şimşəyin ətrafındakı nəm havanın parıltısı
+	_bolt_glow_mat = StandardMaterial3D.new()
+	_bolt_glow_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	_bolt_glow_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	_bolt_glow_mat.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
+	_bolt_glow_mat.cull_mode = BaseMaterial3D.CULL_DISABLED
+	_bolt_glow_mat.disable_fog = true
+	_bolt_glow = MeshInstance3D.new()
+	_bolt_glow.material_override = _bolt_glow_mat
+	_bolt_glow.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	_bolt_glow.top_level = true
+	_bolt.add_child(_bolt_glow)
+	# yerə dəyən nöqtədə qısa işıq: ətrafı və yağışı ağardır
+	_bolt_light = OmniLight3D.new()
+	_bolt_light.omni_range = 400.0
+	_bolt_light.light_color = Color(0.7, 0.8, 1.0)
+	_bolt_light.shadow_enabled = false
+	_bolt_light.light_energy = 0.0
+	_bolt_light.top_level = true
+	add_child(_bolt_light)
 
 
 ## Şimşək vurur: qövs, səma parıltısı, günəşin istiqaməti və gecikməli ildırım. Testlər də çağırır.
@@ -479,7 +564,13 @@ func _update_lightning(delta: float) -> void:
 		_dirty = true
 	_bolt.visible = _flash_clock >= 0.0 and flash > 0.18
 	if _bolt.visible:
-		_bolt_mat.albedo_color = Color(4.0, 4.5, 6.0) * clampf(flash, 0.35, 1.0)
+		_bolt_mat.albedo_color = Color(5.0, 5.6, 8.0) * clampf(flash, 0.35, 1.0)
+		_bolt_glow_mat.albedo_color = Color(0.55, 0.65, 1.0, 0.35 * clampf(flash, 0.0, 1.0))
+	if _bolt_light != null:
+		_bolt_light.light_energy = flash * 5.0 * _flash_scale
+	if _rain_mat != null:
+		_rain_mat.set_shader_parameter("flash", flash)
+		_rain_far_mat.set_shader_parameter("flash", flash)
 
 
 func _restore_sun_direction() -> void:
@@ -495,26 +586,44 @@ func _build_bolt(origin: Vector3, az: float, dist: float) -> void:
 	var center := Vector3(origin.x, 0.0, origin.z) + horiz * dist
 	var terrain: MudTerrain = main.get("_terrain") if main != null else null
 	var ground_y := (terrain.height_at(center) if terrain != null else origin.y - 20.0)
-	var top_y := maxf(origin.y, ground_y) + 360.0
-	var pts: Array[Vector3] = []
-	var steps := 16
-	var offset := 0.0
-	for i in steps + 1:
-		offset += _rng.randf_range(-30.0, 30.0)
-		var k := float(i) / steps
-		pts.append(Vector3(center.x, lerpf(top_y, ground_y, k), center.z) + right * offset + horiz * _rng.randf_range(-6.0, 6.0))
-	var st := SurfaceTool.new()
-	st.begin(Mesh.PRIMITIVE_TRIANGLES)
-	_ribbon(st, pts, right, 6.0, 2.4)
-	for b in _rng.randi_range(2, 3):
-		var idx := _rng.randi_range(3, 10)
+	var top_y := maxf(origin.y, ground_y) + 380.0
+	var scale := clampf(dist / 500.0, 0.6, 2.2)
+	var pts := _jagged(Vector3(center.x, top_y, center.z), Vector3(center.x, ground_y, center.z), right, 26.0 * scale, 5)
+	var core := SurfaceTool.new()
+	core.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var halo := SurfaceTool.new()
+	halo.begin(Mesh.PRIMITIVE_TRIANGLES)
+	_ribbon(core, pts, right, 4.5 * scale, 1.6 * scale)
+	_ribbon(halo, pts, right, 26.0 * scale, 12.0 * scale)
+	# budaqlar: əsas kanaldan ayrılıb ikiqat azalan, daha nazik, yana əyilən qollar
+	for b in _rng.randi_range(4, 7):
+		var idx := _rng.randi_range(4, pts.size() - 12)
 		var side := -1.0 if _rng.randf() < 0.5 else 1.0
-		var branch: Array[Vector3] = [pts[idx]]
-		for j in 6:
-			var prev: Vector3 = branch[branch.size() - 1]
-			branch.append(prev + Vector3(0.0, -_rng.randf_range(24.0, 40.0), 0.0) + right * side * _rng.randf_range(8.0, 30.0))
-		_ribbon(st, branch, right, 3.0, 1.0)
-	_bolt.mesh = st.commit()
+		var from: Vector3 = pts[idx]
+		var to := from + Vector3(0.0, -_rng.randf_range(70.0, 170.0), 0.0) * scale + right * side * _rng.randf_range(40.0, 120.0) * scale
+		var branch := _jagged(from, to, right, 10.0 * scale, 4)
+		_ribbon(core, branch, right, 2.0 * scale, 0.5 * scale)
+		_ribbon(halo, branch, right, 9.0 * scale, 3.0 * scale)
+	_bolt.mesh = core.commit()
+	_bolt_glow.mesh = halo.commit()
+	if _bolt_light != null:
+		_bolt_light.global_position = Vector3(center.x, ground_y + 60.0, center.z) - horiz * minf(dist * 0.35, 200.0)
+
+
+## Orta nöqtəni təsadüfi yana sürüşdürməklə (midpoint displacement) təbii əyri-üyrü xətt qurur.
+func _jagged(a: Vector3, b: Vector3, right: Vector3, amp: float, levels: int) -> Array[Vector3]:
+	var pts: Array[Vector3] = [a, b]
+	var a_amp := amp
+	for l in levels:
+		var nxt: Array[Vector3] = []
+		for k in pts.size() - 1:
+			nxt.append(pts[k])
+			var mid := (pts[k] + pts[k + 1]) * 0.5
+			nxt.append(mid + right * _rng.randf_range(-a_amp, a_amp) + Vector3(0.0, 0.0, 0.0))
+		nxt.append(pts[pts.size() - 1])
+		pts = nxt
+		a_amp *= 0.55
+	return pts
 
 
 func _ribbon(st: SurfaceTool, pts: Array[Vector3], right: Vector3, w_top: float, w_bottom: float) -> void:

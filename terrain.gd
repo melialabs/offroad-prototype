@@ -158,6 +158,13 @@ func set_surface_conditions(wet: float, snow: float, ice: float) -> void:
 		mat.set_shader_parameter("ice_amount", clampf(ice, 0, 1))
 
 
+## Yağış intensivliyi: gölməçə və asfalt suyunda damcı halqaları.
+func set_rain(amount: float) -> void:
+	_material.set_shader_parameter("rain_amount", clampf(amount, 0.0, 1.0))
+	for patch in _fine_patches.values():
+		patch._mesh.material_override.set_shader_parameter("rain_amount", clampf(amount, 0.0, 1.0))
+
+
 ## Fəsil üçün ot rəngi (məsələn payızda sarımtıl).
 func set_grass_tint(tint: Color) -> void:
 	_material.set_shader_parameter("grass_tint", Vector3(tint.r, tint.g, tint.b))
@@ -774,6 +781,14 @@ func sample_grid(values: PackedFloat32Array, p: Vector3) -> float:
 	var z := floori(g.y)
 	return lerpf(lerpf(values[_idx(x, z)], values[_idx(x + 1, z)], g.x - x),
 		lerpf(values[_idx(x, z + 1)], values[_idx(x + 1, z + 1)], g.x - x), g.y - z)
+
+
+func sample_normal(p: Vector3) -> Vector3:
+	var g := _to_grid(p)
+	var x := floori(g.x)
+	var z := floori(g.y)
+	return _normals[_idx(x, z)].lerp(_normals[_idx(x + 1, z)], g.x - x).lerp(
+		_normals[_idx(x, z + 1)].lerp(_normals[_idx(x + 1, z + 1)], g.x - x), g.y - z).normalized()
 
 
 func _detail_key(p: Vector3) -> Vector2i:
