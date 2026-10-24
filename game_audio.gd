@@ -74,7 +74,8 @@ func _ready() -> void:
 	_crickets = _player(_recording("crickets"), -80.0)
 	_brook = _player(_recording("stream_brook"), -80.0)
 	# yağış: sintez olunmuş geniş zolaqlı səs-küy (həqiqi yazı yoxdur)
-	_rain = _player(_noise_loop(3.2, 0.82, 0.18, 1.0), -80.0)
+	# həqiqi yazı (assets/audio/rain_terrace.ogg, CC0) varsa o, yoxdursa sintez olunmuş küy
+	_rain = _player(_recording("rain_terrace") if _has_recording("rain_terrace") else _noise_loop(3.2, 0.82, 0.18, 1.0), -80.0)
 	_sfx = _player(null, -4.0, false)
 	_bird = _player(_recording("birds_dawn"), -80.0)
 	_tick_a = _tick(1900.0)
@@ -249,6 +250,10 @@ func _update_ambient(delta: float) -> void:
 			_animal.play()
 
 
+func _has_recording(name: String) -> bool:
+	return ResourceLoader.exists("res://assets/audio/%s.ogg" % name)
+
+
 func _recording(name: String) -> AudioStreamOggVorbis:
 	var stream := load("res://assets/audio/%s.ogg" % name).duplicate() as AudioStreamOggVorbis
 	stream.loop = true
@@ -259,10 +264,27 @@ func _recording(name: String) -> AudioStreamOggVorbis:
 func play_thunder(distance: float) -> void:
 	var kind := 0 if distance < 500.0 else (1 if distance < 1000.0 else 2)
 	if _thunder[kind] == null:
-		_thunder[kind] = _thunder_sound(kind)
+		_thunder[kind] = _thunder_stream(kind)
 	var db := lerpf(-1.0, -12.0, clampf((distance - 250.0) / 1100.0, 0.0, 1.0))
 	thunders += 1
-	_play_sfx(_thunder[kind], db)
+	# həqiqi yazıların hündürlüyü bir az dəyişir ki, təkrar eyni səslənməsin
+	var p := AudioStreamPlayer.new()
+	p.stream = _thunder[kind]
+	p.volume_db = db
+	p.pitch_scale = _rng.randf_range(0.92, 1.04)
+	add_child(p)
+	p.finished.connect(p.queue_free)
+	p.play()
+
+
+## CC0 həqiqi ildırım yazıları (thunder_7 yaxın, thunder_5 orta, thunder_1 uzaq); yoxdursa sintez.
+const THUNDER_FILES := ["thunder_7", "thunder_5", "thunder_1"]
+
+
+func _thunder_stream(kind: int) -> AudioStream:
+	if _has_recording(THUNDER_FILES[kind]):
+		return load("res://assets/audio/%s.ogg" % THUNDER_FILES[kind]) as AudioStream
+	return _thunder_sound(kind)
 
 
 ## Sintez olunmuş ildırım (həqiqi yazı yoxdur): qəhvəyi küy gurultusu + yaxında qısa çaqqıltı.
