@@ -357,16 +357,26 @@ func _route_index(line: PackedVector2Array, reach: float, gaps := PackedByteArra
 	return bins
 
 
-func _near_route(p: Vector2, line: PackedVector2Array, lens: PackedFloat32Array, bins: Dictionary) -> Array:
+## gaps verilərsə: xəttin həqiqi ucundan kənarda (yol bitən yerdə) işarəli məsafə həmişə müsbət olur.
+## Əks halda uzantı boyunca işarə dəyişir, relyef təpələri arasında 0-dan keçir və shader yolun
+## davamı kimi nazik asfalt + orta xətt çəkir.
+func _near_route(p: Vector2, line: PackedVector2Array, lens: PackedFloat32Array, bins: Dictionary, gaps := PackedByteArray()) -> Array:
 	var key := Vector2i(floori(p.x / ROUTE_BIN), floori(p.y / ROUTE_BIN))
 	var best := [10000.0, 10000.0, 0.0, 0, 0.0]
 	for i: int in bins.get(key, []):
 		var ab := line[i + 1] - line[i]
-		var t := clampf((p - line[i]).dot(ab) / maxf(ab.length_squared(), 0.001), 0.0, 1.0)
+		var raw := (p - line[i]).dot(ab) / maxf(ab.length_squared(), 0.001)
+		var t := clampf(raw, 0.0, 1.0)
 		var d := p.distance_to(line[i] + ab * t)
 		if d < best[0]:
 			var ap := p - line[i]
-			best = [d, d * (1.0 if ab.cross(ap) >= 0.0 else -1.0), lens[i] + t * ab.length(), i, t]
+			var sgn := 1.0 if ab.cross(ap) >= 0.0 else -1.0
+			if not gaps.is_empty():
+				var past_end := raw > 1.0 and (i + 1 >= line.size() - 1 or gaps[i + 1] == 1)
+				var before_start := raw < 0.0 and (i == 0 or gaps[i - 1] == 1)
+				if past_end or before_start:
+					sgn = 1.0
+			best = [d, d * sgn, lens[i] + t * ab.length(), i, t]
 	return best
 
 
@@ -467,7 +477,7 @@ func _generate() -> void:
 				deep_k = maxf(deep_k, basin)
 
 			# asfalt yol
-			var rd := _near_route(p, _road, _road_len, _road_bins)
+			var rd := _near_route(p, _road, _road_len, _road_bins, _road_gap)
 			var d: float = rd[0]
 			var seg: int = rd[3]
 			var t: float = rd[4]
