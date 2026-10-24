@@ -58,7 +58,110 @@ static func clearing(p: Vector3) -> bool:
 	for s in PROPS:
 		if Vector2(p.x, p.z).distance_to(s["p"]) < float(s["clear"]):
 			return true
+	for e in extras:
+		if Vector2(p.x, p.z).distance_to(e["p"]) < float(e["clear"]):
+			return true
 	return false
+
+
+## Yeni modellər (assets/props/town): köhnə maşınlar və yol kənarı binalar. size: x, hündürlük, z; axis: uzun ox.
+const TOWN_PROPS := {
+	"necro": {"path": "res://assets/props/town/necro_car.glb", "size": Vector3(3.15, 1.53, 4.35), "axis": "z", "clear": 4.5, "car": true},
+	"ural": {"path": "res://assets/props/town/ural_crane.glb", "size": Vector3(2.33, 3.01, 8.4), "axis": "z", "clear": 6.0, "car": true},
+	"abandoned": {"path": "res://assets/props/town/abandoned.glb", "size": Vector3(9.84, 6.41, 9.83), "axis": "x", "clear": 13.0, "car": false},
+	"concrete_1": {"path": "res://assets/props/town/concrete_1.glb", "size": Vector3(8.44, 6.74, 8.43), "axis": "x", "clear": 12.0, "car": false},
+	"concrete_4": {"path": "res://assets/props/town/concrete_4.glb", "size": Vector3(8.39, 6.09, 8.48), "axis": "x", "clear": 12.0, "car": false},
+	"concrete_5": {"path": "res://assets/props/town/concrete_5.glb", "size": Vector3(7.91, 6.5, 7.91), "axis": "x", "clear": 12.0, "car": false},
+	"brick_shop": {"path": "res://assets/props/town/brick_shop.glb", "size": Vector3(24.2, 9.6, 7.2), "axis": "x", "clear": 17.0, "car": false},
+	"row_house": {"path": "res://assets/props/town/row_house.glb", "size": Vector3(8.32, 11.16, 19.9), "axis": "z", "clear": 15.0, "car": false},
+}
+const ROW_HOUSE_TINT := Color(0.80, 0.66, 0.52)
+## [növ, şəhərdə say, şəhərdən kənarda say]
+const EXTRA_PLAN := [
+	["necro", 9, 7], ["ural", 2, 3],
+	["abandoned", 0, 5], ["concrete_1", 0, 2], ["concrete_4", 0, 2], ["concrete_5", 0, 2], ["brick_shop", 0, 2], ["row_house", 0, 1],
+]
+## Yol kənarındakı köhnə maşın və binaların yeri: terrain hazır olan kimi (bitki örtüyündən əvvəl) hesablanır ki, bitkilər təmizlənsin.
+static var extras: Array = []
+
+
+static func plan_extras(terrain: MudTerrain) -> void:
+	extras.clear()
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 9021
+	var road: PackedVector2Array = terrain._road
+	if road.size() < 4:
+		return
+	for plan in EXTRA_PLAN:
+		var def: Dictionary = TOWN_PROPS[plan[0]]
+		var size: Vector3 = def["size"]
+		var half := maxf(size.x, size.z) * 0.5
+		for in_town in [true, false]:
+			var want := int(plan[1] if in_town else plan[2])
+			var tries := 0
+			while want > 0 and tries < 400:
+				tries += 1
+				var i := rng.randi_range(0, road.size() - 2)
+				if terrain._road_gap[i] == 1:
+					continue
+				var a := road[i]
+				var d := (road[i + 1] - a).normalized()
+				if d.length() < 0.5:
+					continue
+				var inside := MapLayout._ellipse(a, MapLayout.TOWN, MapLayout.TOWN_RADII) < 0.95
+				if inside != in_town:
+					continue
+				var side := 1.0 if rng.randf() < 0.5 else -1.0
+				var nrm := Vector2(-d.y, d.x) * side
+				var off := (MudTerrain.ROAD_HALF + 2.6 + rng.randf_range(0.0, 1.2)) if def["car"] else (MudTerrain.ROAD_HALF + 5.0 + half + rng.randf_range(2.0, 9.0))
+				var q := a + nrm * off
+				var qp := Vector3(q.x, 0, q.y)
+				if terrain.road_distance_at(qp) < MudTerrain.ROAD_HALF + (1.6 if def["car"] else 3.5 + half * 0.6):
+					continue
+				if terrain.water_level_at(qp) != -INF:
+					continue
+				var ground := terrain.height_at(qp)
+				if terrain.bridge_deck_above(qp, ground) > -INF or terrain.activity_clearing(qp):
+					continue
+				if terrain.slope_at(qp) > 0.35:
+					continue
+				var clear := float(def["clear"])
+				var ok := true
+				for s in PROPS:
+					if q.distance_to(s["p"]) < float(s["clear"]) + clear * 0.6:
+						ok = false
+						break
+				for e in extras:
+					if ok and q.distance_to(e["p"]) < float(e["clear"]) + clear * 0.8:
+						ok = false
+				if not ok:
+					continue
+				# yaw: uzun ox yola paralel; avtomobilləri bəzən xaraba kimi çarpaz qoy
+				var yaw := atan2(d.x, d.y) if def["axis"] == "z" else atan2(-d.y, d.x)
+				if def["car"]:
+					yaw += rng.randf_range(-0.22, 0.22) + (PI if rng.randf() < 0.5 else 0.0)
+					if rng.randf() < 0.18:
+						yaw += rng.randf_range(0.6, 1.2)
+				extras.append({"kind": plan[0], "p": q, "yaw": yaw, "clear": clear})
+				want -= 1
+
+
+## Tekstura daşımayan (düz ağ) materialları verilmiş suvaq rəngi ilə boyayır (row_house modeli ağ gəlir).
+static var _tint_cache: Dictionary = {}
+static func tint_untextured(node: Node, color: Color) -> void:
+	for n in node.find_children("*", "MeshInstance3D", true, false):
+		var mi := n as MeshInstance3D
+		for s in mi.mesh.get_surface_count():
+			var mat := mi.mesh.surface_get_material(s) as BaseMaterial3D
+			if mat == null:
+				continue
+			if not _tint_cache.has(mat):
+				var tinted := mat.duplicate() as BaseMaterial3D
+				tinted.albedo_color = color
+				tinted.roughness = 0.9
+				tinted.metallic = 0.0
+				_tint_cache[mat] = tinted
+			mi.set_surface_override_material(s, _tint_cache[mat])
 
 
 ## Skan modellərinin çoxu işıqsız (unlit) materialla gəlir və gecə parlayır: işıq qəbul edən surətlərlə əvəzlənir.
@@ -84,6 +187,8 @@ func build(terrain: MudTerrain) -> void:
 	for s in PROPS:
 		_place(terrain, s)
 	_place_road_lamps(terrain)
+	for e in extras:
+		_place_extra(terrain, e)
 	_scatter(terrain)
 
 
@@ -148,6 +253,61 @@ func _place(terrain: MudTerrain, s: Dictionary) -> void:
 		mat.roughness = 1.0
 		slab.material_override = mat
 		root.add_child(slab)
+
+
+func _place_extra(terrain: MudTerrain, e: Dictionary) -> void:
+	var def: Dictionary = TOWN_PROPS[e["kind"]]
+	if not ResourceLoader.exists(def["path"]):
+		return
+	var size: Vector3 = def["size"]
+	var p: Vector2 = e["p"]
+	var yaw: float = e["yaw"]
+	var fwd := Vector3(sin(yaw), 0, cos(yaw))
+	var right := Vector3(cos(yaw), 0, -sin(yaw))
+	var c := Vector3(p.x, 0, p.y)
+	# yamacda avtomobil yerin meylinə uyğun əyilir; bina isə ən alçaq küncə oturub özül alır
+	var hf := terrain.height_at(c + fwd * size.z * 0.4)
+	var hb := terrain.height_at(c - fwd * size.z * 0.4)
+	var hr := terrain.height_at(c + right * size.x * 0.4)
+	var hl := terrain.height_at(c - right * size.x * 0.4)
+	var root := Node3D.new()
+	add_child(root)
+	var inst := (load(def["path"]) as PackedScene).instantiate() as Node3D
+	root.add_child(inst)
+	if e["kind"] == "row_house":
+		tint_untextured(inst, ROW_HOUSE_TINT)
+	var hgt: float = size.y
+	if def["car"]:
+		var up := Vector3((hl - hr) / (size.x * 0.8), 1.0, (hb - hf) / (size.z * 0.8)).normalized()
+		var bz := fwd.slide(up).normalized()
+		var bx := up.cross(bz).normalized()
+		var ground := (hf + hb + hr + hl) * 0.25 - 0.06
+		root.transform = Transform3D(Basis(bx, up, bz), Vector3(p.x, ground, p.y))
+	else:
+		var low := minf(minf(hf, hb), minf(hr, hl))
+		var high := maxf(maxf(hf, hb), maxf(hr, hl))
+		root.transform = Transform3D(Basis(Vector3.UP, yaw), Vector3(p.x, low - 0.15, p.y))
+		var depth := high - low + 0.6
+		var slab := MeshInstance3D.new()
+		var sbox := BoxMesh.new()
+		sbox.size = Vector3(size.x + 0.3, depth, size.z + 0.3)
+		slab.mesh = sbox
+		slab.position = Vector3(0, 0.1 - depth * 0.5, 0)
+		var mat := StandardMaterial3D.new()
+		mat.albedo_color = Color(0.42, 0.41, 0.4)
+		mat.roughness = 1.0
+		slab.material_override = mat
+		root.add_child(slab)
+	for n in inst.find_children("*", "MeshInstance3D", true, false):
+		(n as MeshInstance3D).visibility_range_end = 380.0 if def["car"] else 650.0
+	var body := StaticBody3D.new()
+	var col := CollisionShape3D.new()
+	var shape := BoxShape3D.new()
+	shape.size = Vector3(size.x, hgt, size.z)
+	col.shape = shape
+	col.position = Vector3(0, hgt * 0.5, 0)
+	body.add_child(col)
+	root.add_child(body)
 
 
 ## Daşlar, qayalar, yıxılmış ağaclar və kötüklər: bölgəyə uyğun təsadüfi (sabit toxumlu) yerləşdirmə,

@@ -36,7 +36,7 @@ func _build_town(terrain: MudTerrain) -> void:
 		while z <= c.y + r.y:
 			var p := Vector2(x + rng.randf_range(-3, 3), z + rng.randf_range(-3, 3))
 			var e := MapLayout._ellipse(p, c, r)
-			if e < 0.92 and terrain.road_distance_at(Vector3(p.x, 0, p.y)) > MudTerrain.ROAD_HALF + 7.0:
+			if e < 0.92 and terrain.road_distance_at(Vector3(p.x, 0, p.y)) > MudTerrain.ROAD_HALF + 5.0:
 				# mərkəzə yaxın: çoxmərtəbəli bina; kənarda: maili damlı ev
 				var tall := e < 0.42 and rng.randf() < 0.75
 				_building(terrain, body, p, tall, rng)
@@ -44,45 +44,114 @@ func _build_town(terrain: MudTerrain) -> void:
 		x += BLOCK
 
 
+## Şəhər binası modelləri (assets/props/town): {yol, ölçü x, hündürlük, ölçü z}; ölçülər tools/prep_props.gd çıxışıdır
+const TOWN_MODELS := {
+	"brick_shop": {"path": "res://assets/props/town/brick_shop.glb", "size": Vector3(24.2, 9.6, 7.2)},
+	"concrete_1": {"path": "res://assets/props/town/concrete_1.glb", "size": Vector3(8.44, 6.74, 8.43)},
+	"concrete_4": {"path": "res://assets/props/town/concrete_4.glb", "size": Vector3(8.39, 6.09, 8.48)},
+	"concrete_5": {"path": "res://assets/props/town/concrete_5.glb", "size": Vector3(7.91, 6.5, 7.91)},
+	"abandoned": {"path": "res://assets/props/town/abandoned.glb", "size": Vector3(9.84, 6.41, 9.83)},
+	"row_house": {"path": "res://assets/props/town/row_house.glb", "size": Vector3(8.32, 11.16, 19.9)},
+}
+## Mərkəzdə iri/hündür, kənarda alçaq binalar: [açar, çəki]
+const TOWN_CENTER := [["brick_shop", 2], ["row_house", 2], ["concrete_1", 2], ["concrete_4", 1], ["concrete_5", 1], ["abandoned", 1]]
+const TOWN_OUTER := [["abandoned", 3], ["concrete_1", 2], ["concrete_4", 2], ["concrete_5", 2], ["row_house", 1]]
+## Model yaxınlıqda tam detalla, uzaqda ucuz qutu kimi çəkilir
+const MODEL_RANGE := 260.0
+var _model_scenes := {}
+
+
+func _pick_model(rng: RandomNumberGenerator, table: Array) -> String:
+	var total := 0
+	for e in table:
+		total += int(e[1])
+	var r := rng.randi_range(1, total)
+	for e in table:
+		r -= int(e[1])
+		if r <= 0:
+			return e[0]
+	return table[0][0]
+
+
 func _building(terrain: MudTerrain, body: StaticBody3D, p: Vector2, tall: bool, rng: RandomNumberGenerator) -> void:
-	var w := rng.randf_range(9.0, 14.0) if tall else rng.randf_range(7.0, 10.0)
-	var d := rng.randf_range(9.0, 13.0) if tall else rng.randf_range(7.0, 9.5)
-	var floors := rng.randi_range(4, 7) if tall else rng.randi_range(1, 2)
+	var key := _pick_model(rng, TOWN_CENTER if tall else TOWN_OUTER)
+	var yaw_steps := rng.randi_range(0, 3)
+	var quarter := yaw_steps % 2 == 1
+	var model: Dictionary = TOWN_MODELS[key]
+	var msize: Vector3 = model["size"]
+	var w := msize.z if quarter else msize.x
+	var d := msize.x if quarter else msize.z
+	# böyük bina yola və ya qonşuya girməsin: icazə yoxdursa kiçik binaya keç
+	var reach := maxf(w, d) * 0.5 * 1.2
+	if terrain.road_distance_at(Vector3(p.x, 0, p.y)) < MudTerrain.ROAD_HALF + 2.0 + reach:
+		key = "abandoned"
+		model = TOWN_MODELS[key]
+		msize = model["size"]
+		w = msize.z if quarter else msize.x
+		d = msize.x if quarter else msize.z
+		reach = maxf(w, d) * 0.5 * 1.2
+		if terrain.road_distance_at(Vector3(p.x, 0, p.y)) < MudTerrain.ROAD_HALF + 2.0 + reach:
+			return
 	footprints.append([p, Vector2(w, d), tall])
-	var hgt := floors * 3.0
+	var hgt: float = msize.y
 	var ground := INF
-	for k in [Vector2(-1, -1), Vector2(1, -1), Vector2(-1, 1), Vector2(1, 1)]:
-		ground = minf(ground, terrain.height_at(Vector3(p.x + k.x * w * 0.5, 0, p.y + k.y * d * 0.5)))
-	var base := Vector3(p.x, ground - 0.3, p.y)
+	var top := -INF
+	for k in [Vector2(-1, -1), Vector2(1, -1), Vector2(-1, 1), Vector2(1, 1), Vector2.ZERO]:
+		var gh := terrain.height_at(Vector3(p.x + k.x * w * 0.5, 0, p.y + k.y * d * 0.5))
+		ground = minf(ground, gh)
+		top = maxf(top, gh)
+	var base := Vector3(p.x, ground - 0.15, p.y)
+	if not _model_scenes.has(key):
+		_model_scenes[key] = load(model["path"]) as PackedScene
+	var holder := Node3D.new()
+	holder.position = base
+	holder.rotation.y = yaw_steps * PI * 0.5 + rng.randf_range(-0.03, 0.03)
+	add_child(holder)
+	var inst := (_model_scenes[key] as PackedScene).instantiate() as Node3D
+	holder.add_child(inst)
+	if key == "row_house":
+		WorldProps.tint_untextured(inst, WorldProps.ROW_HOUSE_TINT)
+	for n in inst.find_children("*", "MeshInstance3D", true, false):
+		var mi := n as MeshInstance3D
+		mi.visibility_range_end = MODEL_RANGE
+		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON if MODEL_RANGE > 0.0 else GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	# özül: yamacda bina ilə yer arasında boşluq qalmasın
+	var depth := top - ground + 0.6
+	var slab := MeshInstance3D.new()
+	var sbox := BoxMesh.new()
+	sbox.size = Vector3(msize.x + 0.3, depth, msize.z + 0.3)
+	slab.mesh = sbox
+	slab.position = Vector3(0, 0.1 - depth * 0.5, 0)
+	slab.material_override = _plain(Color(0.42, 0.41, 0.4))
+	slab.visibility_range_end = MODEL_RANGE
+	holder.add_child(slab)
+	# uzaq LOD: qutu + dam
+	var far := Node3D.new()
+	far.position = base
+	add_child(far)
 	var walls := MeshInstance3D.new()
 	var box := BoxMesh.new()
-	box.size = Vector3(w, hgt + 0.3, d)
+	box.size = Vector3(w, hgt, d)
 	walls.mesh = box
-	walls.position = base + Vector3(0, (hgt + 0.3) * 0.5, 0)
+	walls.position = Vector3(0, hgt * 0.5, 0)
 	walls.material_override = _wall_material(WALLS[rng.randi() % WALLS.size()])
-	walls.visibility_range_end = 900.0
-	add_child(walls)
-	if tall:
-		var roof := MeshInstance3D.new()
-		var slab := BoxMesh.new()
-		slab.size = Vector3(w + 0.4, 0.4, d + 0.4)
-		roof.mesh = slab
-		roof.position = base + Vector3(0, hgt + 0.5, 0)
-		roof.material_override = _plain(Color(0.35, 0.35, 0.36))
-		add_child(roof)
-	else:
-		var roof := MeshInstance3D.new()
-		var prism := PrismMesh.new()
-		prism.size = Vector3(w + 0.8, 2.6, d + 0.8)
-		roof.mesh = prism
-		roof.position = base + Vector3(0, hgt + 0.3 + 1.3, 0)
-		roof.material_override = _plain(ROOFS[rng.randi() % ROOFS.size()])
-		add_child(roof)
+	walls.visibility_range_begin = MODEL_RANGE - 10.0
+	walls.visibility_range_end = 1000.0
+	far.add_child(walls)
+	var roof := MeshInstance3D.new()
+	var slab2 := BoxMesh.new()
+	slab2.size = Vector3(w + 0.4, 0.4, d + 0.4)
+	roof.mesh = slab2
+	roof.position = Vector3(0, hgt + 0.1, 0)
+	roof.material_override = _plain(Color(0.35, 0.35, 0.36))
+	roof.visibility_range_begin = MODEL_RANGE - 10.0
+	roof.visibility_range_end = 1000.0
+	far.add_child(roof)
 	var col := CollisionShape3D.new()
 	var shape := BoxShape3D.new()
-	shape.size = Vector3(w, hgt + 1.5, d)
+	shape.size = Vector3(w, hgt + 1.0, d)
 	col.shape = shape
-	col.position = walls.position
+	col.position = base + Vector3(0, (hgt + 1.0) * 0.5 - 0.1, 0)
 	body.add_child(col)
 	buildings += 1
 

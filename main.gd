@@ -300,6 +300,7 @@ func _build_scenery(terrain: MudTerrain) -> void:
 	var landmarks := WorldLandmarks.new()
 	add_child(landmarks)
 	landmarks.build(terrain)
+	WorldProps.plan_extras(terrain)
 	vegetation = Vegetation.new()
 	vegetation.name = "Vegetation"
 	add_child(vegetation)
