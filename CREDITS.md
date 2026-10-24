@@ -127,3 +127,8 @@ Sketchfab "Old garage" fotoskan modeli (`square-garage`), istifadəçi tərəfin
 `small_cobblestone_paving_cubes_pile_free`, `street_lamp`. `tools/prepare_prop.gd` ilə teksturalar kiçildilib,
 ağır skanlar sadələşdirilib (anbar 2.75M → 154k, torpaq 611k → 73k, daşlar 200k → 50k üçbucaq).
 Düzgün görünməyən `stone_hut_scan` və `chateau_de_sabarda` əlavə edilmədi.
+
+## Bitki və çöl obyektləri (assets/props/plants, assets/props/new)
+İstifadəçinin yüklədiyi Sketchfab GLB-ləri (müəllif/lisenziya yoxlanılmayıb): `desert_shrubs`, `scanned_plants_and_grass`, `xmas_tree_realistic`,
+`forest_house_ruin`, `stone_fireplace`, `stone_rockpart11`, `nordic_forest_rock_small`, `nordic_forest_tree_fallen_medium`, `old_river_log`.
+`tools/prepare_prop.gd` ilə kiçildilib. Düzgün görünməyən `realistics_grass_06`, `low_poly_trees_free`, Kikuyu otu əlavə edilmədi.

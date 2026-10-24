@@ -16,6 +16,10 @@ const PROPS := [
 	{"model": "res://assets/props/new/house_ruin.glb", "p": Vector2(-620, -60), "scale": 0.42, "clear": 10.0, "slab": false, "sink": 0.3, "mean": true},
 	{"model": "res://assets/props/new/house_ruin.glb", "p": Vector2(-280, 330), "scale": 0.42, "clear": 10.0, "slab": false, "sink": 0.3, "mean": true},
 	{"model": "res://assets/props/new/house_ruin.glb", "p": Vector2(-200, -560), "scale": 0.42, "clear": 10.0, "slab": false, "sink": 0.3, "mean": true},
+	# xaraba evlərin yanında tək yolka
+	{"model": "res://assets/props/plants/xmas_tree.glb", "p": Vector2(-598, -48), "scale": 1.3, "clear": 3.0, "slab": false, "sink": 0.1, "mean": true},
+	{"model": "res://assets/props/plants/xmas_tree.glb", "p": Vector2(-258, 345), "scale": 1.3, "clear": 3.0, "slab": false, "sink": 0.1, "mean": true},
+	{"model": "res://assets/props/plants/xmas_tree.glb", "p": Vector2(-178, -542), "scale": 1.3, "clear": 3.0, "slab": false, "sink": 0.1, "mean": true},
 	{"model": "res://assets/props/new/fireplace.glb", "p": Vector2(-560, -130), "scale": 0.25, "clear": 5.0, "slab": false, "sink": 0.2, "mean": true},
 	{"model": "res://assets/props/new/fireplace.glb", "p": Vector2(-150, -515), "scale": 0.25, "clear": 5.0, "slab": false, "sink": 0.2, "mean": true},
 ]
@@ -25,6 +29,9 @@ const SCATTER := [
 	["res://assets/props/new/rock_part.glb", 30, Vector2(0.12, 0.28), "rocky", 2.0],
 	["res://assets/props/new/fallen_tree.glb", 45, Vector2(3.5, 5.0), "forest", 0.4],
 	["res://assets/props/new/river_log.glb", 20, Vector2(1.6, 2.4), "river", 0.4],
+	# kanyon və mədən ətrafında quru çöl kolları, meşədə yosun/ot skanları
+	["res://assets/props/plants/desert_shrubs.glb", 40, Vector2(0.35, 0.7), "rocky", 0.0],
+	["res://assets/props/plants/scanned_plants.glb", 30, Vector2(0.35, 0.6), "wild", 0.0],
 ]
 const LAMP_SPACING := 110.0
 const LAMP_OFFSET := MudTerrain.ROAD_HALF + 2.3
