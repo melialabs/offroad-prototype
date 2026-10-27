@@ -261,6 +261,7 @@ func _build_rain() -> void:
 	_rain_mat.set_shader_parameter("near_fade_end", 2.6)
 	_rain_mat.set_shader_parameter("far_fade_start", 14.0)
 	_rain_mat.set_shader_parameter("far_fade_end", 21.0)
+	_rain_mat.set_shader_parameter("quad_size", Vector2(0.007, 0.55))
 	_rain = _make_rain_layer(_rain_mat, Vector2(0.007, 0.55), Vector3(20.0, 0.3, 20.0), RAIN_DROPS, 9.0)
 	# uzaq qat: dərinlik verən sıx, zəif "yağış pərdəsi"
 	_rain_far_mat = ShaderMaterial.new()
@@ -270,6 +271,7 @@ func _build_rain() -> void:
 	_rain_far_mat.set_shader_parameter("near_fade_end", 18.0)
 	_rain_far_mat.set_shader_parameter("far_fade_start", 48.0)
 	_rain_far_mat.set_shader_parameter("far_fade_end", 62.0)
+	_rain_far_mat.set_shader_parameter("quad_size", Vector2(0.03, 1.5))
 	_rain_far = _make_rain_layer(_rain_far_mat, Vector2(0.03, 1.5), Vector3(60.0, 0.5, 60.0), RAIN_FAR_DROPS, 16.0)
 
 
