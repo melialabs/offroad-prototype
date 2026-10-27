@@ -32,6 +32,10 @@ var _track_cursor := 0
 var _last_mark: Array[Vector3] = []
 var _shadow: Decal
 ## HIGH/ULTRA: maşının ətrafını (ağaclar, yer) kuzova əks etdirən probe; yalnız yer dəyişəndə yenilənir
+## Maşının vizual qatı. Maşın probe-u yalnız bu qata əks verir (reflection_mask) və bu qatı çəkmir (cull_mask).
+## Əvvəl probe-un 60 m qutusu torpağa da əks verirdi; çəkim nöqtəsi maşının içində olduğu üçün kub tünd idi və
+## yağışda (parlaq yaş torpaq) maşının ətrafında kəskin kənarlı tünd kvadrat görünürdü.
+const VEHICLE_LAYER := 2
 var _probe: ReflectionProbe
 var _probe_at := Vector3.INF
 var _probe_timer := 0.0
@@ -65,6 +69,9 @@ func _ready() -> void:
 	_make_tracks()
 	_make_contact_shadow()
 	set_reflection_probe(GraphicsQuality.vehicle_probe(GraphicsQuality.saved_level()))
+	_tag_vehicle.call_deferred()
+	if truck != null and not truck.vehicle_changed.is_connected(_tag_vehicle):
+		truck.vehicle_changed.connect(_tag_vehicle, CONNECT_DEFERRED)
 
 
 func _physics_process(_delta: float) -> void:
@@ -126,26 +133,38 @@ func set_reflection_probe(on: bool) -> void:
 		return
 	_probe = ReflectionProbe.new()
 	_probe.update_mode = ReflectionProbe.UPDATE_ONCE
-	_probe.size = Vector3(60, 30, 60)
+	_probe.size = Vector3(20, 10, 20)
+	_probe.blend_distance = 2.0
 	_probe.max_distance = 70.0
 	_probe.intensity = 1.0
 	_probe.enable_shadows = false
 	_probe.ambient_mode = ReflectionProbe.AMBIENT_DISABLED
 	_probe.mesh_lod_threshold = 4.0
+	_probe.reflection_mask = VEHICLE_LAYER
+	_probe.cull_mask = 0xFFFFF & ~VEHICLE_LAYER
 	_probe.top_level = true
 	add_child(_probe)
 	_probe_at = Vector3.INF
 
 
+## Maşının bütün görünən hissələrini (gövdə, təkərlər, palçıq) maşın qatına köçürür; maşın dəyişəndə yenilənir.
+func _tag_vehicle(_index: int = 0) -> void:
+	if truck == null:
+		return
+	for n in truck.find_children("*", "GeometryInstance3D", true, false):
+		(n as GeometryInstance3D).layers = VEHICLE_LAYER
+
+
 func _update_probe(delta: float) -> void:
 	if _probe == null or truck == null:
 		return
+	# qutu hər kadr maşınla gedir (ucuzdur); kub yalnız 8 m-dən bir yenidən çəkilir
+	_probe.global_position = truck.global_position + Vector3(0, 1.5, 0)
 	_probe_timer -= delta
 	if _probe_timer > 0.0 or truck.global_position.distance_to(_probe_at) < 8.0:
 		return
 	_probe_timer = 1.5
 	_probe_at = truck.global_position
-	_probe.global_position = truck.global_position + Vector3(0, 1.5, 0)
 	# UPDATE_ONCE yalnız dəyişiklikdə yenidən çəkilir: kiçik dəyişiklik yeniləməni tətikləyir
 	_probe.max_distance = 70.0 if _probe.max_distance != 70.0 else 70.01
 

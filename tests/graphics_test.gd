@@ -69,6 +69,16 @@ func _physics_process(_d: float) -> bool:
 				check(m.metallic < 0.5 and m.clearcoat_enabled, "car paint is clear-coated dielectric: %s" % m.resource_name)
 				painted += 1
 	check(painted > 0, "paint materials found on UAZ 469")
+	# maşın probe-u yalnız maşın qatına əks verir: əks halda yağışda torpaqda tünd kvadrat qalırdı
+	fx.set_reflection_probe(true)
+	fx._tag_vehicle()
+	var pr: ReflectionProbe = fx._probe
+	check(pr != null and (pr.reflection_mask & 1) == 0 and (pr.reflection_mask & WheelEffects.VEHICLE_LAYER) != 0, "vehicle probe does not reflect onto terrain")
+	check((pr.cull_mask & WheelEffects.VEHICLE_LAYER) == 0, "vehicle probe does not capture the vehicle itself")
+	var tagged := true
+	for n in main.truck.find_children("*", "GeometryInstance3D", true, false):
+		tagged = tagged and (n as GeometryInstance3D).layers == WheelEffects.VEHICLE_LAYER
+	check(tagged, "all vehicle meshes on the vehicle layer")
 	check(main.hud.truck == main.truck and main.world_map.truck == main.truck, "HUD and GPS still bound")
 	print("GRAPHICS TEST failures=", failures.size())
 	quit(0 if failures.is_empty() else 1)
